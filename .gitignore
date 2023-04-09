@@ -1,0 +1,6 @@
+*~
+*.class
+target/
+dependency-reduced-pom.xml
+config.json
+jre/

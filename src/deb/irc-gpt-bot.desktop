@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Name=IRC GPT Bot
+Comment=An IRC Bot for chatGPT
+Exec=/usr/bin/irc-gpt-bot
+Icon=/usr/share/icons/irc-gpt-bot/icon-64.png
+Terminal=true
+Type=Application
+Categories=Utility;Application;

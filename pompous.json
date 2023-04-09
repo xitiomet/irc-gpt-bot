@@ -1,0 +1,18 @@
+{
+    "projectName": "IRC GPT Bot",
+    "domain": "openstatic.org",
+    "projectShortName": "irc-gpt-bot",
+    "mainClassName": "IRCGPTBotMain",
+    "projectDescription": "An IRC Bot for chatGPT",
+    "appType": "cli",
+    "licType": "ACSL",
+    "depJava": "on",
+    "depOrgJson": "on",
+    "depLanterna": "on",
+    "nativeImage": "on",
+    "debianPackage": "on",
+    "appImage": "on",
+    "launch4j": "on",
+    "nsisPackage": "on",
+    "generate": "Build my Maven Project STUB"
+}
