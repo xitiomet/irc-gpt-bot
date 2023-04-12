@@ -30,24 +30,14 @@ public class ChatGPT
         this.executorService = Executors.newSingleThreadExecutor(tf);
     }
 
-    public Future<String> callChatGPT(String user, String message, String system) 
+    public Future<String> callChatGPT(String assistantNick, ChatMessage message, String system) 
     {
-        JSONArray messages = new JSONArray();
-        if (system != null)
-        {
-            JSONObject msgS = new JSONObject();
-            msgS.put("role", "system");
-            msgS.put("content", system);
-            messages.put(msgS);
-        }
-        JSONObject msgU = new JSONObject();
-        msgU.put("role", "user");
-        msgU.put("content", message);
-        messages.put(msgU);
-        return callChatGPT(user, messages);
+        ChatLog cl = new ChatLog(system);
+        cl.add(message);
+        return callChatGPT(assistantNick, cl);
     }
 
-    public Future<String> callChatGPT(final String user, final JSONArray messages) 
+    public Future<String> callChatGPT(final String assistant, final ChatLog messages) 
     {
         Callable<String> callable = new Callable<String>() {
             public String call() {
@@ -60,8 +50,7 @@ public class ChatGPT
                     con.setRequestProperty("Authorization", "Bearer " + ChatGPT.this.openAIKey);
                     JSONObject data = new JSONObject();
                     data.put("model", "gpt-3.5-turbo");
-                    data.put("messages", messages);
-                    data.put("user", user);
+                    data.put("messages", messages.getGPTMessages(assistant));
                     //System.err.println("\033[0;92mSending Payload to chatGPT..\033[0m");
                     //System.err.println(data.toString(2));
                     con.setDoOutput(true);

@@ -14,6 +14,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
@@ -67,12 +69,14 @@ public class IRCGPTBotMain implements Runnable, Consumer<Exception>
     private Thread mainThread;
     private boolean keepRunning;
     private String botNickname;
+    private HashMap<String, ChatLog> logs;
 
     public IRCGPTBotMain(JSONObject settings)
     {
         System.err.println("Starting Bot..");
         this.keepRunning = true;
         this.settings = settings;
+        this.logs = new HashMap<String, ChatLog>();
         this.botNickname = settings.optString("nickname");
         this.chatGPT = new ChatGPT(settings.optString("openAiKey"));
         try
@@ -97,6 +101,18 @@ public class IRCGPTBotMain implements Runnable, Consumer<Exception>
         this.mainThread.start();
     }
 
+    public ChatLog getLog(String target)
+    {
+        if (this.logs.containsKey(target))
+        {
+            return this.logs.get(target);
+        } else {
+            ChatLog cl = new ChatLog();
+            this.logs.put(target,cl);
+            return cl;
+        }
+    }
+
     @Handler
     public void onChannelMessage(ChannelMessageEvent event)
     {
@@ -105,9 +121,13 @@ public class IRCGPTBotMain implements Runnable, Consumer<Exception>
         if (body.contains(this.botNickname))
         {
             Channel channel = event.getChannel();
+            String target = channel.getName();
+            ChatLog cl = this.getLog(target);
+            ChatMessage msg = new ChatMessage(sender.getNick(), channel.getName(), body, new Date(System.currentTimeMillis()));
+            cl.add(msg);
             try
             {
-                Future<String> gptResponse = chatGPT.callChatGPT(sender.getNick(), body, null);
+                Future<String> gptResponse = chatGPT.callChatGPT(this.botNickname, cl);
                 String outText = gptResponse.get().replace("\n", " ").replace("\r", "");
                 channel.sendMultiLineMessage(outText);
             } catch (Exception e) {
@@ -123,7 +143,10 @@ public class IRCGPTBotMain implements Runnable, Consumer<Exception>
         String body = event.getMessage();
         try
         {
-            Future<String> gptResponse = chatGPT.callChatGPT(sender.getNick(), body, null);
+            String target = sender.getNick();
+            ChatLog cl = this.getLog(target);
+            ChatMessage msg = new ChatMessage(sender.getNick(), this.botNickname, body, new Date(System.currentTimeMillis()));
+            Future<String> gptResponse = chatGPT.callChatGPT(botNickname, cl);
             String outText = gptResponse.get();
             sender.sendMultiLineMessage(outText);
         } catch (Exception e) {
