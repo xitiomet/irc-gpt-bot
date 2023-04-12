@@ -91,7 +91,7 @@ public class IRCGPTBotMain implements Runnable, Consumer<Exception>
             this.client.getEventManager().registerEventListener(this);
             this.client.addChannel(settings.optString("channel"));
         } catch (Throwable ne) {
-            System.err.println("INSECURE WARNING");
+            
         }
         this.mainThread = new Thread(this);
         this.mainThread.start();
@@ -224,6 +224,6 @@ public class IRCGPTBotMain implements Runnable, Consumer<Exception>
     @Override
     public void accept(Exception t)
     {
-        
+
     }
 }

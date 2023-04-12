@@ -74,7 +74,7 @@ public class ChatGPT
                     JSONArray choices = response.getJSONArray("choices");
                     JSONObject choice_zero = choices.getJSONObject(0);
                     JSONObject respMessage = choice_zero.getJSONObject("message");
-                    return respMessage.getString("content");
+                    return respMessage.getString("content").replace("\n", " ").replace("\r", "").replace("\0", "");
                 } catch (Exception e) {
                     e.printStackTrace(System.err);
                     return "I'm sorry, I'm having trouble thinking right now. (" + e.getLocalizedMessage() + ")";
