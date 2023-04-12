@@ -12,7 +12,7 @@
     <maven.compiler.source>11</maven.compiler.source>
     <maven.compiler.target>11</maven.compiler.target>
     <imageName>irc-gpt-bot</imageName>
-        <graalvm.version>22.1.0</graalvm.version>
+    <graalvm.version>22.3.0</graalvm.version>
   </properties>
   <dependencies>
     <dependency>
@@ -125,7 +125,7 @@
                 </execution>
             </executions>
             <configuration>
-                <skip>false</skip>
+                <skip>true</skip>
                 <imageName>${imageName}</imageName>
                 <mainClass>${mainClass}</mainClass>
                 <buildArgs>
@@ -137,9 +137,6 @@
                     --allow-incomplete-classpath
                     --report-unsupported-elements-at-runtime
                     -H:+ReportExceptionStackTraces
-                    
-                                        
-                                    
                 </buildArgs>
             </configuration>
        </plugin>
@@ -204,6 +201,7 @@
                         <goal>jdeb</goal>
                     </goals>
                     <configuration>
+                        <skip>true</skip>
                         <verbose>true</verbose>
                         <snapshotExpand>true</snapshotExpand>
                         <!-- expand "SNAPSHOT" to what is in the "USER" env variable -->
@@ -317,83 +315,6 @@
                 </execution>
             </executions>
        </plugin>
-       <plugin>
-          <groupId>io.github.fvarrui</groupId>
-          <artifactId>javapackager</artifactId>
-          <version>1.6.7</version>
-          <executions>
-              <execution>
-                  <phase>package</phase>
-                  <goals>
-                      <goal>package</goal>
-                  </goals>
-                  <configuration>
-                      <!-- mandatory -->
-                      <name>${imageName}</name>
-                      <mainClass>${mainClass}</mainClass>
-                      <!-- optional -->
-                      <copyDependencies>true</copyDependencies>
-                      <generateInstaller>true</generateInstaller>
-                      <administratorRequired>false</administratorRequired>
-                      <platform>linux</platform>
-                      <bundleJre>true</bundleJre>
-                      <additionalResources>
-                          <additionalResource>${project.basedir}/target/natives/</additionalResource>
-                          <additionalResource>${project.basedir}/src/main/resources/${imageName}.l4j.ini</additionalResource>
-                      </additionalResources>
-                      <additionalModules>
-                        <additionalModule>jdk.crypto.ec</additionalModule>
-                        <additionalModule>java.base</additionalModule>
-                                                <additionalModule>java.logging</additionalModule>
-                        <additionalModule>java.management</additionalModule>
-                        <additionalModule>java.naming</additionalModule>
-                        <additionalModule>java.security.jgss</additionalModule>
-                        <additionalModule>java.xml</additionalModule>
-                      </additionalModules>
-                      <linuxConfig>
-                        <pngFile>${project.basedir}/src/main/resources/${imageName}.png</pngFile>
-                        <generateAppImage>true</generateAppImage>
-                        <generateDeb>false</generateDeb>
-                        <generateRpm>false</generateRpm>
-                        <wrapJar>false</wrapJar>
-                        <categories>
-                            <category>Utility</category>
-                        </categories>
-                    </linuxConfig>
-                  </configuration>
-              </execution>
-          </executions>
-      </plugin>
-       <plugin>
-            <groupId>org.digitalmediaserver</groupId>
-            <artifactId>nsis-maven-plugin</artifactId>
-            <version>1.0.2</version>
-            <configuration>
-                <makensisExecutable>C:\Program Files (x86)\NSIS\makensis.exe</makensisExecutable>
-                <makensisExecutableLinux>/usr/bin/makensis</makensisExecutableLinux>
-                <makensisExecutableMacOS></makensisExecutableMacOS>
-                <compression>lzma</compression>
-                <compressionIsFinal>true</compressionIsFinal>
-                <compressionDictSize>64</compressionDictSize>
-                <defines>
-                    <PROJECT_NAME_SHORT>IRCGPTBot</PROJECT_NAME_SHORT>
-                    <PROJECT_NAME_CAMEL>${project.name.camel}</PROJECT_NAME_CAMEL>
-                </defines>
-            </configuration>
-            <executions>
-                <execution>
-                    <id>build-windows-installer</id>
-                    <configuration>
-                        <scriptFile>${basedir}/src/nsis/irc-gpt-bot.nsi</scriptFile>
-                        <outputFile>IRCGPTBot-setup.exe</outputFile>
-                    </configuration>
-                    <goals>
-                        <goal>generate-headerfile</goal>
-                        <goal>make</goal>
-                    </goals>
-                </execution>
-            </executions>
-        </plugin>
     </plugins>
   </build>
 </project>

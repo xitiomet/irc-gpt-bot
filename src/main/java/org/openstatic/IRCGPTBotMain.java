@@ -1,16 +1,21 @@
 package org.openstatic;
 
 import org.kitteh.irc.client.library.Client;
+import org.kitteh.irc.client.library.Client.Builder;
+import org.kitteh.irc.client.library.Client.Builder.Server.SecurityType;
 import org.kitteh.irc.client.library.element.Channel;
 import org.kitteh.irc.client.library.element.User;
 import org.kitteh.irc.client.library.event.channel.ChannelJoinEvent;
 import org.kitteh.irc.client.library.event.channel.ChannelMessageEvent;
+import org.kitteh.irc.client.library.event.user.PrivateMessageEvent;
+import org.kitteh.irc.client.library.exception.KittehNagException;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.concurrent.Future;
+import java.util.function.Consumer;
 
 import org.apache.commons.cli.*;
 import org.json.*;
@@ -51,7 +56,7 @@ import com.googlecode.lanterna.terminal.Terminal;
 
 import net.engio.mbassy.listener.Handler;
 
-public class IRCGPTBotMain
+public class IRCGPTBotMain implements Runnable, Consumer<Exception>
 {
     public ChatGPT chatGPT;
     public JSONObject settings;
@@ -59,37 +64,84 @@ public class IRCGPTBotMain
     private Terminal terminal;
     private MultiWindowTextGUI gui;
     private Client client;
+    private Thread mainThread;
+    private boolean keepRunning;
+    private String botNickname;
 
     public IRCGPTBotMain(JSONObject settings)
     {
+        System.err.println("Starting Bot..");
+        this.keepRunning = true;
         this.settings = settings;
+        this.botNickname = settings.optString("nickname");
         this.chatGPT = new ChatGPT(settings.optString("openAiKey"));
-        Client client = Client.builder().nick(settings.optString("nickname")).server().host(settings.optString("server")).then().buildAndConnect();
-        client.getEventManager().registerEventListener(this);
-        client.addChannel(settings.optString("channel"));
+        try
+        {
+            Builder builder = Client.builder();
+            builder.listeners().exception(this);
+            this.client = builder
+                            .nick(botNickname)
+                            .server()
+                            .port(settings.optInt("port", 6667), SecurityType.INSECURE)
+                            .host(settings.optString("server"))
+                            .then()
+                            .build();
+            this.client.setExceptionListener(this);
+            this.client.connect();
+            this.client.getEventManager().registerEventListener(this);
+            this.client.addChannel(settings.optString("channel"));
+        } catch (Throwable ne) {
+            System.err.println("INSECURE WARNING");
+        }
+        this.mainThread = new Thread(this);
+        this.mainThread.start();
     }
 
     @Handler
     public void onChannelMessage(ChannelMessageEvent event)
     {
-       User sender = event.getActor();
-       String body = event.getMessage();
-       Channel channel = event.getChannel();
-       try
-       {
-         Future<String> gptResponse = chatGPT.callChatGPT(sender.getNick(), body, null);
-         channel.sendMessage(gptResponse.get());
-       } catch (Exception e) {
-        e.printStackTrace(System.err);
-       }
+        User sender = event.getActor();
+        String body = event.getMessage();
+        if (body.contains(this.botNickname))
+        {
+            Channel channel = event.getChannel();
+            try
+            {
+                Future<String> gptResponse = chatGPT.callChatGPT(sender.getNick(), body, null);
+                String outText = gptResponse.get().replace("\n", " ").replace("\r", "");
+                channel.sendMultiLineMessage(outText);
+            } catch (Exception e) {
+                e.printStackTrace(System.err);
+            }
+        }
+    }
+
+    @Handler
+    public void onPrivateMessage(PrivateMessageEvent event)
+    {
+        User sender = event.getActor();
+        String body = event.getMessage();
+        try
+        {
+            Future<String> gptResponse = chatGPT.callChatGPT(sender.getNick(), body, null);
+            String outText = gptResponse.get();
+            sender.sendMultiLineMessage(outText);
+        } catch (Exception e) {
+            e.printStackTrace(System.err);
+        }
     }
 
     public static void main(String[] args)
     {
         CommandLine cmd = null;
+        JSONObject settings = loadJSONObject(new File("config.json"));
         Options options = new Options();
         CommandLineParser parser = new DefaultParser();
         options.addOption(new Option("?", "help", false, "Shows help"));
+        options.addOption(new Option("s", "server", true, "Connect to server"));
+        options.addOption(new Option("n", "nickname", true, "Set Bot Nickname"));
+        options.addOption(new Option("c", "channel", true, "Connect to server"));
+        
         try
         {
             cmd = parser.parse(options, args);
@@ -98,8 +150,23 @@ public class IRCGPTBotMain
             {
                 showHelp(options);
             }
-        } catch (Exception e) {
-            e.printStackTrace(System.err);
+            if (cmd.hasOption("s"))
+            {
+                settings.put("server", cmd.getOptionValue("s"));
+            }
+            if (cmd.hasOption("c"))
+            {
+                settings.put("channel", cmd.getOptionValue("c"));
+            }
+            if (cmd.hasOption("n"))
+            {
+                settings.put("nickname", cmd.getOptionValue("n"));
+            }
+
+            IRCGPTBotMain bot = new IRCGPTBotMain(settings);
+            
+        } catch (Throwable e) {
+            
         }
     }
     public static void showHelp(Options options)
@@ -138,5 +205,25 @@ public class IRCGPTBotMain
             fos.close();
         } catch (Exception e) {
         }
+    }
+
+    @Override
+    public void run() 
+    {
+        while(this.keepRunning)
+        {
+            try
+            {
+                Thread.sleep(1000);
+            } catch (Exception e) {
+                e.printStackTrace(System.err);
+            }
+        }
+    }
+
+    @Override
+    public void accept(Exception t)
+    {
+        
     }
 }
