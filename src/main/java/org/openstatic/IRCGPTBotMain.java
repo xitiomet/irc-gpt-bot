@@ -78,7 +78,7 @@ public class IRCGPTBotMain implements Runnable, Consumer<Exception>
         this.settings = settings;
         this.logs = new HashMap<String, ChatLog>();
         this.botNickname = settings.optString("nickname");
-        this.chatGPT = new ChatGPT(settings.optString("openAiKey"));
+        this.chatGPT = new ChatGPT(this.settings);
         try
         {
             Builder builder = Client.builder();
@@ -97,7 +97,15 @@ public class IRCGPTBotMain implements Runnable, Consumer<Exception>
         } catch (Throwable ne) {
             
         }
-        this.mainThread = new Thread(this);
+    }
+
+    public void start()
+    {
+        this.keepRunning = true;
+        if (this.mainThread == null)
+        {
+            this.mainThread = new Thread(this);
+        }
         this.mainThread.start();
     }
 
@@ -107,7 +115,7 @@ public class IRCGPTBotMain implements Runnable, Consumer<Exception>
         {
             return this.logs.get(target);
         } else {
-            ChatLog cl = new ChatLog();
+            ChatLog cl = new ChatLog(this.settings);
             this.logs.put(target,cl);
             return cl;
         }
@@ -118,17 +126,20 @@ public class IRCGPTBotMain implements Runnable, Consumer<Exception>
     {
         User sender = event.getActor();
         String body = event.getMessage();
-        if (body.contains(this.botNickname))
+        Channel channel = event.getChannel();
+        String target = channel.getName();
+        ChatLog cl = this.getLog(target);
+        ChatMessage msg = new ChatMessage(sender.getNick(), channel.getName(), body, new Date(System.currentTimeMillis()));
+        cl.add(msg);
+        if (body.toLowerCase().contains(this.botNickname.toLowerCase()))
         {
-            Channel channel = event.getChannel();
-            String target = channel.getName();
-            ChatLog cl = this.getLog(target);
-            ChatMessage msg = new ChatMessage(sender.getNick(), channel.getName(), body, new Date(System.currentTimeMillis()));
-            cl.add(msg);
             try
             {
-                Future<String> gptResponse = chatGPT.callChatGPT(this.botNickname, cl);
-                String outText = gptResponse.get().replace("\n", " ").replace("\r", "");
+                Future<ChatMessage> gptResponse = chatGPT.callChatGPT(cl);
+                ChatMessage outMsg = gptResponse.get();
+                outMsg.setRecipient(target);
+                String outText = outMsg.getBody().replace("\n", " ").replace("\r", "");
+                cl.add(outMsg);
                 channel.sendMultiLineMessage(outText);
             } catch (Exception e) {
                 e.printStackTrace(System.err);
@@ -146,8 +157,12 @@ public class IRCGPTBotMain implements Runnable, Consumer<Exception>
             String target = sender.getNick();
             ChatLog cl = this.getLog(target);
             ChatMessage msg = new ChatMessage(sender.getNick(), this.botNickname, body, new Date(System.currentTimeMillis()));
-            Future<String> gptResponse = chatGPT.callChatGPT(botNickname, cl);
-            String outText = gptResponse.get();
+            cl.add(msg);
+            Future<ChatMessage> gptResponse = chatGPT.callChatGPT(cl);
+            ChatMessage outMsg = gptResponse.get();
+            String outText = outMsg.getBody();
+            outMsg.setRecipient(target);
+            cl.add(outMsg);
             sender.sendMultiLineMessage(outText);
         } catch (Exception e) {
             e.printStackTrace(System.err);
@@ -187,7 +202,7 @@ public class IRCGPTBotMain implements Runnable, Consumer<Exception>
             }
 
             IRCGPTBotMain bot = new IRCGPTBotMain(settings);
-            
+            bot.start();
         } catch (Throwable e) {
             
         }
@@ -242,6 +257,7 @@ public class IRCGPTBotMain implements Runnable, Consumer<Exception>
                 e.printStackTrace(System.err);
             }
         }
+        this.mainThread = null;
     }
 
     @Override

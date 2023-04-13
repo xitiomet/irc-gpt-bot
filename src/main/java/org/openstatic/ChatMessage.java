@@ -24,6 +24,11 @@ public class ChatMessage
         return this.sender;
     }
 
+    public void setRecipient(String recipient)
+    {
+        this.recipient = recipient;
+    }
+
     public String getRecipient()
     {
         return this.recipient;

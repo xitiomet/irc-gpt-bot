@@ -2,5 +2,7 @@
     "nickname": "chatGPT",
     "channel": "#lobby",
     "server": "127.0.0.1",
-    "openAiKey": ""
+    "openAiKey": "",
+    "contextDepth": 5,
+    "systemPreamble": ""
 }

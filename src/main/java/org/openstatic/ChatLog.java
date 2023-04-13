@@ -1,6 +1,7 @@
 package org.openstatic;
 
 import java.util.ArrayList;
+import java.util.stream.Stream;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -8,23 +9,12 @@ import org.json.JSONObject;
 public class ChatLog
 {
     private ArrayList<ChatMessage> messages;
-    private String system;
+    private JSONObject settings;
 
-    public ChatLog()
+    public ChatLog(JSONObject settings)
     {
         this.messages = new ArrayList<ChatMessage>();
-        this.system = null;
-    }
-
-    public ChatLog(String system)
-    {
-        this.messages = new ArrayList<ChatMessage>();
-        this.system = system;
-    }
-
-    public void setSystem(String system)
-    {
-        this.system = system;
+        this.settings = settings;
     }
 
     public void add(ChatMessage cm)
@@ -37,19 +27,22 @@ public class ChatLog
         return this.messages;
     }
 
-    public JSONArray getGPTMessages(String assistant)
+    public JSONArray getGPTMessages()
     {
         JSONArray ra = new JSONArray();
-        if (this.system != null)
+        if (this.settings.has("systemPreamble"))
         {
             JSONObject msgS = new JSONObject();
             msgS.put("role", "system");
-            msgS.put("content", system);
+            msgS.put("content", this.settings.optString("systemPreamble"));
             ra.put(msgS);
         }
-        this.messages.forEach((msg) -> {
+        int skipAmt = this.messages.size() - settings.optInt("contextDepth", 5);
+        if (skipAmt < 0) skipAmt = 0;
+        Stream<ChatMessage> rMessages = this.messages.stream().skip(skipAmt);
+        rMessages.forEach((msg) -> {
             String role = "user";
-            if (msg.getSender().equals(assistant))
+            if (msg.getSender().equals(this.settings.optString("nickname")))
                 role = "assistant";
             ra.put(msg.toGPTMessage(role));
         });
