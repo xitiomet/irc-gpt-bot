@@ -52,15 +52,15 @@ public class ChatGPT
                     JSONObject data = new JSONObject();
                     data.put("model", "gpt-3.5-turbo");
                     data.put("messages", messages.getGPTMessages());
-                    System.err.println("\033[0;92mSending Payload to chatGPT..\033[0m");
-                    System.err.println(data.toString(2));
+                    //System.err.println("\033[0;92mSending Payload to chatGPT..\033[0m");
+                    //System.err.println(data.toString(2));
                     con.setDoOutput(true);
                     con.getOutputStream().write(data.toString().getBytes());
                     String output = new BufferedReader(new InputStreamReader(con.getInputStream())).lines()
                         .reduce((a, b) -> a + b).get();
                     JSONObject response = new JSONObject(output);
-                    System.err.println("\033[0;93mchatGPT RESPONSE:\033[0m");
-                    System.err.println(response.toString(2));
+                    //System.err.println("\033[0;93mchatGPT RESPONSE:\033[0m");
+                    //System.err.println(response.toString(2));
                     JSONArray choices = response.getJSONArray("choices");
                     JSONObject choice_zero = choices.getJSONObject(0);
                     JSONObject respMessage = choice_zero.getJSONObject("message");

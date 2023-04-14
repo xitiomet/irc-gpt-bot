@@ -2,6 +2,7 @@ package org.openstatic;
 
 import org.kitteh.irc.client.library.Client;
 import org.kitteh.irc.client.library.Client.Builder;
+import org.kitteh.irc.client.library.Client.Builder.Server;
 import org.kitteh.irc.client.library.Client.Builder.Server.SecurityType;
 import org.kitteh.irc.client.library.element.Channel;
 import org.kitteh.irc.client.library.element.User;
@@ -19,6 +20,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
@@ -78,11 +80,11 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
     private Panel mainPanel;
     private Label topLabel;
     private Label bottomLabel;
-    private Label activeThreadsLabel;
+    private Label joinedChannelsLabel;
     private Label messagesHandledLabel;
     private Label errorCountLabel;
     private Label timeLabel;
-    private Button threadsButton;
+    private Button channelsButton;
     private Button exitButton;
     private long errorCount;
     private long messagesHandled;
@@ -113,7 +115,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
 
             Panel bottomLabelPanel = new Panel();
             bottomLabelPanel.setFillColorOverride(ANSI.RED);
-            this.bottomLabel = new Label("");
+            this.bottomLabel = new Label("https://github.com/xitiomet/irc-gpt-bot");
             this.bottomLabel.setBackgroundColor(ANSI.RED);
             this.bottomLabel.setForegroundColor(ANSI.BLACK);
             bottomLabelPanel.addComponent(this.bottomLabel);            
@@ -123,66 +125,72 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
 
             this.mainPanel = new Panel();
             this.timeLabel = new Label("");
-            this.activeThreadsLabel = new Label("");
+            this.joinedChannelsLabel = new Label("");
             this.messagesHandledLabel = new Label("");
             this.errorCountLabel = new Label("");
             this.mainPanel.addComponent(this.timeLabel);
-            this.mainPanel.addComponent(this.activeThreadsLabel);
+            this.mainPanel.addComponent(this.joinedChannelsLabel);
             this.mainPanel.addComponent(this.messagesHandledLabel);
             this.mainPanel.addComponent(this.errorCountLabel);
-            this.threadsButton = new Button("Threads", new Runnable() {
+            this.channelsButton = new Button("Channels", new Runnable() {
                 @Override
                 public void run() {
                     Thread z = new Thread(() -> {
-                        Set<String> threadNames = IRCGPTBotMain.this.logs.keySet();
-                        ListSelectDialogBuilder<String> lsdb = new ListSelectDialogBuilder<String>();
-                        for (String threadName : threadNames) {
-                            lsdb.addListItem(threadName);
-                        }
-                        lsdb.setListBoxSize(new TerminalSize(50, 10));
-                        lsdb.setTitle("Active Conversations");
-                        ListSelectDialog<String> lsd = (ListSelectDialog<String>) lsdb.build();
-                        String threadSelected = lsd.showDialog(IRCGPTBotMain.this.gui);
-                        ChatLog optThread = IRCGPTBotMain.this.logs.get(threadSelected);
-                        if (optThread != null)
+                        try
                         {
-                            ListSelectDialogBuilder<String> lsdb2 = new ListSelectDialogBuilder<String>();
-                            lsdb2.addListItem("View Messages");
-                            lsdb2.addListItem("Show Members");
-                            lsdb2.addListItem("Leave Thread");
-                            lsdb2.setDescription("Select an action");
-                            lsdb2.setListBoxSize(new TerminalSize(30, 7));
-                            lsdb2.setTitle(threadSelected);
-                            ListSelectDialog<String> lsd2 = (ListSelectDialog<String>) lsdb2.build();
-                            String optionSelected = lsd2.showDialog(IRCGPTBotMain.this.gui);
-                            if ("Leave Thread".equals(optionSelected))
-                            {
-                                //t.leaveThread();
-                            } else if ("View Messages".equals(optionSelected)) {
-                                int messageCount = 0;
-                                String pattern = "yyyy-MM-dd HH:mm:ss";
-                                SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
-                                Collection<ChatMessage> messages = optThread.getMessages();
-                                messageCount = messages.size();
-                                String convoText = optThread.getMessages().stream().map((m) -> ( m.getSender() + " (" + simpleDateFormat.format(m.getTimestamp()) + ")\n" + m.getBody() + "\n")).collect(Collectors.joining("\n"));
-                                TextInputDialogBuilder mdb = new TextInputDialogBuilder();
-                                mdb.setTitle(optThread.getTarget() + " - " + String.valueOf(messageCount) + " Messages");
-                                mdb.setInitialContent(convoText);
-                                mdb.setTextBoxSize(new TerminalSize(60, 15));
-                                TextInputDialog md = mdb.build();
-                                md.showDialog(IRCGPTBotMain.this.gui);
-                            } else if ("Show Members".equals(optionSelected)) {
-                                /* 
-                                ListSelectDialogBuilder<String> lsdb3 = new ListSelectDialogBuilder<String>();
-                                optThread.getMembers().forEach((m) -> {
-                                    lsdb3.addListItem(createSizedString(m.getNickname(), 15) + " " + createSizedString(m.getASL(), 10) + " " + createSizedString(m.getObjectId(), 10));
-                                });
-                                lsdb3.setListBoxSize(new TerminalSize(45, 7));
-                                lsdb3.setTitle(threadSelected);
-                                ListSelectDialog<String> lsd3 = (ListSelectDialog<String>) lsdb3.build();
-                                lsd3.showDialog(IRCGPTBotMain.this.gui);
-                                */
+                            Set<Channel> channels = IRCGPTBotMain.this.client.getChannels();
+                            Set<String> channelNames = channels.stream().map((c) -> c.getName()).collect(Collectors.toSet());
+                            ListSelectDialogBuilder<String> lsdb = new ListSelectDialogBuilder<String>();
+                            for (String channelName : channelNames) {
+                                lsdb.addListItem(channelName);
                             }
+                            lsdb.setListBoxSize(new TerminalSize(50, 10));
+                            lsdb.setTitle("Channels");
+                            ListSelectDialog<String> lsd = (ListSelectDialog<String>) lsdb.build();
+                            String channelSelected = lsd.showDialog(IRCGPTBotMain.this.gui);
+                            Optional<Channel> channelOptional = client.getChannel(channelSelected);
+                            if (channelOptional.isPresent())
+                            {
+                                Channel channel = channelOptional.get();
+                                ListSelectDialogBuilder<String> lsdb2 = new ListSelectDialogBuilder<String>();
+                                lsdb2.addListItem("View Messages");
+                                lsdb2.addListItem("Show Members");
+                                lsdb2.addListItem("Leave Channel");
+                                lsdb2.setDescription("Select an action");
+                                lsdb2.setListBoxSize(new TerminalSize(30, 7));
+                                lsdb2.setTitle(channelSelected);
+                                ListSelectDialog<String> lsd2 = (ListSelectDialog<String>) lsdb2.build();
+                                String optionSelected = lsd2.showDialog(IRCGPTBotMain.this.gui);
+                                if ("Leave Channel".equals(optionSelected))
+                                {
+                                    channel.part();
+                                } else if ("View Messages".equals(optionSelected)) {
+                                    int messageCount = 0;
+                                    String pattern = "yyyy-MM-dd HH:mm:ss";
+                                    SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+                                    ChatLog optThread = IRCGPTBotMain.this.getLog(channelSelected);
+                                    Collection<ChatMessage> messages = optThread.getMessages();
+                                    messageCount = messages.size();
+                                    String convoText = optThread.getMessages().stream().map((m) -> ( m.getSender() + " (" + simpleDateFormat.format(m.getTimestamp()) + ")\n" + m.getBody() + "\n")).collect(Collectors.joining("\n"));
+                                    TextInputDialogBuilder mdb = new TextInputDialogBuilder();
+                                    mdb.setTitle(optThread.getTarget() + " - " + String.valueOf(messageCount) + " Messages");
+                                    mdb.setInitialContent(convoText);
+                                    mdb.setTextBoxSize(new TerminalSize(60, 15));
+                                    TextInputDialog md = mdb.build();
+                                    md.showDialog(IRCGPTBotMain.this.gui);
+                                } else if ("Show Members".equals(optionSelected)) {
+                                    ListSelectDialogBuilder<String> lsdb3 = new ListSelectDialogBuilder<String>();
+                                    channel.getUsers().forEach((u) -> {
+                                        lsdb3.addListItem(createSizedString(u.getNick(), 15) + " " + createSizedString(u.getUserString(), 15));
+                                    });
+                                    lsdb3.setListBoxSize(new TerminalSize(45, 7));
+                                    lsdb3.setTitle(channelSelected);
+                                    ListSelectDialog<String> lsd3 = (ListSelectDialog<String>) lsdb3.build();
+                                    lsd3.showDialog(IRCGPTBotMain.this.gui);
+                                }
+                            }
+                        } catch (Exception ex) {
+
                         }
                     });
                     z.start();
@@ -194,9 +202,9 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                     IRCGPTBotMain.this.shutdown();
                 }
             });
-            this.mainPanel.addComponent(threadsButton);
+            this.mainPanel.addComponent(channelsButton);
             this.mainPanel.addComponent(exitButton);
-            this.threadsButton.takeFocus();
+            this.channelsButton.takeFocus();
             mainPanel.setLayoutManager(new LinearLayout(Direction.VERTICAL));
             this.setComponent(this.mainPanel.withBorder(Borders.singleLine("System Stats")));
 
@@ -209,15 +217,22 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         this.chatGPT = new ChatGPT(this.settings);
         try
         {
-            Builder builder = Client.builder();
+            Builder builder = Client.builder()
+                                .nick(botNickname)
+                                .realName(settings.optString("realName", botNickname))
+                                .user(settings.optString("user", botNickname));
             builder.listeners().exception(this);
-            this.client = builder
-                            .nick(botNickname)
-                            .server()
-                            .port(settings.optInt("port", 6667), SecurityType.INSECURE)
-                            .host(settings.optString("server"))
-                            .then()
-                            .build();
+            SecurityType sType = SecurityType.INSECURE;
+            if (settings.optBoolean("secure"))
+                sType = SecurityType.SECURE;
+            Server server =  builder.server()
+                            .port(settings.optInt("port", 6667), sType)
+                            .host(settings.optString("server"));
+            if (settings.has("password"))
+            {
+                server = server.password(settings.optString("password"));
+            }
+            this.client = server.then().build();
             this.client.setExceptionListener(this);
             this.client.connect();
             this.client.getEventManager().registerEventListener(this);
@@ -225,7 +240,6 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
             channels.forEach((channel) -> {
                 String channelName = (String) channel;
                 this.client.addChannel(channelName);
-                getLog(channelName);
             });
         } catch (Throwable ne) {
             
@@ -279,8 +293,20 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         String target = channel.getName();
         ChatLog cl = this.getLog(target);
         ChatMessage msg = new ChatMessage(sender.getNick(), channel.getName(), body, new Date(System.currentTimeMillis()));
+        ChatMessage previosMsg = cl.getLastMessage();
         cl.add(msg);
-        if (body.toLowerCase().contains(this.botNickname.toLowerCase()))
+        boolean botAskedQuestion = false;
+        boolean containsBotName = body.toLowerCase().contains(this.botNickname.toLowerCase());
+        boolean lastMessageWasBot = false;
+        if (previosMsg != null)
+        {
+            lastMessageWasBot = previosMsg.getSender().equals(this.botNickname);
+            if (lastMessageWasBot)
+            {
+                botAskedQuestion = previosMsg.getBody().contains("?");
+            }
+        }
+        if (botAskedQuestion || containsBotName)
         {
             try
             {
@@ -407,12 +433,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                 SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
                 String date = simpleDateFormat.format(new Date());
                 IRCGPTBotMain.this.timeLabel.setText("Bot Time: " + date);
-
-                int threadCount = this.logs.size();
-                String tlText = "Active Threads: " + String.valueOf(threadCount);
-
-                //System.err.println(tlText);
-                IRCGPTBotMain.this.activeThreadsLabel.setText(tlText);
+                IRCGPTBotMain.this.joinedChannelsLabel.setText("Joined Channels: " + String.valueOf(client.getChannels().size()));
                 IRCGPTBotMain.this.messagesHandledLabel.setText("Messages Handled: " + String.valueOf(IRCGPTBotMain.this.messagesHandled));
                 IRCGPTBotMain.this.errorCountLabel.setText("Errors: " + String.valueOf(IRCGPTBotMain.this.errorCount));
                 IRCGPTBotMain.this.gui.updateScreen();
@@ -428,6 +449,33 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
     @Override
     public void accept(Exception t)
     {
-        this.errorCount++;
+        if (!(t instanceof KittehNagException))
+            this.errorCount++;
+    }
+
+    public static String getPaddingSpace(int value)
+    {
+        StringBuffer x = new StringBuffer("");
+        for (int n = 0; n < value; n++)
+        {
+            x.append(" ");
+        }
+        return x.toString();
+    }
+
+    public static String createSizedString(String value, int size)
+    {
+        if (value == null)
+        {
+            return getPaddingSpace(size);
+        } else if (value.length() == size) {
+            return value;
+        } else if (value.length() > size) {
+            return value.substring(0, size);
+        } else if (value.length() < size) {
+            return value + getPaddingSpace(size - value.length());
+        } else {
+            return null;
+        }
     }
 }

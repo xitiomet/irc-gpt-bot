@@ -1,8 +1,12 @@
 {
     "nickname": "chatGPT",
     "channels": ["#lobby"],
+    "user": null,
+    "realName": null,
+    "password": null,
     "server": "127.0.0.1",
     "openAiKey": "",
     "contextDepth": 5,
-    "systemPreamble": ""
+    "systemPreamble": "Only respond in hacker speak",
+    "secure": false
 }

@@ -1,6 +1,7 @@
 package org.openstatic;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Stream;
 
 import org.json.JSONArray;
@@ -27,6 +28,17 @@ public class ChatLog
     public String getTarget()
     {
         return this.target;
+    }
+
+    public ChatMessage getLastMessage()
+    {
+        List<ChatMessage> sortedMessages = this.getMessages();
+        if (sortedMessages.size() > 0)
+        {
+            return sortedMessages.get(sortedMessages.size() - 1);
+        } else {
+            return null;
+        }
     }
 
     public ArrayList<ChatMessage> getMessages()
