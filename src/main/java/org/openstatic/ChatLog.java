@@ -10,16 +10,23 @@ public class ChatLog
 {
     private ArrayList<ChatMessage> messages;
     private JSONObject settings;
+    private String target;
 
-    public ChatLog(JSONObject settings)
+    public ChatLog(JSONObject settings, String target)
     {
         this.messages = new ArrayList<ChatMessage>();
         this.settings = settings;
+        this.target = target;
     }
 
     public void add(ChatMessage cm)
     {
         this.messages.add(cm);
+    }
+
+    public String getTarget()
+    {
+        return this.target;
     }
 
     public ArrayList<ChatMessage> getMessages()

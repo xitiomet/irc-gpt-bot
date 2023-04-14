@@ -1,6 +1,6 @@
 {
     "nickname": "chatGPT",
-    "channel": "#lobby",
+    "channels": ["#lobby"],
     "server": "127.0.0.1",
     "openAiKey": "",
     "contextDepth": 5,

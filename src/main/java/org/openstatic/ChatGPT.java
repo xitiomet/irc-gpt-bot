@@ -33,7 +33,7 @@ public class ChatGPT
 
     public Future<ChatMessage> callChatGPT(ChatMessage message, String system) 
     {
-        ChatLog cl = new ChatLog(this.settings);
+        ChatLog cl = new ChatLog(this.settings, null);
         cl.add(message);
         return callChatGPT(cl);
     }
