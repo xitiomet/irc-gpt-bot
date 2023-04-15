@@ -96,6 +96,11 @@ public class ChatGPT
                     JSONObject choice_zero = choices.getJSONObject(0);
                     JSONObject respMessage = choice_zero.getJSONObject("message");
                     String respBody = respMessage.getString("content").replace("\n", " ").replace("\r", "").replace("\0", "").trim();
+                    if (respBody.startsWith("\"") && respBody.endsWith("\""))
+                    {
+                        respBody = respBody.substring(1, -1);
+                        ChatGPT.this.log("Removed Silly Quotes!");
+                    }
                     ChatMessage respMsg = new ChatMessage(ChatGPT.this.settings.optString("nickname"), null, respBody, new Date(System.currentTimeMillis()));
                     return respMsg;
                 } catch (Exception e) {

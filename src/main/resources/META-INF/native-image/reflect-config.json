@@ -46,6 +46,9 @@
   "name":"com.googlecode.lanterna.gui2.DefaultWindowDecorationRenderer"
 },
 {
+  "name":"com.googlecode.lanterna.gui2.WindowShadowRenderer"
+},
+{
   "name":"com.googlecode.lanterna.gui2.FatWindowDecorationRenderer",
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
