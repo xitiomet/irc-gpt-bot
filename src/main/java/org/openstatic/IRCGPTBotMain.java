@@ -22,6 +22,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.Set;
+import java.util.StringTokenizer;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -49,9 +50,12 @@ import com.googlecode.lanterna.gui2.LinearLayout;
 import com.googlecode.lanterna.gui2.MultiWindowTextGUI;
 import com.googlecode.lanterna.gui2.Panel;
 import com.googlecode.lanterna.gui2.Window;
+import com.googlecode.lanterna.gui2.WindowListener;
 import com.googlecode.lanterna.gui2.WindowManager;
 import com.googlecode.lanterna.gui2.dialogs.ListSelectDialog;
 import com.googlecode.lanterna.gui2.dialogs.ListSelectDialogBuilder;
+import com.googlecode.lanterna.gui2.CheckBox;
+import com.googlecode.lanterna.gui2.CheckBoxList;
 import com.googlecode.lanterna.gui2.dialogs.MessageDialog;
 import com.googlecode.lanterna.gui2.dialogs.MessageDialogBuilder;
 import com.googlecode.lanterna.gui2.dialogs.TextInputDialog;
@@ -85,13 +89,17 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
     private Label errorCountLabel;
     private Label timeLabel;
     private Button channelsButton;
+    private Button optionsButton;
     private Button exitButton;
     private long errorCount;
+    private long messagesSeen;
     private long messagesHandled;
 
     public IRCGPTBotMain(JSONObject settings)
     {
         super();
+        this.messagesHandled = 0;
+        this.messagesSeen = 0;
         this.setHints(Arrays.asList(Window.Hint.CENTERED));
         this.keepRunning = true;
         this.settings = settings;
@@ -141,6 +149,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                             Set<Channel> channels = IRCGPTBotMain.this.client.getChannels();
                             Set<String> channelNames = channels.stream().map((c) -> c.getName()).collect(Collectors.toSet());
                             ListSelectDialogBuilder<String> lsdb = new ListSelectDialogBuilder<String>();
+                            lsdb.addListItem("(Join A Channel)");
                             for (String channelName : channelNames) {
                                 lsdb.addListItem(channelName);
                             }
@@ -148,45 +157,57 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                             lsdb.setTitle("Channels");
                             ListSelectDialog<String> lsd = (ListSelectDialog<String>) lsdb.build();
                             String channelSelected = lsd.showDialog(IRCGPTBotMain.this.gui);
-                            Optional<Channel> channelOptional = client.getChannel(channelSelected);
-                            if (channelOptional.isPresent())
+                            if ("(Join A Channel)".equals(channelSelected))
                             {
-                                Channel channel = channelOptional.get();
-                                ListSelectDialogBuilder<String> lsdb2 = new ListSelectDialogBuilder<String>();
-                                lsdb2.addListItem("View Messages");
-                                lsdb2.addListItem("Show Members");
-                                lsdb2.addListItem("Leave Channel");
-                                lsdb2.setDescription("Select an action");
-                                lsdb2.setListBoxSize(new TerminalSize(30, 7));
-                                lsdb2.setTitle(channelSelected);
-                                ListSelectDialog<String> lsd2 = (ListSelectDialog<String>) lsdb2.build();
-                                String optionSelected = lsd2.showDialog(IRCGPTBotMain.this.gui);
-                                if ("Leave Channel".equals(optionSelected))
+                                TextInputDialogBuilder mdb = new TextInputDialogBuilder();
+                                mdb.setTitle("Enter Channel Name");
+                                mdb.setInitialContent("");
+                                mdb.setTextBoxSize(new TerminalSize(30, 1));
+                                TextInputDialog md = mdb.build();
+                                String channelName = md.showDialog(IRCGPTBotMain.this.gui);
+                                if (channelName != null)
+                                    IRCGPTBotMain.this.client.addChannel(channelName);
+                            } else {
+                                Optional<Channel> channelOptional = client.getChannel(channelSelected);
+                                if (channelOptional.isPresent())
                                 {
-                                    channel.part();
-                                } else if ("View Messages".equals(optionSelected)) {
-                                    int messageCount = 0;
-                                    String pattern = "yyyy-MM-dd HH:mm:ss";
-                                    SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
-                                    ChatLog optThread = IRCGPTBotMain.this.getLog(channelSelected);
-                                    Collection<ChatMessage> messages = optThread.getMessages();
-                                    messageCount = messages.size();
-                                    String convoText = optThread.getMessages().stream().map((m) -> ( m.getSender() + " (" + simpleDateFormat.format(m.getTimestamp()) + ")\n" + m.getBody() + "\n")).collect(Collectors.joining("\n"));
-                                    TextInputDialogBuilder mdb = new TextInputDialogBuilder();
-                                    mdb.setTitle(optThread.getTarget() + " - " + String.valueOf(messageCount) + " Messages");
-                                    mdb.setInitialContent(convoText);
-                                    mdb.setTextBoxSize(new TerminalSize(60, 15));
-                                    TextInputDialog md = mdb.build();
-                                    md.showDialog(IRCGPTBotMain.this.gui);
-                                } else if ("Show Members".equals(optionSelected)) {
-                                    ListSelectDialogBuilder<String> lsdb3 = new ListSelectDialogBuilder<String>();
-                                    channel.getUsers().forEach((u) -> {
-                                        lsdb3.addListItem(createSizedString(u.getNick(), 15) + " " + createSizedString(u.getUserString(), 15));
-                                    });
-                                    lsdb3.setListBoxSize(new TerminalSize(45, 7));
-                                    lsdb3.setTitle(channelSelected);
-                                    ListSelectDialog<String> lsd3 = (ListSelectDialog<String>) lsdb3.build();
-                                    lsd3.showDialog(IRCGPTBotMain.this.gui);
+                                    Channel channel = channelOptional.get();
+                                    ListSelectDialogBuilder<String> lsdb2 = new ListSelectDialogBuilder<String>();
+                                    lsdb2.addListItem("View Messages");
+                                    lsdb2.addListItem("Show Members");
+                                    lsdb2.addListItem("Leave Channel");
+                                    lsdb2.setDescription("Select an action");
+                                    lsdb2.setListBoxSize(new TerminalSize(30, 7));
+                                    lsdb2.setTitle(channelSelected);
+                                    ListSelectDialog<String> lsd2 = (ListSelectDialog<String>) lsdb2.build();
+                                    String optionSelected = lsd2.showDialog(IRCGPTBotMain.this.gui);
+                                    if ("Leave Channel".equals(optionSelected))
+                                    {
+                                        channel.part();
+                                    } else if ("View Messages".equals(optionSelected)) {
+                                        int messageCount = 0;
+                                        String pattern = "yyyy-MM-dd HH:mm:ss";
+                                        SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+                                        ChatLog optThread = IRCGPTBotMain.this.getLog(channelSelected);
+                                        Collection<ChatMessage> messages = optThread.getMessages();
+                                        messageCount = messages.size();
+                                        String convoText = optThread.getMessages().stream().map((m) -> ( m.getSender() + " (" + simpleDateFormat.format(m.getTimestamp()) + ")\n" + m.getBody() + "\n")).collect(Collectors.joining("\n"));
+                                        TextInputDialogBuilder mdb = new TextInputDialogBuilder();
+                                        mdb.setTitle(channel.getName() + " - " + String.valueOf(messageCount) + " Messages");
+                                        mdb.setInitialContent(convoText);
+                                        mdb.setTextBoxSize(new TerminalSize(60, 15));
+                                        TextInputDialog md = mdb.build();
+                                        md.showDialog(IRCGPTBotMain.this.gui);
+                                    } else if ("Show Members".equals(optionSelected)) {
+                                        ListSelectDialogBuilder<String> lsdb3 = new ListSelectDialogBuilder<String>();
+                                        channel.getUsers().forEach((u) -> {
+                                            lsdb3.addListItem(createSizedString(u.getNick(), 15) + " " + createSizedString(u.getUserString(), 15));
+                                        });
+                                        lsdb3.setListBoxSize(new TerminalSize(45, 7));
+                                        lsdb3.setTitle(channelSelected);
+                                        ListSelectDialog<String> lsd3 = (ListSelectDialog<String>) lsdb3.build();
+                                        lsd3.showDialog(IRCGPTBotMain.this.gui);
+                                    }
                                 }
                             }
                         } catch (Exception ex) {
@@ -196,6 +217,31 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                     z.start();
                 }
             });
+            this.optionsButton = new Button("Options", new Runnable() {
+                @Override
+                public void run() {
+                    Thread t = new Thread(() -> {
+                        final BasicWindow optionsWindow = new BasicWindow("Options");
+                        Panel optionsPanel = new Panel(new LinearLayout(Direction.VERTICAL));
+                        CheckBox greetingOption = new CheckBox("Greet users that join a channel");
+                        greetingOption.setChecked(IRCGPTBotMain.this.settings.optBoolean("greet"));
+                        optionsPanel.addComponent(greetingOption);
+
+                        Button saveButton = new Button("save", new Runnable() {
+                            @Override
+                            public void run() {
+                                optionsWindow.close();
+                            }
+                        });
+                        optionsPanel.addComponent(saveButton);
+                        optionsWindow.setComponent(optionsPanel);
+                        IRCGPTBotMain.this.gui.addWindowAndWait(optionsWindow);
+                        
+                        IRCGPTBotMain.this.settings.put("greet", greetingOption.isChecked());
+                    });
+                    t.start();
+                }
+            });
             this.exitButton = new Button("Shutdown", new Runnable() {
                 @Override
                 public void run() {
@@ -203,15 +249,16 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                 }
             });
             this.mainPanel.addComponent(channelsButton);
+            this.mainPanel.addComponent(optionsButton);
             this.mainPanel.addComponent(exitButton);
             this.channelsButton.takeFocus();
             mainPanel.setLayoutManager(new LinearLayout(Direction.VERTICAL));
-            this.setComponent(this.mainPanel.withBorder(Borders.singleLine("System Stats")));
+            this.setComponent(this.mainPanel.withBorder(Borders.singleLine("Bot Stats")));
 
             IRCGPTBotMain.this.screen.startScreen();
             IRCGPTBotMain.this.gui.addWindow(IRCGPTBotMain.this);
         } catch (Exception wex) {
-
+            wex.printStackTrace(System.err);
         }
         this.botNickname = settings.optString("nickname");
         this.chatGPT = new ChatGPT(this.settings);
@@ -242,7 +289,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                 this.client.addChannel(channelName);
             });
         } catch (Throwable ne) {
-            
+            ne.printStackTrace(System.err);
         }
     }
 
@@ -278,47 +325,80 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         {
             return this.logs.get(target);
         } else {
-            ChatLog cl = new ChatLog(this.settings, target);
+            ChatLog cl = new ChatLog(this.settings);
             this.logs.put(target,cl);
             return cl;
+        }
+    }
+    
+    @Handler
+    public void onChannelJoin(ChannelJoinEvent event)
+    {
+        try
+        {
+            Channel channel = event.getChannel();
+            User joiner = event.getActor();
+            if (!joiner.getNick().equals(botNickname))
+            {
+                ChatLog cl = this.getLog(channel.getName());
+                if (this.settings.optBoolean("greet", false))
+                {
+                    JSONArray messages = new JSONArray();
+                    JSONObject greetCommand = new JSONObject();
+                    greetCommand.put("role", "user");
+                    greetCommand.put("content", cl.getConversationalContext() + " Greet " + joiner.getNick() + ", who just joined the conversation. Also provide them with a quick summary of what has been said so far");
+                    messages.put(greetCommand);
+                    Future<ChatMessage> gptResponse = chatGPT.callChatGPT(messages);
+                    ChatMessage outMsg = gptResponse.get();
+                    String outText = outMsg.getBody();
+                    cl.add(outMsg);
+                    channel.sendMultiLineMessage(outText);
+                }
+            }
+        } catch (Exception e) {
+
         }
     }
 
     @Handler
     public void onChannelMessage(ChannelMessageEvent event)
     {
+        this.messagesSeen++;
         User sender = event.getActor();
-        String body = event.getMessage();
-        Channel channel = event.getChannel();
-        String target = channel.getName();
-        ChatLog cl = this.getLog(target);
-        ChatMessage msg = new ChatMessage(sender.getNick(), channel.getName(), body, new Date(System.currentTimeMillis()));
-        ChatMessage previosMsg = cl.getLastMessage();
-        cl.add(msg);
-        boolean botAskedQuestion = false;
-        boolean containsBotName = body.toLowerCase().contains(this.botNickname.toLowerCase());
-        boolean lastMessageWasBot = false;
-        if (previosMsg != null)
+        if (!sender.getNick().equals(botNickname))
         {
-            lastMessageWasBot = previosMsg.getSender().equals(this.botNickname);
-            if (lastMessageWasBot)
+            String body = event.getMessage();
+            Channel channel = event.getChannel();
+            String target = channel.getName();
+            ChatLog cl = this.getLog(target);
+            ChatMessage msg = new ChatMessage(sender.getNick(), channel.getName(), body, new Date(System.currentTimeMillis()));
+            ChatMessage previosMsg = cl.getLastMessage();
+            cl.add(msg);
+            boolean botAskedQuestion = false;
+            boolean containsBotName = body.toLowerCase().contains(this.botNickname.toLowerCase());
+            boolean lastMessageWasBot = false;
+            if (previosMsg != null)
             {
-                botAskedQuestion = previosMsg.getBody().contains("?");
+                lastMessageWasBot = previosMsg.getSender().equals(this.botNickname);
+                if (lastMessageWasBot)
+                {
+                    botAskedQuestion = previosMsg.getBody().contains("?");
+                }
             }
-        }
-        if (botAskedQuestion || containsBotName)
-        {
-            try
+            if (botAskedQuestion || containsBotName)
             {
-                Future<ChatMessage> gptResponse = chatGPT.callChatGPT(cl);
-                ChatMessage outMsg = gptResponse.get();
-                outMsg.setRecipient(target);
-                String outText = outMsg.getBody().replace("\n", " ").replace("\r", "");
-                cl.add(outMsg);
-                channel.sendMultiLineMessage(outText);
-                this.messagesHandled++;
-            } catch (Exception e) {
-                e.printStackTrace(System.err);
+                try
+                {
+                    Future<ChatMessage> gptResponse = chatGPT.callChatGPT(cl);
+                    ChatMessage outMsg = gptResponse.get();
+                    outMsg.setRecipient(target);
+                    String outText = outMsg.getBody().replace("\n", " ").replace("\r", "");
+                    cl.add(outMsg);
+                    channel.sendMultiLineMessage(outText);
+                    this.messagesHandled++;
+                } catch (Exception e) {
+                    //e.printStackTrace(System.err);
+                }
             }
         }
     }
@@ -326,6 +406,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
     @Handler
     public void onPrivateMessage(PrivateMessageEvent event)
     {
+        this.messagesSeen++;
         User sender = event.getActor();
         String body = event.getMessage();
         try
@@ -342,7 +423,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
             sender.sendMultiLineMessage(outText);
             this.messagesHandled++;
         } catch (Exception e) {
-            e.printStackTrace(System.err);
+            //e.printStackTrace(System.err);
         }
     }
 
@@ -353,10 +434,14 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         Options options = new Options();
         CommandLineParser parser = new DefaultParser();
         options.addOption(new Option("?", "help", false, "Shows help"));
+        options.addOption(new Option("f", "config", true, "Specify a config file (.json) to use"));
         options.addOption(new Option("s", "server", true, "Connect to server"));
+        options.addOption(new Option("e", "secure", false, "Use Secure connection"));
+        options.addOption(new Option("p", "port", true, "Specify connection port"));
         options.addOption(new Option("n", "nickname", true, "Set Bot Nickname"));
-        options.addOption(new Option("c", "channel", true, "Connect to server"));
-        
+        options.addOption(new Option("c", "channels", true, "List of channels to join (separated by comma)"));
+        options.addOption(new Option("x", "context-depth", true, "How many messages to provide chatGPT for context"));
+        options.addOption(new Option("a", "system-preamble", true, "Provide a set of instructions for the bot to follow"));
         try
         {
             cmd = parser.parse(options, args);
@@ -365,23 +450,49 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
             {
                 showHelp(options);
             }
+            if (cmd.hasOption("f"))
+            {
+                settings = loadJSONObject(new File(cmd.getOptionValue("f")));
+            }
             if (cmd.hasOption("s"))
             {
                 settings.put("server", cmd.getOptionValue("s"));
             }
             if (cmd.hasOption("c"))
             {
-                settings.put("channel", cmd.getOptionValue("c"));
+                JSONArray channels = new JSONArray();
+                String channelsParam = cmd.getOptionValue("c");
+                StringTokenizer st = new StringTokenizer(channelsParam, ",", false);
+                while(st.hasMoreTokens())
+                {
+                    channels.put(st.nextToken());
+                }
+                settings.put("channels", channels);
+            }
+            if (cmd.hasOption("p"))
+            {
+                settings.put("port", Integer.valueOf(cmd.getOptionValue("p")).intValue());
+            }
+            if (cmd.hasOption("x"))
+            {
+                settings.put("contextDepth", Integer.valueOf(cmd.getOptionValue("x")).intValue());
             }
             if (cmd.hasOption("n"))
             {
                 settings.put("nickname", cmd.getOptionValue("n"));
             }
-
+            if (cmd.hasOption("a"))
+            {
+                settings.put("systemPreamble", cmd.getOptionValue("a"));
+            }
+            if (cmd.hasOption("e"))
+            {
+                settings.put("secure", true);
+            }
             IRCGPTBotMain bot = new IRCGPTBotMain(settings);
             bot.start();
         } catch (Throwable e) {
-            
+            //e.printStackTrace(System.err);
         }
     }
     public static void showHelp(Options options)
@@ -432,15 +543,15 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                 String pattern = "HH:mm:ss yyyy-MM-dd";
                 SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
                 String date = simpleDateFormat.format(new Date());
-                IRCGPTBotMain.this.timeLabel.setText("Bot Time: " + date);
+                IRCGPTBotMain.this.timeLabel.setText(date);
                 IRCGPTBotMain.this.joinedChannelsLabel.setText("Joined Channels: " + String.valueOf(client.getChannels().size()));
-                IRCGPTBotMain.this.messagesHandledLabel.setText("Messages Handled: " + String.valueOf(IRCGPTBotMain.this.messagesHandled));
+                IRCGPTBotMain.this.messagesHandledLabel.setText("Messages Handled: " + String.valueOf(IRCGPTBotMain.this.messagesHandled) + " / " + String.valueOf(IRCGPTBotMain.this.messagesSeen));
                 IRCGPTBotMain.this.errorCountLabel.setText("Errors: " + String.valueOf(IRCGPTBotMain.this.errorCount));
                 IRCGPTBotMain.this.gui.updateScreen();
                 IRCGPTBotMain.this.gui.processInput();
                 Thread.sleep(200);
             } catch (Exception e) {
-                e.printStackTrace(System.err);
+                //e.printStackTrace(System.err);
             }
         }
         this.mainThread = null;

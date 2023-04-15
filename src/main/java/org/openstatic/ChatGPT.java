@@ -33,12 +33,17 @@ public class ChatGPT
 
     public Future<ChatMessage> callChatGPT(ChatMessage message, String system) 
     {
-        ChatLog cl = new ChatLog(this.settings, null);
+        ChatLog cl = new ChatLog(this.settings);
         cl.add(message);
         return callChatGPT(cl);
     }
 
     public Future<ChatMessage> callChatGPT(final ChatLog messages) 
+    {
+        return callChatGPT(messages.getGPTMessages());
+    }
+
+    public Future<ChatMessage> callChatGPT(JSONArray messages) 
     {
         Callable<ChatMessage> callable = new Callable<ChatMessage>() {
             public ChatMessage call() {
@@ -51,7 +56,7 @@ public class ChatGPT
                     con.setRequestProperty("Authorization", "Bearer " + ChatGPT.this.settings.optString("openAiKey"));
                     JSONObject data = new JSONObject();
                     data.put("model", "gpt-3.5-turbo");
-                    data.put("messages", messages.getGPTMessages());
+                    data.put("messages", messages);
                     //System.err.println("\033[0;92mSending Payload to chatGPT..\033[0m");
                     //System.err.println(data.toString(2));
                     con.setDoOutput(true);

@@ -2,6 +2,7 @@ package org.openstatic;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.json.JSONArray;
@@ -11,23 +12,16 @@ public class ChatLog
 {
     private ArrayList<ChatMessage> messages;
     private JSONObject settings;
-    private String target;
 
-    public ChatLog(JSONObject settings, String target)
+    public ChatLog(JSONObject settings)
     {
         this.messages = new ArrayList<ChatMessage>();
         this.settings = settings;
-        this.target = target;
     }
 
     public void add(ChatMessage cm)
     {
         this.messages.add(cm);
-    }
-
-    public String getTarget()
-    {
-        return this.target;
     }
 
     public ChatMessage getLastMessage()
@@ -44,6 +38,16 @@ public class ChatLog
     public ArrayList<ChatMessage> getMessages()
     {
         return this.messages;
+    }
+
+    public String getConversationalContext()
+    {
+        int skipAmt = this.messages.size() - settings.optInt("contextDepth", 5);
+        if (skipAmt < 0) skipAmt = 0;
+        Stream<ChatMessage> rMessages = this.messages.stream().skip(skipAmt);
+        return rMessages.map((msg) -> {
+            return msg.getSender() + " said \"" + msg.getBody() + "\"";
+        }).collect(Collectors.joining("\n"));
     }
 
     public JSONArray getGPTMessages()

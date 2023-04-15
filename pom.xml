@@ -125,7 +125,7 @@
                 </execution>
             </executions>
             <configuration>
-                <skip>true</skip>
+                <skip>false</skip>
                 <imageName>${imageName}</imageName>
                 <mainClass>${mainClass}</mainClass>
                 <buildArgs>
@@ -137,6 +137,14 @@
                     --allow-incomplete-classpath
                     --report-unsupported-elements-at-runtime
                     -H:+ReportExceptionStackTraces
+                    --initialize-at-run-time=io.netty.handler.ssl.ReferenceCountedOpenSslContext
+                    --initialize-at-run-time=io.netty.handler.ssl.JdkNpnApplicationProtocolNegotiator
+                    --initialize-at-run-time=io.netty.handler.ssl.ConscryptAlpnSslEngine
+                    --initialize-at-run-time=io.netty.handler.ssl.ReferenceCountedOpenSslEngine
+                    --initialize-at-run-time=io.netty.handler.ssl.JettyAlpnSslEngine$ClientEngine
+                    --initialize-at-run-time=io.netty.handler.ssl.JettyAlpnSslEngine$ServerEngine
+                    --initialize-at-run-time=io.netty.handler.ssl.JettyNpnSslEngine
+                    --initialize-at-run-time=io.netty.util.internal.logging.Log4JLogger
                 </buildArgs>
             </configuration>
        </plugin>
@@ -201,7 +209,7 @@
                         <goal>jdeb</goal>
                     </goals>
                     <configuration>
-                        <skip>true</skip>
+                        <skip>false</skip>
                         <verbose>true</verbose>
                         <snapshotExpand>true</snapshotExpand>
                         <!-- expand "SNAPSHOT" to what is in the "USER" env variable -->

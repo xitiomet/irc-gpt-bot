@@ -22,8 +22,26 @@ copy "default-config.json" to "config.json" and fill in the blanks with your inf
     "contextDepth": 5,       // How much history to provide chatGPT for context
     "systemPreamble": "Only respond in hacker speak",  // Some rules for chatGPT to follow
     "port": 6667,            // IRC Port
-    "secure": false          // Does this server require a secure connection
+    "secure": false,         // Does this server require a secure connection
+    "greet": false           // Should the bot greet people joining the channel?
 }
+```
+
+You may also start the bot using only command line arguments (for scripting purposes)
+```bash
+usage: irc-gpt-bot
+IRC GPT Bot: An IRC Bot for chatGPT
+ -?,--help                    Shows help
+ -a,--system-preamble <arg>   Provide a set of instructions for the bot to
+                              follow
+ -c,--channels <arg>          List of channels to join (separated by comma)
+ -e,--secure                  Use Secure connection
+ -f,--config <arg>            Specify a config file (.json) to use
+ -n,--nickname <arg>          Set Bot Nickname
+ -p,--port <arg>              Specify connection port
+ -s,--server <arg>            Connect to server
+ -x,--context-depth <arg>     How many messages to provide chatGPT for
+                              context
 ```
 
 When directly messaging this bot it will respond to all messages, however in a channel a user needs to use the bots name or be responding to a question the bot asked.
