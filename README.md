@@ -11,6 +11,8 @@ $ mvn package
 ```
 from a terminal.
 
+NOTE: You can also find the latest builds here: [https://openstatic.org/projects/ircgptbot/](https://openstatic.org/projects/ircgptbot/) (scroll to bottom)
+
 copy "default-config.json" to "config.json" and fill in the blanks with your information.
 
 ```json
