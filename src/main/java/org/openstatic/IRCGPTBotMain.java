@@ -4,10 +4,14 @@ import org.kitteh.irc.client.library.Client;
 import org.kitteh.irc.client.library.Client.Builder;
 import org.kitteh.irc.client.library.Client.Builder.Server;
 import org.kitteh.irc.client.library.Client.Builder.Server.SecurityType;
+import org.kitteh.irc.client.library.element.Actor;
 import org.kitteh.irc.client.library.element.Channel;
 import org.kitteh.irc.client.library.element.User;
+import org.kitteh.irc.client.library.event.channel.ChannelInviteEvent;
 import org.kitteh.irc.client.library.event.channel.ChannelJoinEvent;
 import org.kitteh.irc.client.library.event.channel.ChannelMessageEvent;
+import org.kitteh.irc.client.library.event.connection.ClientConnectionEstablishedEvent;
+import org.kitteh.irc.client.library.event.helper.ConnectionEvent;
 import org.kitteh.irc.client.library.event.user.PrivateMessageEvent;
 import org.kitteh.irc.client.library.exception.KittehNagException;
 
@@ -16,10 +20,12 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringTokenizer;
@@ -81,6 +87,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
     private boolean keepRunning;
     private String botNickname;
     private HashMap<String, ChatLog> logs;
+    private ArrayList<String> privateChats;
     private Panel mainPanel;
     private Label topLabel;
     private Label bottomLabel;
@@ -94,16 +101,19 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
     private long errorCount;
     private long messagesSeen;
     private long messagesHandled;
+    private File settingsFile;
 
-    public IRCGPTBotMain(JSONObject settings)
+    public IRCGPTBotMain(JSONObject settings, File settingsFile)
     {
         super();
         this.messagesHandled = 0;
         this.messagesSeen = 0;
         this.setHints(Arrays.asList(Window.Hint.CENTERED));
         this.keepRunning = true;
+        this.settingsFile = settingsFile;
         this.settings = settings;
         this.logs = new HashMap<String, ChatLog>();
+        this.privateChats = new ArrayList<String>();
         try
         {
             this.terminal = new DefaultTerminalFactory().createTerminal();
@@ -165,8 +175,11 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                                 mdb.setTextBoxSize(new TerminalSize(30, 1));
                                 TextInputDialog md = mdb.build();
                                 String channelName = md.showDialog(IRCGPTBotMain.this.gui);
-                                if (channelName != null)
+                                if (channelName != null && !"".equals(channelName))
+                                {
                                     IRCGPTBotMain.this.client.addChannel(channelName);
+                                    IRCGPTBotMain.this.addChannelToSettings(channelName);
+                                }
                             } else {
                                 Optional<Channel> channelOptional = client.getChannel(channelSelected);
                                 if (channelOptional.isPresent())
@@ -223,9 +236,15 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                     Thread t = new Thread(() -> {
                         final BasicWindow optionsWindow = new BasicWindow("Options");
                         Panel optionsPanel = new Panel(new LinearLayout(Direction.VERTICAL));
+                        
                         CheckBox greetingOption = new CheckBox("Greet users that join a channel");
                         greetingOption.setChecked(IRCGPTBotMain.this.settings.optBoolean("greet"));
+
+                        CheckBox acceptInvitesOption = new CheckBox("Accept all Channel Invites");
+                        acceptInvitesOption.setChecked(IRCGPTBotMain.this.settings.optBoolean("acceptInvites"));
+
                         optionsPanel.addComponent(greetingOption);
+                        optionsPanel.addComponent(acceptInvitesOption);
 
                         Button saveButton = new Button("save", new Runnable() {
                             @Override
@@ -233,11 +252,55 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                                 optionsWindow.close();
                             }
                         });
+                        Button changeNickButton = new Button("Change Nickname", new Runnable() {
+                            @Override
+                            public void run() {
+                                Thread z = new Thread(() -> {
+                                    try
+                                    {
+                                        TextInputDialogBuilder mdb = new TextInputDialogBuilder();
+                                        mdb.setTitle("Enter new nickname");
+                                        mdb.setInitialContent(IRCGPTBotMain.this.botNickname);
+                                        mdb.setTextBoxSize(new TerminalSize(30, 1));
+                                        TextInputDialog md = mdb.build();
+                                        String newNickname = md.showDialog(IRCGPTBotMain.this.gui);
+                                        if (newNickname != null && !"".equals(newNickname))
+                                            IRCGPTBotMain.this.changeNickname(newNickname);
+                                    } catch (Exception e2) {
+
+                                    }
+                                });
+                                z.start();
+                            }
+                        });
+                        Button editPreamble = new Button("Edit Preamble", new Runnable() {
+                            @Override
+                            public void run() {
+                                Thread z = new Thread(() -> {
+                                    try
+                                    {
+                                        TextInputDialogBuilder mdb = new TextInputDialogBuilder();
+                                        mdb.setTitle("System Preamble");
+                                        mdb.setInitialContent(IRCGPTBotMain.this.settings.optString("systemPreamble",""));
+                                        mdb.setTextBoxSize(new TerminalSize(60, 15));
+                                        TextInputDialog md = mdb.build();
+                                        String preamble = md.showDialog(IRCGPTBotMain.this.gui);
+                                        IRCGPTBotMain.this.settings.put("systemPreamble", preamble);
+                                    } catch (Exception e2) {
+
+                                    }
+                                });
+                                z.start();
+                            }
+                        });
+                        optionsPanel.addComponent(changeNickButton);
+                        optionsPanel.addComponent(editPreamble);
                         optionsPanel.addComponent(saveButton);
                         optionsWindow.setComponent(optionsPanel);
                         IRCGPTBotMain.this.gui.addWindowAndWait(optionsWindow);
-                        
                         IRCGPTBotMain.this.settings.put("greet", greetingOption.isChecked());
+                        IRCGPTBotMain.this.settings.put("acceptInvites", acceptInvitesOption.isChecked());
+                        IRCGPTBotMain.this.saveSettings();
                     });
                     t.start();
                 }
@@ -293,6 +356,34 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         }
     }
 
+    private void changeNickname(String newNick)
+    {
+        this.client.setNick(newNick);
+        this.botNickname = newNick;
+        this.settings.put("nickname", newNick);
+        this.topLabel.setText("OPENSTATIC.ORG IRC chatGPT BOT - " + settings.optString("nickname") + " / " + settings.optString("server"));
+    }
+
+    private void addChannelToSettings(String channelName)
+    {
+        if (channelName != null)
+        {
+            if (!"".equals(channelName))
+            {
+                JSONArray channelsSettings = IRCGPTBotMain.this.settings.getJSONArray("channels");
+                List<Object> channelNames = channelsSettings.toList();
+                if (!channelNames.contains(channelName))
+                    channelsSettings.put(channelName);
+                saveSettings();
+            }
+        }
+    }
+
+    public void saveSettings()
+    {
+        saveJSONObject(IRCGPTBotMain.this.settingsFile, IRCGPTBotMain.this.settings);
+    }
+
     public void shutdown()
     {
         this.keepRunning = false;
@@ -331,6 +422,28 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         }
     }
     
+    @Handler
+    public void onChannelInvite(ChannelInviteEvent event)
+    {
+        try
+        {
+            Channel channel = event.getChannel();
+            if (settings.optBoolean("acceptInvites", false))
+            {
+                channel.join();
+                addChannelToSettings(channel.getName());
+            }
+        } catch (Exception e) {
+
+        }
+    }
+
+    @Handler
+    public void onClientConnect(ClientConnectionEstablishedEvent event)
+    {
+        
+    }
+
     @Handler
     public void onChannelJoin(ChannelJoinEvent event)
     {
@@ -412,6 +525,10 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         try
         {
             String target = sender.getNick();
+            if (!this.privateChats.contains(target))
+            {
+                this.privateChats.add(target);
+            }
             ChatLog cl = this.getLog(target);
             ChatMessage msg = new ChatMessage(sender.getNick(), this.botNickname, body, new Date(System.currentTimeMillis()));
             cl.add(msg);
@@ -430,13 +547,15 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
     public static void main(String[] args)
     {
         CommandLine cmd = null;
-        JSONObject settings = loadJSONObject(new File("config.json"));
+        File settingsFile = new File("config.json");
+        JSONObject settings = loadJSONObject(settingsFile);
         Options options = new Options();
         CommandLineParser parser = new DefaultParser();
         options.addOption(new Option("?", "help", false, "Shows help"));
         options.addOption(new Option("f", "config", true, "Specify a config file (.json) to use"));
         options.addOption(new Option("s", "server", true, "Connect to server"));
         options.addOption(new Option("e", "secure", false, "Use Secure connection"));
+        options.addOption(new Option("k", "key", false, "Set the openAI key for this bot"));
         options.addOption(new Option("p", "port", true, "Specify connection port"));
         options.addOption(new Option("n", "nickname", true, "Set Bot Nickname"));
         options.addOption(new Option("c", "channels", true, "List of channels to join (separated by comma)"));
@@ -452,7 +571,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
             }
             if (cmd.hasOption("f"))
             {
-                settings = loadJSONObject(new File(cmd.getOptionValue("f")));
+                settingsFile = new File(cmd.getOptionValue("f"));
+                settings = loadJSONObject(settingsFile);
             }
             if (cmd.hasOption("s"))
             {
@@ -481,6 +601,10 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
             {
                 settings.put("nickname", cmd.getOptionValue("n"));
             }
+            if (cmd.hasOption("k"))
+            {
+                settings.put("openAiKey", cmd.getOptionValue("k"));
+            }
             if (cmd.hasOption("a"))
             {
                 settings.put("systemPreamble", cmd.getOptionValue("a"));
@@ -489,7 +613,9 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
             {
                 settings.put("secure", true);
             }
-            IRCGPTBotMain bot = new IRCGPTBotMain(settings);
+            if (!settings.has("channels"))
+                settings.put("channels", new JSONArray());
+            IRCGPTBotMain bot = new IRCGPTBotMain(settings, settingsFile);
             bot.start();
         } catch (Throwable e) {
             //e.printStackTrace(System.err);

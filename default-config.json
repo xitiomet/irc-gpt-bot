@@ -8,5 +8,7 @@
     "openAiKey": "",
     "contextDepth": 5,
     "systemPreamble": "Only respond in hacker speak",
-    "secure": false
+    "secure": false,
+    "acceptInvites": true,
+    "model": "gpt-3.5-turbo"
 }

@@ -22,6 +22,8 @@ public class ChatLog
     public void add(ChatMessage cm)
     {
         this.messages.add(cm);
+        if (this.messages.size() > 255)
+            this.messages.remove(0);
     }
 
     public ChatMessage getLastMessage()

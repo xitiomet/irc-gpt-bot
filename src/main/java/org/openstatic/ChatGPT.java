@@ -55,7 +55,7 @@ public class ChatGPT
                     con.setRequestProperty("Content-Type", "application/json");
                     con.setRequestProperty("Authorization", "Bearer " + ChatGPT.this.settings.optString("openAiKey"));
                     JSONObject data = new JSONObject();
-                    data.put("model", "gpt-3.5-turbo");
+                    data.put("model", ChatGPT.this.settings.optString("model", "gpt-3.5-turbo"));
                     data.put("messages", messages);
                     //System.err.println("\033[0;92mSending Payload to chatGPT..\033[0m");
                     //System.err.println(data.toString(2));
