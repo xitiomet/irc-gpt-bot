@@ -5,3 +5,4 @@ dependency-reduced-pom.xml
 config.json
 jre/
 .vscode/
+upload.sh

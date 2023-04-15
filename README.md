@@ -1,6 +1,9 @@
 ## IRC GPT Bot
 
-An IRC Bot for chatGPT using [KittehIRC](https://github.com/KittehOrg/KittehIRCClientLib)
+An IRC Bot powered by chatGPT using [KittehIRC](https://github.com/KittehOrg/KittehIRCClientLib)
+![](https://openstatic.org/projects/ircgptbot/irc-gpt-bot-ss.png)
+
+This is not your typical IRC bot, it does not manage operator status, channel voice or anything administrative. It answers questions, greets users and provides summaries by using chatGPT
 
 To compile this project please run:
 ```bash
