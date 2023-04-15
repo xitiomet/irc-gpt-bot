@@ -28,7 +28,8 @@ copy "default-config.json" to "config.json" and fill in the blanks with your inf
     "secure": false,         // Does this server require a secure connection
     "greet": false,          // Should the bot greet people joining the channel?
     "acceptInvites": true,    // Should the bot accept channel invites?
-    "model": "gpt-3.5-turbo"  // ChatGPT model to use
+    "model": "gpt-3.5-turbo", // ChatGPT model to use
+    "privateMessages": true   // Respond to private messages
 }
 ```
 
@@ -53,3 +54,14 @@ IRC GPT Bot: An IRC Bot for chatGPT
 
 When directly messaging this bot it will respond to all messages, however in a channel a user needs to use the bots name or be responding to a question the bot asked.
 
+### Greeting mode
+if greeting is enabled the bot will greet new users entering the channel along with a summary of the conversation
+
+Example with preamble set to "Respond to all messages in a victorian style":
+```
+(11:51:56 AM) brian: did you know that pencils are made of lead?
+(11:52:08 AM) Bob: not anymore they started making them out of graphite
+(11:52:15 AM) brian: oh really? thats interesting
+(11:52:21 AM) xitiomet [~xitiomet@Xi04.lan] entered the room.
+(11:52:25 AM) chatGPT: Greetings and salutations, dear xitiomet! Pray tell, how doth thee fare on this fine day? To recapitulate the discourse heretofore, brian didst proclaim that pencils were made of lead whilst Bob doth rebut that pencils are instead fashioned from graphite. This revelation didst strike brian with interest and awe.
+```

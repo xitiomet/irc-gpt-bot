@@ -6,9 +6,10 @@
     "password": null,
     "server": "127.0.0.1",
     "openAiKey": "",
-    "contextDepth": 5,
+    "contextDepth": 15,
     "systemPreamble": "Only respond in hacker speak",
     "secure": false,
     "acceptInvites": true,
-    "model": "gpt-3.5-turbo"
+    "model": "gpt-3.5-turbo",
+    "privateMessages": true
 }
