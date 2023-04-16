@@ -51,4 +51,9 @@ public class ChatMessage
         msgU.put("content", this.body);
         return msgU;
     }
+
+    public String toSimpleLine()
+    {
+        return this.sender + ": " + this.body;
+    }
 }

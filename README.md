@@ -1,6 +1,6 @@
 ## IRC GPT Bot
 
-An IRC Bot powered by chatGPT using [KittehIRC](https://github.com/KittehOrg/KittehIRCClientLib)
+An IRC Bot powered by chatGPT
 
 This is not your typical IRC bot, it does not manage operator status, channel voice or anything administrative. It answers questions, greets users and provides summaries using chatGPT
 
@@ -23,7 +23,7 @@ from a terminal.
 
 NOTE: You can also find the latest builds here: [https://openstatic.org/projects/ircgptbot/](https://openstatic.org/projects/ircgptbot/) (scroll to bottom)
 
-copy "default-config.json" to "config.json" and fill in the blanks with your information.
+copy "default-config.json" to "~/.irc-gpt-bot.json" and fill in the blanks with your information. You can also create a config file anywhere and use the -f option.
 
 ```json
 {
@@ -41,7 +41,8 @@ copy "default-config.json" to "config.json" and fill in the blanks with your inf
     "greet": false,          // Should the bot greet people joining the channel?
     "acceptInvites": true,    // Should the bot accept channel invites?
     "model": "gpt-3.5-turbo", // ChatGPT model to use
-    "privateMessages": true   // Respond to private messages
+    "privateMessages": true,  // Respond to private messages
+    "logPath": "./irc-gpt-bot-logs/" // Log path
 }
 ```
 
@@ -54,9 +55,11 @@ IRC GPT Bot: An IRC Bot for chatGPT
                               follow
  -c,--channels <arg>          List of channels to join (separated by
                               comma)
+ -d,--debug                   Turn on Debug mode
  -e,--secure                  Use Secure connection
  -f,--config <arg>            Specify a config file (.json) to use
  -k,--key                     Set the openAI key for this bot
+ -l,--log-output <arg>        Specify log output path
  -n,--nickname <arg>          Set Bot Nickname
  -p,--port <arg>              Specify connection port
  -s,--server <arg>            Connect to server
@@ -70,10 +73,9 @@ When directly messaging this bot it will respond to all messages, however in a c
 if greeting is enabled the bot will greet new users entering the channel along with a summary of the conversation
 
 Example with preamble set to "Respond to all messages in a victorian style":
-```
-(11:51:56 AM) brian: did you know that pencils are made of lead?
-(11:52:08 AM) Bob: not anymore they started making them out of graphite
-(11:52:15 AM) brian: oh really? thats interesting
-(11:52:21 AM) xitiomet [~xitiomet@Xi04.lan] entered the room.
-(11:52:25 AM) chatGPT: Greetings and salutations, dear xitiomet! Pray tell, how doth thee fare on this fine day? To recapitulate the discourse heretofore, brian didst proclaim that pencils were made of lead whilst Bob doth rebut that pencils are instead fashioned from graphite. This revelation didst strike brian with interest and awe.
-```
+
+    (11:51:56 AM) brian: did you know that pencils are made of lead?
+    (11:52:08 AM) Bob: not anymore they started making them out of graphite
+    (11:52:15 AM) brian: oh really? thats interesting
+    (11:52:21 AM) xitiomet [~xitiomet@Xi04.lan] entered the room.
+    (11:52:25 AM) chatGPT: Greetings and salutations, dear xitiomet! Pray tell, how doth thee fare on this fine day? To recapitulate the discourse heretofore, brian didst proclaim that pencils were made of lead whilst Bob doth rebut that pencils are instead fashioned from graphite. This revelation didst strike brian with interest and awe.

@@ -34,6 +34,10 @@ import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import javax.imageio.ImageIO;
+import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
+
 import org.apache.commons.cli.*;
 import org.json.*;
 
@@ -65,6 +69,8 @@ import com.googlecode.lanterna.screen.Screen;
 import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.Terminal;
+import com.googlecode.lanterna.terminal.swing.SwingTerminal;
+import com.googlecode.lanterna.terminal.swing.SwingTerminalFrame;
 
 import net.engio.mbassy.listener.Handler;
 
@@ -96,6 +102,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
     private long messagesSeen;
     private long messagesHandled;
     private File settingsFile;
+    private File logsFolder;
 
     public IRCGPTBotMain(JSONObject settings, File settingsFile)
     {
@@ -106,11 +113,34 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         this.keepRunning = true;
         this.settingsFile = settingsFile;
         this.settings = settings;
+        String defaultLogPath = new File(settingsFile.getParentFile(), "irc-gpt-bot-logs").toString();
+        this.logsFolder = new File(this.settings.optString("logPath", defaultLogPath));
+        if (!this.logsFolder.exists())
+        {
+            this.logsFolder.mkdirs();
+        }
         this.logs = new HashMap<String, ChatLog>();
         this.privateChats = new ArrayList<String>();
         try
         {
-            this.terminal = new DefaultTerminalFactory().createTerminal();
+            if (settings.optBoolean("guiMode", false))
+            {
+                final SwingTerminalFrame swingTerminal = new DefaultTerminalFactory().setInitialTerminalSize(new TerminalSize(80, 24)).createSwingTerminal();
+                swingTerminal.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+                SwingUtilities.invokeAndWait(() -> {
+                    swingTerminal.setTitle("IRC GPT BOT");
+                    try
+                    {
+                        swingTerminal.setIconImage(ImageIO.read(IRCGPTBotMain.class.getResourceAsStream("/icon-32.png")));
+                    } catch (Exception e) {}
+                    swingTerminal.setLocation(40, 40);
+                    swingTerminal.setVisible(true);
+                });
+                this.terminal = swingTerminal;
+            } else {
+                this.terminal = new DefaultTerminalFactory().setInitialTerminalSize(new TerminalSize(80, 24)).createHeadlessTerminal();
+            }
+
             this.screen = new TerminalScreen(this.terminal);
             this.wm = new DefaultWindowManager();
             this.gui = new MultiWindowTextGUI(screen, this.wm, new EmptySpace(TextColor.ANSI.BLACK));
@@ -218,8 +248,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                                 }
                             }
                         } catch (Exception ex) {
-                            if (settings.optBoolean("debug", false))
-                                ex.printStackTrace(System.err);
+                            log(ex);
                         }
                     });
                     z.start();
@@ -287,7 +316,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                                         if (newDepth != null && !"".equals(newDepth))
                                             IRCGPTBotMain.this.settings.put("contextDepth", Integer.valueOf(newDepth).intValue());
                                     } catch (Exception e2) {
-
+                                        log(e2);
                                     }
                                 });
                                 z.start();
@@ -307,7 +336,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                                         String preamble = md.showDialog(IRCGPTBotMain.this.gui);
                                         IRCGPTBotMain.this.settings.put("systemPreamble", preamble);
                                     } catch (Exception e2) {
-
+                                        log(e2);
                                     }
                                 });
                                 z.start();
@@ -343,40 +372,53 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
             IRCGPTBotMain.this.screen.startScreen();
             IRCGPTBotMain.this.gui.addWindow(IRCGPTBotMain.this);
         } catch (Exception wex) {
-            if (settings.optBoolean("debug", false))
-                wex.printStackTrace(System.err);
+            log(wex);
         }
         this.botNickname = settings.optString("nickname");
         this.chatGPT = new ChatGPT(this.settings);
+        Thread t = new Thread(() -> {
+            connect();
+        });
+        t.start();
+    }
+
+    private void connect()
+    {
         try
         {
-            Builder builder = Client.builder()
-                                .nick(botNickname)
-                                .realName(settings.optString("realName", botNickname))
-                                .user(settings.optString("user", botNickname));
-            builder.listeners().exception(this);
-            SecurityType sType = SecurityType.INSECURE;
-            if (settings.optBoolean("secure"))
-                sType = SecurityType.SECURE;
-            Server server =  builder.server()
-                            .port(settings.optInt("port", 6667), sType)
-                            .host(settings.optString("server"));
-            if (settings.has("password"))
+            if (this.client != null)
             {
-                server = server.password(settings.optString("password"));
+                this.client.shutdown();
             }
-            this.client = server.then().build();
-            this.client.setExceptionListener(this);
-            this.client.connect();
-            this.client.getEventManager().registerEventListener(this);
-            JSONArray channels = settings.getJSONArray("channels");
-            channels.forEach((channel) -> {
-                String channelName = (String) channel;
-                this.client.addChannel(channelName);
-            });
-        } catch (Throwable ne) {
-            if (settings.optBoolean("debug", false))
-                ne.printStackTrace(System.err);
+            if (settings.has("server"))
+            {
+                Builder builder = Client.builder()
+                                    .nick(botNickname)
+                                    .realName(settings.optString("realName", botNickname))
+                                    .user(settings.optString("user", botNickname));
+                builder.listeners().exception(this);
+                SecurityType sType = SecurityType.INSECURE;
+                if (settings.optBoolean("secure"))
+                    sType = SecurityType.SECURE;
+                Server server =  builder.server()
+                                .port(settings.optInt("port", 6667), sType)
+                                .host(settings.optString("server"));
+                if (settings.has("password"))
+                {
+                    server = server.password(settings.optString("password"));
+                }
+                this.client = server.then().build();
+                this.client.setExceptionListener(this);
+                this.client.connect();
+                this.client.getEventManager().registerEventListener(this);
+                JSONArray channels = settings.getJSONArray("channels");
+                channels.forEach((channel) -> {
+                    String channelName = (String) channel;
+                    this.client.addChannel(channelName);
+                });
+            }
+        } catch (Exception ne) {
+            log(ne);
         }
     }
 
@@ -411,16 +453,16 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         PrintStream ps = new PrintStream(baos, true, Charset.forName("UTF-8"));
         e.printStackTrace(ps);
         ps.flush();
-        logAppend(settings.optString("logFile","irc-gpt-bot.log"), msg + "\n" + baos.toString());
+        logAppend("exceptions.log", msg + "\n" + baos.toString());
     }
 
-    private static synchronized void logAppend(String filename, String text)
+    private synchronized void logAppend(String filename, String text)
     {
         try
         {
             String pattern = "HH:mm:ss yyyy-MM-dd";
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
-            FileOutputStream logOutputStream = new FileOutputStream(new File(filename), true);;
+            FileOutputStream logOutputStream = new FileOutputStream(new File(this.logsFolder, filename), true);;
             PrintWriter logWriter = new PrintWriter(logOutputStream, true, Charset.forName("UTF-8"));
             logWriter.println("[" + simpleDateFormat.format(new Date(System.currentTimeMillis())) + "] " + text);
             logWriter.flush();
@@ -439,7 +481,12 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
     public void shutdown()
     {
         this.keepRunning = false;
-        this.client.shutdown();
+        if (this.client != null)
+            this.client.shutdown();
+        try
+        {
+            this.terminal.close();
+        } catch (Exception e) {}
         Thread t = new Thread(() -> {
             try
             {
@@ -538,6 +585,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
             String target = channel.getName();
             ChatLog cl = this.getLog(target);
             ChatMessage msg = new ChatMessage(sender.getNick(), channel.getName(), body, new Date(System.currentTimeMillis()));
+            logAppend(target + ".log", msg.toSimpleLine());
             ChatMessage previosMsg = cl.getLastMessage();
             cl.add(msg);
             boolean botAskedQuestion = false;
@@ -558,6 +606,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                     Future<ChatMessage> gptResponse = chatGPT.callChatGPT(cl);
                     ChatMessage outMsg = gptResponse.get();
                     outMsg.setRecipient(target);
+                    logAppend(target + ".log", outMsg.toSimpleLine());
                     String outText = outMsg.getBody().replace("\n", " ").replace("\r", "");
                     cl.add(outMsg);
                     channel.sendMultiLineMessage(outText);
@@ -585,18 +634,21 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
             ChatLog cl = this.getLog(target);
             ChatMessage msg = new ChatMessage(sender.getNick(), this.botNickname, body, new Date(System.currentTimeMillis()));
             cl.add(msg);
-            if (settings.optBoolean("privateMessages", true))
+            logAppend(target + ".log", msg.toSimpleLine());
+            if (settings.optBoolean("privateMessages", false))
             {
                 Future<ChatMessage> gptResponse = chatGPT.callChatGPT(cl);
                 ChatMessage outMsg = gptResponse.get();
                 String outText = outMsg.getBody();
                 outMsg.setRecipient(target);
                 cl.add(outMsg);
+                logAppend(target + ".log", outMsg.toSimpleLine());
                 sender.sendMultiLineMessage(outText);
                 this.messagesHandled++;
             } else {
                 ChatMessage outMsg = new ChatMessage(sender.getNick(), this.botNickname, "I'm sorry, my private message features have been disabled.", new Date(System.currentTimeMillis()));
                 cl.add(outMsg);
+                logAppend(target + ".log", outMsg.toSimpleLine());
                 sender.sendMultiLineMessage(outMsg.getBody());
                 this.messagesHandled++;
             }
@@ -608,7 +660,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
     public static void main(String[] args)
     {
         CommandLine cmd = null;
-        File settingsFile = new File("config.json");
+        File settingsFile = new File(System.getProperty("user.home"),".irc-gpt-bot.json");
         JSONObject settings = loadJSONObject(settingsFile);
         Options options = new Options();
         CommandLineParser parser = new DefaultParser();
@@ -619,7 +671,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         options.addOption(new Option("k", "key", false, "Set the openAI key for this bot"));
         options.addOption(new Option("p", "port", true, "Specify connection port"));
         options.addOption(new Option("n", "nickname", true, "Set Bot Nickname"));
-        options.addOption(new Option("d", "debug", false, "Turn on Debug mode"));
+        options.addOption(new Option("g", "gui", false, "Turn on GUI mode"));
+        options.addOption(new Option("l", "log-output", true, "Specify log output path"));
         options.addOption(new Option("c", "channels", true, "List of channels to join (separated by comma)"));
         options.addOption(new Option("x", "context-depth", true, "How many messages to provide chatGPT for context"));
         options.addOption(new Option("a", "system-preamble", true, "Provide a set of instructions for the bot to follow"));
@@ -663,6 +716,10 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
             {
                 settings.put("nickname", cmd.getOptionValue("n"));
             }
+            if (cmd.hasOption("l"))
+            {
+                settings.put("logPath", cmd.getOptionValue("l"));
+            }
             if (cmd.hasOption("k"))
             {
                 settings.put("openAiKey", cmd.getOptionValue("k"));
@@ -675,9 +732,9 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
             {
                 settings.put("secure", true);
             }
-            if (cmd.hasOption("d"))
+            if (cmd.hasOption("g"))
             {
-                settings.put("debug", true);
+                settings.put("guiMode", true);
             }
             if (!settings.has("channels"))
                 settings.put("channels", new JSONArray());
@@ -729,22 +786,32 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
     @Override
     public void run() 
     {
+        int joinedChannels = 0;
+        String pattern = "HH:mm:ss yyyy-MM-dd";
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
         while(this.keepRunning)
         {
             try
             {
-                String pattern = "HH:mm:ss yyyy-MM-dd";
-                SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+                if (this.client != null)
+                {
+                    joinedChannels = client.getChannels().size();
+                }
+            } catch (Exception ce) {
+                //log(ce);
+            }
+            try
+            {
                 String date = simpleDateFormat.format(new Date());
                 IRCGPTBotMain.this.timeLabel.setText(date);
-                IRCGPTBotMain.this.joinedChannelsLabel.setText("Joined Channels: " + String.valueOf(client.getChannels().size()));
+                IRCGPTBotMain.this.joinedChannelsLabel.setText("Joined Channels: " + String.valueOf(joinedChannels));
                 IRCGPTBotMain.this.messagesHandledLabel.setText("Messages Handled: " + String.valueOf(IRCGPTBotMain.this.messagesHandled) + " / " + String.valueOf(IRCGPTBotMain.this.messagesSeen));
                 IRCGPTBotMain.this.errorCountLabel.setText("Errors: " + String.valueOf(IRCGPTBotMain.this.errorCount));
                 IRCGPTBotMain.this.gui.updateScreen();
                 IRCGPTBotMain.this.gui.processInput();
                 Thread.sleep(200);
             } catch (Exception e) {
-                //e.printStackTrace(System.err);
+                //log(e);
             }
         }
         this.mainThread = null;

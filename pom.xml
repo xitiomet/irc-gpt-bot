@@ -160,7 +160,7 @@
                         <goal>launch4j</goal>
                     </goals>
                     <configuration>
-                        <headerType>console</headerType>
+                        <headerType>gui</headerType>
                         <outfile>target/${imageName}.exe</outfile>
                         <jar>target/${project.artifactId}-${project.version}.jar</jar>
                         <!-- if <dontWrapJar>true</dontWrapJar> change to this conf <jar>${project.artifactId}-${project.version}.jar</jar> -->
@@ -169,6 +169,7 @@
                         <classPath>
                             <mainClass>${mainClass}</mainClass>
                         </classPath>
+                        <cmdLine>-g</cmdLine>
                         <icon>${basedir}/src/main/resources/win.ico</icon>
                         <chdir>.</chdir>
                         <jre>
@@ -323,6 +324,36 @@
                 </execution>
             </executions>
        </plugin>
+       <plugin>
+            <groupId>org.digitalmediaserver</groupId>
+            <artifactId>nsis-maven-plugin</artifactId>
+            <version>1.0.2</version>
+            <configuration>
+                <makensisExecutable>C:\Program Files (x86)\NSIS\makensis.exe</makensisExecutable>
+                <makensisExecutableLinux>/usr/bin/makensis</makensisExecutableLinux>
+                <makensisExecutableMacOS></makensisExecutableMacOS>
+                <compression>lzma</compression>
+                <compressionIsFinal>true</compressionIsFinal>
+                <compressionDictSize>64</compressionDictSize>
+                <defines>
+                    <PROJECT_NAME_SHORT>IRC-GPT-BOT</PROJECT_NAME_SHORT>
+                    <PROJECT_NAME_CAMEL>${project.name.camel}</PROJECT_NAME_CAMEL>
+                </defines>
+            </configuration>
+            <executions>
+                <execution>
+                    <id>build-windows-installer</id>
+                    <configuration>
+                        <scriptFile>${basedir}/src/nsis/irc-gpt-bot.nsi</scriptFile>
+                        <outputFile>IrcGPTBotSetup-${project.version}.exe</outputFile>
+                    </configuration>
+                    <goals>
+                        <goal>generate-headerfile</goal>
+                        <goal>make</goal>
+                    </goals>
+                </execution>
+            </executions>
+        </plugin>
     </plugins>
   </build>
 </project>

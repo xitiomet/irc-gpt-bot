@@ -2,6 +2,7 @@ package org.openstatic;
 
 import org.json.*;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -23,17 +24,20 @@ public class ChatGPT
     private FileOutputStream fos;
     private PrintWriter pw;
     private SimpleDateFormat simpleDateFormat;
-
+    private File logsFolder;
+    
     public ChatGPT(JSONObject settings)
     {
         String pattern = "yyyy-MM-dd HH:mm:ss";
         this.simpleDateFormat = new SimpleDateFormat(pattern);
         this.settings = settings;
+        this.logsFolder = new File(this.settings.optString("logPath", "./irc-gpt-bot-logs/"));
+
         if (settings.has("gptLog"))
         {
             try
             {
-                this.fos = new FileOutputStream(settings.optString("gptLog", "gpt.log"), true);
+                this.fos = new FileOutputStream(new File(this.logsFolder, "gpt.log"), true);
                 this.pw = new PrintWriter(fos, true, Charset.forName("UTF-8"));
             } catch (Exception e) {}
         }
