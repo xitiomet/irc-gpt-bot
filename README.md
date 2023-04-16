@@ -1,9 +1,19 @@
 ## IRC GPT Bot
 
 An IRC Bot powered by chatGPT using [KittehIRC](https://github.com/KittehOrg/KittehIRCClientLib)
-![](https://openstatic.org/projects/ircgptbot/irc-gpt-bot-ss.png)
 
-This is not your typical IRC bot, it does not manage operator status, channel voice or anything administrative. It answers questions, greets users and provides summaries by using chatGPT
+This is not your typical IRC bot, it does not manage operator status, channel voice or anything administrative. It answers questions, greets users and provides summaries using chatGPT
+
+Features:
+ * Ability to modify chatGPT's system preamble instructions without restarting bot
+    * "only respond they way somebody from the victorian era would"
+    * "talk like character X from show Y"
+ * Can adjust context depth to provide bot with more conversational awareness
+ * Can respond to private messages
+ * Can greet users with a brief summary of the conversation before they joined
+ * Lanterna Interface - runs well in "screen" environment, no desktop required
+
+![](https://openstatic.org/projects/ircgptbot/irc-gpt-bot-ss.png)
 
 To compile this project please run:
 ```bash

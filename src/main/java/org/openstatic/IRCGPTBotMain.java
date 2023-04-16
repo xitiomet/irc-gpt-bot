@@ -96,14 +96,10 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
     private long messagesSeen;
     private long messagesHandled;
     private File settingsFile;
-    private SimpleDateFormat simpleDateFormat;
-
 
     public IRCGPTBotMain(JSONObject settings, File settingsFile)
     {
         super();
-        String pattern = "yyyy-MM-dd HH:mm:ss";
-        this.simpleDateFormat = new SimpleDateFormat(pattern);
         this.messagesHandled = 0;
         this.messagesSeen = 0;
         this.setHints(Arrays.asList(Window.Hint.CENTERED));
@@ -114,11 +110,10 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         this.privateChats = new ArrayList<String>();
         try
         {
-            Class.forName("com.googlecode.lanterna.gui2.WindowShadowRenderer");
             this.terminal = new DefaultTerminalFactory().createTerminal();
             this.screen = new TerminalScreen(this.terminal);
             this.wm = new DefaultWindowManager();
-            this.gui = new MultiWindowTextGUI(screen, wm, new EmptySpace(TextColor.ANSI.BLACK));
+            this.gui = new MultiWindowTextGUI(screen, this.wm, new EmptySpace(TextColor.ANSI.BLACK));
             Panel backgroundPanel = new Panel(new BorderLayout());
             backgroundPanel.setFillColorOverride(ANSI.BLACK);
 
@@ -132,7 +127,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
 
             Panel bottomLabelPanel = new Panel();
             bottomLabelPanel.setFillColorOverride(ANSI.RED);
-            this.bottomLabel = new Label("https://github.com/xitiomet/irc-gpt-bot");
+            this.bottomLabel = new Label("https://openstatic.org/projects/ircgptbot/");
             this.bottomLabel.setBackgroundColor(ANSI.RED);
             this.bottomLabel.setForegroundColor(ANSI.BLACK);
             bottomLabelPanel.addComponent(this.bottomLabel);            
