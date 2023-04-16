@@ -98,7 +98,7 @@ public class ChatGPT
                     String respBody = respMessage.getString("content").replace("\n", " ").replace("\r", "").replace("\0", "").trim();
                     if (respBody.startsWith("\"") && respBody.endsWith("\""))
                     {
-                        respBody = respBody.substring(1, -1);
+                        respBody = respBody.substring(1, respBody.length() - 2);
                         ChatGPT.this.log("Removed Silly Quotes!");
                     }
                     ChatMessage respMsg = new ChatMessage(ChatGPT.this.settings.optString("nickname"), null, respBody, new Date(System.currentTimeMillis()));

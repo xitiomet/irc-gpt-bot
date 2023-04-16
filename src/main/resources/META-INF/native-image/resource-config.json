@@ -1,12 +1,26 @@
 {
   "resources":{
   "includes":[
-    {"pattern":"\\Qbigsnake-theme.properties\\E"}, 
-    {"pattern":"\\Qblaster-theme.properties\\E"}, 
-    {"pattern":"\\Qbusinessmachine-theme.properties\\E"}, 
-    {"pattern":"\\Qconqueror-theme.properties\\E"}, 
-    {"pattern":"\\Qdefault-theme.properties\\E"}, 
-    {"pattern":"\\Qdefrost-theme.properties\\E"}
+    {
+      "pattern":"\\Qbigsnake-theme.properties\\E"
+    }, 
+    {
+      "pattern":"\\Qblaster-theme.properties\\E"
+    }, 
+    {
+      "pattern":"\\Qbusinessmachine-theme.properties\\E"
+    }, 
+    {
+      "pattern":"\\Qconqueror-theme.properties\\E"
+    }, 
+    {
+      "pattern":"\\Qdefault-theme.properties\\E"
+    }, 
+    {
+      "pattern":"\\Qdefrost-theme.properties\\E"
+    }
   ]},
-  "bundles":[{"name":"multilang.lanterna-ui"}]
+  "bundles":[{
+      "name":"multilang.lanterna-ui"
+    }]
 }

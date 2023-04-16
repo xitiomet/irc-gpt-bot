@@ -60,6 +60,7 @@ import com.googlecode.lanterna.gui2.dialogs.MessageDialog;
 import com.googlecode.lanterna.gui2.dialogs.MessageDialogBuilder;
 import com.googlecode.lanterna.gui2.dialogs.TextInputDialog;
 import com.googlecode.lanterna.gui2.dialogs.TextInputDialogBuilder;
+import com.googlecode.lanterna.gui2.WindowShadowRenderer;
 import com.googlecode.lanterna.screen.Screen;
 import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
@@ -75,6 +76,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
     private Terminal terminal;
     private MultiWindowTextGUI gui;
     private Client client;
+    private WindowManager wm;
     private Thread mainThread;
     private boolean keepRunning;
     private String botNickname;
@@ -112,9 +114,10 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         this.privateChats = new ArrayList<String>();
         try
         {
+            Class.forName("com.googlecode.lanterna.gui2.WindowShadowRenderer");
             this.terminal = new DefaultTerminalFactory().createTerminal();
             this.screen = new TerminalScreen(this.terminal);
-            WindowManager wm = new DefaultWindowManager();
+            this.wm = new DefaultWindowManager();
             this.gui = new MultiWindowTextGUI(screen, wm, new EmptySpace(TextColor.ANSI.BLACK));
             Panel backgroundPanel = new Panel(new BorderLayout());
             backgroundPanel.setFillColorOverride(ANSI.BLACK);
@@ -514,13 +517,13 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                         messages.put(msgS);
                     }
                     greetCommand.put("role", "user");
-                    greetCommand.put("content", "Here is a conversation:\n" + cl.getConversationalContext() + "\nProvide a Greeting for " + joiner.getNick() + ", who just joined the conversation. Also summarize what has been said so far");
+                    greetCommand.put("content", "Here is a conversation\n" + cl.getConversationalContext() + "\nProvide a Greeting for " + joiner.getNick() + ", who just joined the conversation and summarize what has been said so far, do not use more then 512 characters.");
                     messages.put(greetCommand);
                     Future<ChatMessage> gptResponse = chatGPT.callChatGPT(messages);
                     ChatMessage outMsg = gptResponse.get();
                     String outText = outMsg.getBody();
                     cl.add(outMsg);
-                    channel.sendMultiLineMessage(outText);
+                    joiner.sendMultiLineNotice(outText);
                 }
             }
         } catch (Exception e) {

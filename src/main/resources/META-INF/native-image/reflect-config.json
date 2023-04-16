@@ -46,9 +46,6 @@
   "name":"com.googlecode.lanterna.gui2.DefaultWindowDecorationRenderer"
 },
 {
-  "name":"com.googlecode.lanterna.gui2.WindowShadowRenderer"
-},
-{
   "name":"com.googlecode.lanterna.gui2.FatWindowDecorationRenderer",
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
@@ -79,6 +76,9 @@
 },
 {
   "name":"com.googlecode.lanterna.gui2.table.Table"
+},
+{
+  "name":"com.googlecode.lanterna.terminal.NativeGNULinuxTerminal"
 },
 {
   "name":"com.sun.crypto.provider.AESCipher$General",
@@ -295,6 +295,10 @@
   "name":"java.lang.String[]"
 },
 {
+  "name":"java.lang.Thread",
+  "methods":[{"name":"isVirtual","parameterTypes":[] }]
+},
+{
   "name":"java.lang.management.ManagementFactory",
   "methods":[{"name":"getRuntimeMXBean","parameterTypes":[] }]
 },
@@ -304,6 +308,10 @@
     {"name":"getInputArguments","parameterTypes":[] }, 
     {"name":"getName","parameterTypes":[] }
   ]
+},
+{
+  "name":"java.lang.management.ThreadInfo",
+  "fields":[{"name":"virtual"}]
 },
 {
   "name":"java.nio.Bits",
@@ -558,6 +566,9 @@
     {"name":"getAndSetObject","parameterTypes":["java.lang.Object","long","java.lang.Object"] }, 
     {"name":"invokeCleaner","parameterTypes":["java.nio.ByteBuffer"] }
   ]
+},
+{
+  "name":"sun.misc.VM"
 },
 {
   "name":"sun.nio.ch.SelectorImpl",
