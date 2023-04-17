@@ -9,7 +9,11 @@ import org.kitteh.irc.client.library.element.User;
 import org.kitteh.irc.client.library.event.channel.ChannelInviteEvent;
 import org.kitteh.irc.client.library.event.channel.ChannelJoinEvent;
 import org.kitteh.irc.client.library.event.channel.ChannelMessageEvent;
+import org.kitteh.irc.client.library.event.connection.ClientConnectionClosedEvent;
+import org.kitteh.irc.client.library.event.connection.ClientConnectionEndedEvent;
 import org.kitteh.irc.client.library.event.connection.ClientConnectionEstablishedEvent;
+import org.kitteh.irc.client.library.event.connection.ClientConnectionFailedEvent;
+import org.kitteh.irc.client.library.event.helper.ConnectionEvent;
 import org.kitteh.irc.client.library.event.user.PrivateMessageEvent;
 import org.kitteh.irc.client.library.exception.KittehNagException;
 
@@ -48,9 +52,11 @@ import com.googlecode.lanterna.gui2.BasicWindow;
 import com.googlecode.lanterna.gui2.BorderLayout;
 import com.googlecode.lanterna.gui2.Borders;
 import com.googlecode.lanterna.gui2.Button;
+import com.googlecode.lanterna.gui2.TextBox;
 import com.googlecode.lanterna.gui2.DefaultWindowManager;
 import com.googlecode.lanterna.gui2.Direction;
 import com.googlecode.lanterna.gui2.EmptySpace;
+import com.googlecode.lanterna.gui2.GridLayout;
 import com.googlecode.lanterna.gui2.Label;
 import com.googlecode.lanterna.gui2.LinearLayout;
 import com.googlecode.lanterna.gui2.MultiWindowTextGUI;
@@ -95,8 +101,11 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
     private Label messagesHandledLabel;
     private Label errorCountLabel;
     private Label timeLabel;
+    private Label connectionLabel;
+    private Button serverButton;
     private Button channelsButton;
     private Button optionsButton;
+    private Button reconnectButton;
     private Button exitButton;
     private long errorCount;
     private long messagesSeen;
@@ -170,10 +179,18 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
             this.joinedChannelsLabel = new Label("");
             this.messagesHandledLabel = new Label("");
             this.errorCountLabel = new Label("");
+            this.connectionLabel = new Label("DISCONNECTED");
+            this.mainPanel.addComponent(this.connectionLabel);
             this.mainPanel.addComponent(this.timeLabel);
             this.mainPanel.addComponent(this.joinedChannelsLabel);
             this.mainPanel.addComponent(this.messagesHandledLabel);
             this.mainPanel.addComponent(this.errorCountLabel);
+            this.serverButton = new Button("Server", new Runnable() {
+                @Override
+                public void run() {
+                    IRCGPTBotMain.this.serverOptions();
+                }
+            });
             this.channelsButton = new Button("Channels", new Runnable() {
                 @Override
                 public void run() {
@@ -274,7 +291,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                         optionsPanel.addComponent(acceptInvitesOption);
                         optionsPanel.addComponent(respondToPrivateMessagesOption);
 
-                        Button saveButton = new Button("save", new Runnable() {
+                        Button saveButton = new Button("Save", new Runnable() {
                             @Override
                             public void run() {
                                 optionsWindow.close();
@@ -356,15 +373,23 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                     t.start();
                 }
             });
+            this.reconnectButton = new Button("Reconnect", new Runnable() {
+                @Override
+                public void run() {
+                    IRCGPTBotMain.this.connect();
+                }
+            });
             this.exitButton = new Button("Shutdown", new Runnable() {
                 @Override
                 public void run() {
                     IRCGPTBotMain.this.shutdown();
                 }
             });
-            this.mainPanel.addComponent(channelsButton);
-            this.mainPanel.addComponent(optionsButton);
-            this.mainPanel.addComponent(exitButton);
+            this.mainPanel.addComponent(this.serverButton);
+            this.mainPanel.addComponent(this.channelsButton);
+            this.mainPanel.addComponent(this.optionsButton);
+            this.mainPanel.addComponent(this.reconnectButton);
+            this.mainPanel.addComponent(this.exitButton);
             this.channelsButton.takeFocus();
             mainPanel.setLayoutManager(new LinearLayout(Direction.VERTICAL));
             this.setComponent(this.mainPanel.withBorder(Borders.singleLine("Bot Stats")));
@@ -382,6 +407,103 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         t.start();
     }
 
+    private void serverOptions()
+    {
+        Thread t = new Thread(() -> {
+            final BasicWindow serverWindow = new BasicWindow("Server");
+            GridLayout gl = new GridLayout(2);
+            Panel serverPanel = new Panel(gl);
+            TerminalSize tSize = new TerminalSize(40, 1);
+
+            TextBox serverAddrBox = new TextBox(IRCGPTBotMain.this.settings.optString("server", "127.0.0.1"));
+            TextBox portBox = new TextBox(IRCGPTBotMain.this.settings.optString("port","6667"));
+            TextBox nickBox = new TextBox(IRCGPTBotMain.this.settings.optString("nickname","chatGPT"));
+            TextBox userBox = new TextBox(IRCGPTBotMain.this.settings.optString("user","chatGPT"));
+            TextBox realNameBox = new TextBox(IRCGPTBotMain.this.settings.optString("realName",""));
+            TextBox passBox = new TextBox(IRCGPTBotMain.this.settings.optString("password",""));
+            TextBox aiKeyBox = new TextBox(IRCGPTBotMain.this.settings.optString("openAiKey",""));
+
+            serverAddrBox.setSize(tSize);
+            nickBox.setSize(tSize);
+            userBox.setSize(tSize);
+            realNameBox.setSize(tSize);
+            aiKeyBox.setSize(tSize);
+            passBox.setSize(tSize);
+            serverAddrBox.setPreferredSize(tSize);
+            nickBox.setPreferredSize(tSize);
+            userBox.setPreferredSize(tSize);
+            realNameBox.setPreferredSize(tSize);
+            aiKeyBox.setPreferredSize(tSize);
+            passBox.setPreferredSize(tSize);
+
+            CheckBox secureOption = new CheckBox("");
+            secureOption.setChecked(IRCGPTBotMain.this.settings.optBoolean("secure",false));
+
+            serverPanel.addComponent(new Label("Server"));
+            serverPanel.addComponent(serverAddrBox);
+
+            serverPanel.addComponent(new Label("Port"));
+            serverPanel.addComponent(portBox);
+
+            serverPanel.addComponent(new Label("Nickname"));
+            serverPanel.addComponent(nickBox);
+
+            serverPanel.addComponent(new Label("USER"));
+            serverPanel.addComponent(userBox);
+
+            serverPanel.addComponent(new Label("Real Name"));
+            serverPanel.addComponent(realNameBox);
+
+            serverPanel.addComponent(new Label("Password"));
+            serverPanel.addComponent(passBox);
+            
+            serverPanel.addComponent(new Label("OpenAI Key"));
+            serverPanel.addComponent(aiKeyBox);
+
+            serverPanel.addComponent(new Label("Secure Connection"));
+            serverPanel.addComponent(secureOption);
+
+            Button saveButton = new Button("Save", new Runnable() {
+                @Override
+                public void run() {
+                    serverWindow.close();
+                }
+            });
+            serverPanel.addComponent(new Label(""));
+            serverPanel.addComponent(saveButton);
+            serverWindow.setComponent(serverPanel);
+            IRCGPTBotMain.this.gui.addWindowAndWait(serverWindow);
+            IRCGPTBotMain.this.settings.put("server", serverAddrBox.getText());
+            IRCGPTBotMain.this.settings.put("port", Integer.valueOf(portBox.getText()).intValue());
+            IRCGPTBotMain.this.settings.put("nickname", nickBox.getText());
+            if ("".equals(passBox.getText()))
+            {
+                if (IRCGPTBotMain.this.settings.has("password"))
+                    IRCGPTBotMain.this.settings.remove("password");
+            } else {
+                IRCGPTBotMain.this.settings.put("password", passBox.getText());
+            }
+            if ("".equals(userBox.getText()))
+            {
+                if (IRCGPTBotMain.this.settings.has("user"))
+                    IRCGPTBotMain.this.settings.remove("user");
+            } else {
+                IRCGPTBotMain.this.settings.put("user", userBox.getText());
+            }
+            if ("".equals(realNameBox.getText()))
+            {
+                if (IRCGPTBotMain.this.settings.has("realName"))
+                    IRCGPTBotMain.this.settings.remove("realName");
+            } else {
+                IRCGPTBotMain.this.settings.put("realName", realNameBox.getText());
+            }
+            IRCGPTBotMain.this.settings.put("openAiKey", aiKeyBox.getText());
+            IRCGPTBotMain.this.settings.put("secure", secureOption.isChecked());
+            IRCGPTBotMain.this.saveSettings();
+        });
+        t.start();
+    }
+
     private void connect()
     {
         try
@@ -390,6 +512,11 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
             {
                 this.client.shutdown();
             }
+        } catch (Exception ne) {
+            log(ne);
+        }
+        try
+        {
             if (settings.has("server"))
             {
                 Builder builder = Client.builder()
@@ -416,6 +543,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                     String channelName = (String) channel;
                     this.client.addChannel(channelName);
                 });
+            } else {
+                IRCGPTBotMain.this.serverOptions();
             }
         } catch (Exception ne) {
             log(ne);
@@ -427,7 +556,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         this.client.setNick(newNick);
         this.botNickname = newNick;
         this.settings.put("nickname", newNick);
-        this.topLabel.setText("OPENSTATIC.ORG IRC chatGPT BOT - " + settings.optString("nickname") + " / " + settings.optString("server"));
+        this.topLabel.setText("IRC GPT BOT - " + settings.optString("nickname") + " / " + settings.optString("server"));
     }
 
     private void addChannelToSettings(String channelName)
@@ -519,6 +648,30 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
             this.logs.put(target,cl);
             return cl;
         }
+    }
+
+    @Handler 
+    public void onConnectedEvent(ClientConnectionEstablishedEvent connectedEvent)
+    {
+        this.connectionLabel.setText("CONNECTED");
+    }
+
+    @Handler 
+    public void onClientConnectionEndedEvent(ClientConnectionEndedEvent connectionEndedEvent)
+    {
+        this.connectionLabel.setText("DISCONNECTED");
+    }
+
+    @Handler 
+    public void onClientConnectionClosedEvent(ClientConnectionClosedEvent connectionClosedEvent)
+    {
+        this.connectionLabel.setText("DISCONNECTED");
+    }
+
+    @Handler 
+    public void onClientConnectionFailedEvent(ClientConnectionFailedEvent clientConnectionFailedEvent)
+    {
+        this.connectionLabel.setText("ERROR");
     }
     
     @Handler
