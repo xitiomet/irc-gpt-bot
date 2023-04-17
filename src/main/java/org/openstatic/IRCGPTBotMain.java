@@ -179,7 +179,9 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
             this.joinedChannelsLabel = new Label("");
             this.messagesHandledLabel = new Label("");
             this.errorCountLabel = new Label("");
-            this.connectionLabel = new Label("DISCONNECTED");
+            this.connectionLabel = new Label(" LAUNCHING ");
+            this.connectionLabel.setBackgroundColor(ANSI.BLACK);
+            this.connectionLabel.setForegroundColor(ANSI.RED_BRIGHT);
             this.mainPanel.addComponent(this.connectionLabel);
             this.mainPanel.addComponent(this.timeLabel);
             this.mainPanel.addComponent(this.joinedChannelsLabel);
@@ -281,6 +283,9 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                         CheckBox greetingOption = new CheckBox("Greet users that join a channel");
                         greetingOption.setChecked(IRCGPTBotMain.this.settings.optBoolean("greet"));
 
+                        CheckBox greetPublicOption = new CheckBox("Greetings should be visible to channel");
+                        greetPublicOption.setChecked(IRCGPTBotMain.this.settings.optBoolean("greetPublic"));
+
                         CheckBox acceptInvitesOption = new CheckBox("Accept all Channel Invites");
                         acceptInvitesOption.setChecked(IRCGPTBotMain.this.settings.optBoolean("acceptInvites"));
 
@@ -288,6 +293,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                         respondToPrivateMessagesOption.setChecked(IRCGPTBotMain.this.settings.optBoolean("privateMessages"));
 
                         optionsPanel.addComponent(greetingOption);
+                        optionsPanel.addComponent(greetPublicOption);
                         optionsPanel.addComponent(acceptInvitesOption);
                         optionsPanel.addComponent(respondToPrivateMessagesOption);
 
@@ -366,6 +372,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                         optionsWindow.setComponent(optionsPanel);
                         IRCGPTBotMain.this.gui.addWindowAndWait(optionsWindow);
                         IRCGPTBotMain.this.settings.put("greet", greetingOption.isChecked());
+                        IRCGPTBotMain.this.settings.put("greetPublic", greetPublicOption.isChecked());
+
                         IRCGPTBotMain.this.settings.put("acceptInvites", acceptInvitesOption.isChecked());
                         IRCGPTBotMain.this.settings.put("privateMessages", respondToPrivateMessagesOption.isChecked());
                         IRCGPTBotMain.this.saveSettings();
@@ -653,25 +661,33 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
     @Handler 
     public void onConnectedEvent(ClientConnectionEstablishedEvent connectedEvent)
     {
-        this.connectionLabel.setText("CONNECTED");
+        this.connectionLabel.setText("  CONNECTED   ");
+        this.connectionLabel.setBackgroundColor(ANSI.BLACK);
+        this.connectionLabel.setForegroundColor(ANSI.GREEN_BRIGHT);
     }
 
     @Handler 
     public void onClientConnectionEndedEvent(ClientConnectionEndedEvent connectionEndedEvent)
     {
-        this.connectionLabel.setText("DISCONNECTED");
+        this.connectionLabel.setText(" DISCONNECTED ");
+        this.connectionLabel.setBackgroundColor(ANSI.BLACK);
+        this.connectionLabel.setForegroundColor(ANSI.RED_BRIGHT);
     }
 
     @Handler 
     public void onClientConnectionClosedEvent(ClientConnectionClosedEvent connectionClosedEvent)
     {
-        this.connectionLabel.setText("DISCONNECTED");
+        this.connectionLabel.setText(" DISCONNECTED ");
+        this.connectionLabel.setBackgroundColor(ANSI.BLACK);
+        this.connectionLabel.setForegroundColor(ANSI.RED_BRIGHT);
     }
 
     @Handler 
     public void onClientConnectionFailedEvent(ClientConnectionFailedEvent clientConnectionFailedEvent)
     {
-        this.connectionLabel.setText("ERROR");
+        this.connectionLabel.setText("  * ERROR *   ");
+        this.connectionLabel.setBackgroundColor(ANSI.BLACK);
+        this.connectionLabel.setForegroundColor(ANSI.YELLOW_BRIGHT);
     }
     
     @Handler
@@ -718,7 +734,12 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                     ChatMessage outMsg = gptResponse.get();
                     String outText = outMsg.getBody();
                     cl.add(outMsg);
-                    joiner.sendMultiLineNotice(outText);
+                    if (this.settings.optBoolean("greetPublic", false))
+                    {
+                        channel.sendMultiLineMessage(outText);
+                    } else {
+                        joiner.sendMultiLineNotice(outText);
+                    }
                 }
             }
         } catch (Exception e) {

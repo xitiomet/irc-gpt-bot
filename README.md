@@ -5,8 +5,8 @@ An IRC Bot powered by chatGPT
 This is not your typical IRC bot, it does not manage operator status, channel voice or anything administrative. It answers questions, greets users and provides summaries using chatGPT
 
 Features:
- * Ability to modify chatGPT's system preamble instructions without restarting bot
-    * "only respond they way somebody from the victorian era would"
+ * Ability to modify system preamble instructions without restarting bot
+    * "only respond the way somebody from the victorian era would"
     * "talk like character X from show Y"
  * Can adjust context depth to provide bot with more conversational awareness
  * Can respond to private messages
