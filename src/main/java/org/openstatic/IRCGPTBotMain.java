@@ -736,8 +736,10 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                     cl.add(outMsg);
                     if (this.settings.optBoolean("greetPublic", false))
                     {
+                        logAppend(channel.getName() + ".log", outMsg.toSimpleLine());
                         channel.sendMultiLineMessage(outText);
                     } else {
+                        logAppend(joiner.getNick() + ".log", outMsg.toSimpleLine());
                         joiner.sendMultiLineNotice(outText);
                     }
                 }
@@ -756,15 +758,19 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         {
             String body = event.getMessage();
             Channel channel = event.getChannel();
+            List<String> nicknames = channel.getNicknames();
+            int userCount = nicknames.size();
             String target = channel.getName();
             ChatLog cl = this.getLog(target);
             ChatMessage msg = new ChatMessage(sender.getNick(), channel.getName(), body, new Date(System.currentTimeMillis()));
             logAppend(target + ".log", msg.toSimpleLine());
             ChatMessage previosMsg = cl.getLastMessage();
             cl.add(msg);
+            
             boolean botAskedQuestion = false;
             boolean containsBotName = body.toLowerCase().contains(this.botNickname.toLowerCase());
             boolean lastMessageWasBot = false;
+            boolean userCountIsTwo = (userCount == 2);
             if (previosMsg != null)
             {
                 lastMessageWasBot = previosMsg.getSender().equals(this.botNickname);
@@ -773,7 +779,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                     botAskedQuestion = previosMsg.getBody().contains("?");
                 }
             }
-            if (botAskedQuestion || containsBotName)
+            if (botAskedQuestion || containsBotName || userCountIsTwo)
             {
                 try
                 {
