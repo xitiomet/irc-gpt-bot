@@ -61,28 +61,19 @@
     </plugins>
   </reporting>
   <build>
+    <sourceDirectory>src/main/java/</sourceDirectory>
     <resources>
         <resource>
             <directory>src/main/resources/</directory>
             <includes>
-                <include>**</include>
+                <include>*.png</include>
+                <include>*.ico</include>
+                <include>*.html</include>
             </includes>
+            <targetPath>irc-gpt-bot</targetPath>
         </resource>
     </resources>
     <plugins>
-          <plugin>
-            <groupId>com.googlecode.mavennatives</groupId>
-            <artifactId>maven-nativedependencies-plugin</artifactId>
-            <executions>
-                <execution>
-                    <id>unpacknatives</id>
-                    <phase>generate-resources</phase>
-                    <goals>
-                        <goal>copy</goal>
-                    </goals>
-                </execution>
-            </executions>
-          </plugin>
           <plugin>
               <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-shade-plugin</artifactId>

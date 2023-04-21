@@ -140,7 +140,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                     swingTerminal.setTitle("IRC GPT BOT");
                     try
                     {
-                        swingTerminal.setIconImage(ImageIO.read(IRCGPTBotMain.class.getResourceAsStream("/icon-32.png")));
+                        swingTerminal.setIconImage(ImageIO.read(IRCGPTBotMain.class.getResourceAsStream("/irc-gpt-bot/icon-32.png")));
                     } catch (Exception e) {}
                     swingTerminal.setLocation(40, 40);
                     swingTerminal.setVisible(true);
