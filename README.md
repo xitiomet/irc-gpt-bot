@@ -29,6 +29,9 @@ copy "default-config.json" to "~/.irc-gpt-bot.json" and fill in the blanks with 
 {
     "nickname": "chatGPT",   // Nickname bot should use
     "channels": ["#lobby"],  // Channels bot should join
+    "channelKeys": {         // provide keys for channels that require them
+        "#lobby": "password"
+    },
     "user": null,            // IRC User field (for bot)
     "realName": null,        // IRC Real Name field (for bot)
     "password": null,        // IRC Password (for bot)
@@ -45,6 +48,7 @@ copy "default-config.json" to "~/.irc-gpt-bot.json" and fill in the blanks with 
     "logPath": "./irc-gpt-bot-logs/" // Log path
 }
 ```
+NOTE: The bot will only join the channels in "channels" if you add a keyed channel it will need to appear in both "channels" and "channelKeys"
 
 You may also start the bot using only command line arguments (for scripting purposes)
 ```bash

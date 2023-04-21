@@ -1,6 +1,9 @@
 {
     "nickname": "chatGPT",
     "channels": ["#lobby"],
+    "channelKeys": {
+        "#lobby": "password"
+    },
     "user": null,
     "realName": null,
     "password": null,

@@ -203,6 +203,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                             Set<String> channelNames = channels.stream().map((c) -> c.getName()).collect(Collectors.toSet());
                             ListSelectDialogBuilder<String> lsdb = new ListSelectDialogBuilder<String>();
                             lsdb.addListItem("(Join A Channel)");
+                            lsdb.addListItem("(Join A Channel with Key)");
                             for (String channelName : channelNames) {
                                 lsdb.addListItem(channelName);
                             }
@@ -223,6 +224,27 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                                     IRCGPTBotMain.this.client.addChannel(channelName);
                                     IRCGPTBotMain.this.addChannelToSettings(channelName);
                                 }
+                            } else if ("(Join A Channel with Key)".equals(channelSelected)) {
+                                TextInputDialogBuilder mdb = new TextInputDialogBuilder();
+                                mdb.setTitle("Enter Channel Name");
+                                mdb.setInitialContent("");
+                                mdb.setTextBoxSize(new TerminalSize(30, 1));
+                                TextInputDialog md = mdb.build();
+                                String channelName = md.showDialog(IRCGPTBotMain.this.gui);
+                                if (channelName != null && !"".equals(channelName))
+                                {
+                                    TextInputDialogBuilder mdb2 = new TextInputDialogBuilder();
+                                    mdb2.setTitle("Enter Channel Key");
+                                    mdb2.setInitialContent("");
+                                    mdb2.setTextBoxSize(new TerminalSize(30, 1));
+                                    TextInputDialog md2 = mdb2.build();
+                                    String key = md2.showDialog(IRCGPTBotMain.this.gui);
+                                    if (key != null && !"".equals(key))
+                                    {
+                                        IRCGPTBotMain.this.client.addKeyProtectedChannel(channelName, key);
+                                        IRCGPTBotMain.this.addKeyChannelToSettings(channelName, key);
+                                    }
+                                }
                             } else if (channelSelected != null) {
                                 Optional<Channel> channelOptional = client.getChannel(channelSelected);
                                 if (channelOptional.isPresent())
@@ -240,6 +262,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                                     if ("Leave Channel".equals(optionSelected))
                                     {
                                         channel.part();
+                                        IRCGPTBotMain.this.removeChannelFromSettings(channelSelected);
                                     } else if ("View Messages".equals(optionSelected)) {
                                         int messageCount = 0;
                                         String pattern = "yyyy-MM-dd HH:mm:ss";
@@ -547,9 +570,15 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                 this.client.connect();
                 this.client.getEventManager().registerEventListener(this);
                 JSONArray channels = settings.getJSONArray("channels");
+                JSONObject channelKeys = settings.optJSONObject("channelKeys");
                 channels.forEach((channel) -> {
                     String channelName = (String) channel;
-                    this.client.addChannel(channelName);
+                    if (channelKeys.has(channelName))
+                    {
+                        IRCGPTBotMain.this.client.addKeyProtectedChannel(channelName, channelKeys.optString(channelName));
+                    } else {
+                        IRCGPTBotMain.this.client.addChannel(channelName);
+                    }
                 });
             } else {
                 IRCGPTBotMain.this.serverOptions();
@@ -567,6 +596,43 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         this.topLabel.setText("IRC GPT BOT - " + settings.optString("nickname") + " / " + settings.optString("server"));
     }
 
+    private void addKeyChannelToSettings(String channelName, String key)
+    {
+        if (channelName != null && key != null)
+        {
+            if (!"".equals(channelName))
+            {
+                JSONArray channelsSettings = IRCGPTBotMain.this.settings.getJSONArray("channels");
+                List<Object> channelNames = channelsSettings.toList();
+                if (!channelNames.contains(channelName))
+                    channelsSettings.put(channelName);
+                IRCGPTBotMain.this.settings.put("channels", channelsSettings);
+                JSONObject channelKeys = IRCGPTBotMain.this.settings.getJSONObject("channelKeys");
+                channelKeys.put(channelName, key);
+                IRCGPTBotMain.this.settings.put("channelKeys", channelKeys);
+                saveSettings();
+            }
+        }
+    }
+
+    private void removeChannelFromSettings(String channelName)
+    {
+        int rmIdx = -1;
+        JSONArray channelsSettings = IRCGPTBotMain.this.settings.getJSONArray("channels");
+        for(int i = 0 ; i < channelsSettings.length(); i++)
+        {
+            String cx = channelsSettings.getString(i);
+            if (cx.equals(channelName))
+                rmIdx = i;
+        }
+        if (rmIdx >= 0)
+        {
+            channelsSettings.remove(rmIdx);
+            IRCGPTBotMain.this.settings.put("channels", channelsSettings);
+            saveSettings();
+        }
+    }
+
     private void addChannelToSettings(String channelName)
     {
         if (channelName != null)
@@ -577,6 +643,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                 List<Object> channelNames = channelsSettings.toList();
                 if (!channelNames.contains(channelName))
                     channelsSettings.put(channelName);
+                IRCGPTBotMain.this.settings.put("channels", channelsSettings);
                 saveSettings();
             }
         }
@@ -918,6 +985,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
             }
             if (!settings.has("channels"))
                 settings.put("channels", new JSONArray());
+            if (!settings.has("channelKeys"))
+                settings.put("channelKeys", new JSONObject());
             IRCGPTBotMain bot = new IRCGPTBotMain(settings, settingsFile);
             bot.start();
         } catch (Throwable e) {
