@@ -72,6 +72,13 @@
             </includes>
             <targetPath>irc-gpt-bot</targetPath>
         </resource>
+        <resource>
+            <directory>src/main/resources/META-INF/</directory>
+            <includes>
+                <include>**</include>
+            </includes>
+            <targetPath>META-INF</targetPath>
+        </resource>
     </resources>
     <plugins>
           <plugin>
