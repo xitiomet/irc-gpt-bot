@@ -5,6 +5,7 @@
         "#lobby": "password"
     },
     "user": null,
+    "botOps": ["xitiomet"],
     "realName": null,
     "password": null,
     "server": "127.0.0.1",
