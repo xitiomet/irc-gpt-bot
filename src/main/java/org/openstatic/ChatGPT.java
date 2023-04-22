@@ -100,6 +100,11 @@ public class ChatGPT
                     JSONObject choice_zero = choices.getJSONObject(0);
                     JSONObject respMessage = choice_zero.getJSONObject("message");
                     String respBody = respMessage.getString("content").replace("\n", " ").replace("\r", "").replace("\0", "").trim();
+                    if (respBody.toUpperCase().startsWith("GREETING: "))
+                    {
+                        respBody = respBody.substring(10);
+                        ChatGPT.this.log("Removed GREETING:");
+                    }
                     if (respBody.startsWith("\"") && respBody.endsWith("\""))
                     {
                         respBody = respBody.substring(1, respBody.length() - 2);
