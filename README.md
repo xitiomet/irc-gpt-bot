@@ -33,6 +33,7 @@ copy "default-config.json" to "~/.irc-gpt-bot.json" and fill in the blanks with 
     "channelKeys": {         // provide keys for channels that require them
         "#lobby": "password"
     },
+    "ignore": ["AnnoyingUser"], // Bot should completely ignore these nicknames (can be used for other bots or abusive users)
     "user": null,            // IRC User field (for bot)
     "realName": null,        // IRC Real Name field (for bot)
     "password": null,        // IRC Password (for bot)

@@ -797,7 +797,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
 
     public boolean inJSONArray(JSONArray jsonArray, String str)
     {
-        if (str != null)
+        if (str != null && jsonArray != null)
         {
             for(Object s : jsonArray)
             {
@@ -888,16 +888,20 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
     {
         this.messagesSeen++;
         User sender = event.getActor();
-        if (!sender.getNick().equals(botNickname))
+        String senderNick = sender.getNick();
+        String body = event.getMessage();
+        Channel channel = event.getChannel();
+        List<String> nicknames = channel.getNicknames()
+                                        .stream()
+                                        .filter((nickname) -> !inJSONArray(settings.optJSONArray("ignore"), nickname))
+                                        .collect(Collectors.toList());
+        int userCount = nicknames.size();
+        String target = channel.getName();
+                            
+        if (!senderNick.equals(botNickname) && nicknames.contains(senderNick))
         {
-            String body = event.getMessage();
-            Channel channel = event.getChannel();
-            List<String> nicknames = channel.getNicknames();
-            int userCount = nicknames.size();
-            String target = channel.getName();
             ChatLog cl = this.getLog(target);
-            ChatMessage msg = new ChatMessage(sender.getNick(), channel.getName(), body, new Date(System.currentTimeMillis()));
-            logAppend(target + ".log", msg.toSimpleLine());
+            ChatMessage msg = new ChatMessage(senderNick, channel.getName(), body, new Date(System.currentTimeMillis()));
             ChatMessage previosMsg = cl.getLastMessage();
             cl.add(msg);
             
@@ -913,6 +917,14 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                     botAskedQuestion = previosMsg.getBody().contains("?");
                 }
             }
+            String rReason = "U=" + String.valueOf(userCount);
+            if (userCountIsTwo)
+                rReason += " U2";
+            if (botAskedQuestion)
+                rReason += " B?";
+            if (containsBotName)
+                rReason += " @B";
+            logAppend(target + ".log", "("+ rReason +") "+ msg.toSimpleLine());
             if (botAskedQuestion || containsBotName || userCountIsTwo)
             {
                 try
@@ -926,9 +938,12 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
                     channel.sendMultiLineMessage(outText);
                     this.messagesHandled++;
                 } catch (Exception e) {
-                    //e.printStackTrace(System.err);
+                    log(e);
                 }
             }
+        } else {
+            ChatMessage msg = new ChatMessage(senderNick, channel.getName(), body, new Date(System.currentTimeMillis()));
+            logAppend(target + ".log", "(IGNORED) " + msg.toSimpleLine());
         }
     }
 
@@ -937,37 +952,41 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
     {
         this.messagesSeen++;
         User sender = event.getActor();
+        String senderNick = sender.getNick();
         String body = event.getMessage();
-        try
+        if (!inJSONArray(settings.optJSONArray("ignore"), senderNick))
         {
-            String target = sender.getNick();
-            if (!this.privateChats.contains(target))
+            try
             {
-                this.privateChats.add(target);
+                String target = sender.getNick();
+                if (!this.privateChats.contains(target))
+                {
+                    this.privateChats.add(target);
+                }
+                ChatLog cl = this.getLog(target);
+                ChatMessage msg = new ChatMessage(sender.getNick(), this.botNickname, body, new Date(System.currentTimeMillis()));
+                cl.add(msg);
+                logAppend(target + ".log", msg.toSimpleLine());
+                if (settings.optBoolean("privateMessages", false))
+                {
+                    Future<ChatMessage> gptResponse = chatGPT.callChatGPT(cl);
+                    ChatMessage outMsg = gptResponse.get();
+                    String outText = outMsg.getBody();
+                    outMsg.setRecipient(target);
+                    cl.add(outMsg);
+                    logAppend(target + ".log", outMsg.toSimpleLine());
+                    sender.sendMultiLineMessage(outText);
+                    this.messagesHandled++;
+                } else {
+                    ChatMessage outMsg = new ChatMessage(sender.getNick(), this.botNickname, "I'm sorry, my private message features have been disabled.", new Date(System.currentTimeMillis()));
+                    cl.add(outMsg);
+                    logAppend(target + ".log", outMsg.toSimpleLine());
+                    sender.sendMultiLineMessage(outMsg.getBody());
+                    this.messagesHandled++;
+                }
+            } catch (Exception e) {
+                //e.printStackTrace(System.err);
             }
-            ChatLog cl = this.getLog(target);
-            ChatMessage msg = new ChatMessage(sender.getNick(), this.botNickname, body, new Date(System.currentTimeMillis()));
-            cl.add(msg);
-            logAppend(target + ".log", msg.toSimpleLine());
-            if (settings.optBoolean("privateMessages", false))
-            {
-                Future<ChatMessage> gptResponse = chatGPT.callChatGPT(cl);
-                ChatMessage outMsg = gptResponse.get();
-                String outText = outMsg.getBody();
-                outMsg.setRecipient(target);
-                cl.add(outMsg);
-                logAppend(target + ".log", outMsg.toSimpleLine());
-                sender.sendMultiLineMessage(outText);
-                this.messagesHandled++;
-            } else {
-                ChatMessage outMsg = new ChatMessage(sender.getNick(), this.botNickname, "I'm sorry, my private message features have been disabled.", new Date(System.currentTimeMillis()));
-                cl.add(outMsg);
-                logAppend(target + ".log", outMsg.toSimpleLine());
-                sender.sendMultiLineMessage(outMsg.getBody());
-                this.messagesHandled++;
-            }
-        } catch (Exception e) {
-            //e.printStackTrace(System.err);
         }
     }
 
@@ -1052,6 +1071,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
             }
             if (!settings.has("channels"))
                 settings.put("channels", new JSONArray());
+            if (!settings.has("ignore"))
+                settings.put("ignore", new JSONArray());
             if (!settings.has("channelKeys"))
                 settings.put("channelKeys", new JSONObject());
             IRCGPTBotMain bot = new IRCGPTBotMain(settings, settingsFile);

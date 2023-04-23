@@ -6,6 +6,7 @@
     },
     "user": null,
     "botOps": ["xitiomet"],
+    "ignore": ["AnnoyingUser"],
     "realName": null,
     "password": null,
     "server": "127.0.0.1",
