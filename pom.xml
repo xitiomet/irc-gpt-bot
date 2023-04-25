@@ -358,7 +358,7 @@
                         </goals>
                         <configuration>
                             <!-- mandatory -->
-                            <name>IrcGPTbot</name>
+                            <name>irc-gpt-bot</name>
                             <mainClass>${mainClass}</mainClass>
                             <!-- optional -->
                             <copyDependencies>false</copyDependencies>
