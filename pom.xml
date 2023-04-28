@@ -14,7 +14,7 @@
         <maven.compiler.target>11</maven.compiler.target>
         <imageName>irc-gpt-bot</imageName>
         <graalvm.version>22.3.0</graalvm.version>
-        <skipNative>true</skipNative>
+        <skipNative>false</skipNative>
     </properties>
     <dependencies>
         <dependency>
@@ -63,10 +63,10 @@
         </plugins>
     </reporting>
     <build>
-        <sourceDirectory>src/main/java/</sourceDirectory>
+        <sourceDirectory>${project.basedir}/src/main/java/</sourceDirectory>
         <resources>
             <resource>
-                <directory>src/main/resources/</directory>
+                <directory>${project.basedir}/src/main/resources/</directory>
                 <includes>
                     <include>*.png</include>
                     <include>*.ico</include>
@@ -75,7 +75,7 @@
                 <targetPath>irc-gpt-bot</targetPath>
             </resource>
             <resource>
-                <directory>src/main/resources/META-INF/</directory>
+                <directory>${project.basedir}/src/main/resources/META-INF/</directory>
                 <includes>
                     <include>**</include>
                 </includes>
@@ -94,14 +94,6 @@
                             <mainClass>${mainClass}</mainClass>
                         </transformer>
                     </transformers>
-                    <filters>
-                        <filter>
-                            <artifact>groupId:artifactId</artifact>
-                            <excludes>
-                                <exclude>**/*.properties</exclude>
-                            </excludes>
-                        </filter>
-                    </filters>
                 </configuration>
                 <executions>
                     <execution>
@@ -162,7 +154,7 @@
                                 <mainClass>${mainClass}</mainClass>
                             </classPath>
                             <cmdLine>-g</cmdLine>
-                            <icon>${basedir}/src/main/resources/win.ico</icon>
+                            <icon>${project.basedir}/src/main/resources/win.ico</icon>
                             <chdir>.</chdir>
                             <jre>
                                 <path>./jre</path>
@@ -207,7 +199,7 @@
                             <snapshotExpand>true</snapshotExpand>
                             <!-- expand "SNAPSHOT" to what is in the "USER" env variable -->
                             <snapshotEnv>USER</snapshotEnv>
-                            <controlDir>${basedir}/src/deb/control-native</controlDir>
+                            <controlDir>${project.basedir}/src/deb/control-native</controlDir>
                             <deb>${project.build.directory}/${project.artifactId}-${project.version}-native.deb</deb>
                             <dataSet>
                                 <data>
@@ -233,7 +225,7 @@
                                     </mapper>
                                 </data>
                                 <data>
-                                    <src>${basedir}/src/deb/${imageName}.desktop</src>
+                                    <src>${project.basedir}/src/deb/${imageName}.desktop</src>
                                     <type>file</type>
                                     <mapper>
                                         <type>perm</type>
@@ -258,7 +250,7 @@
                             <snapshotExpand>true</snapshotExpand>
                             <!-- expand "SNAPSHOT" to what is in the "USER" env variable -->
                             <snapshotEnv>USER</snapshotEnv>
-                            <controlDir>${basedir}/src/deb/control-java</controlDir>
+                            <controlDir>${project.basedir}/src/deb/control-java</controlDir>
                             <deb>${project.build.directory}/${project.artifactId}-${project.version}-java.deb</deb>
                             <dataSet>
                                 <data>
@@ -279,7 +271,7 @@
                                     <linkTarget>/usr/share/java/${project.build.finalName}.jar</linkTarget>
                                 </data>
                                 <data>
-                                    <src>${basedir}/src/deb/${imageName}</src>
+                                    <src>${project.basedir}/src/deb/${imageName}</src>
                                     <type>file</type>
                                     <mapper>
                                         <type>perm</type>
@@ -301,7 +293,7 @@
                                     </mapper>
                                 </data>
                                 <data>
-                                    <src>${basedir}/src/deb/${imageName}.desktop</src>
+                                    <src>${project.basedir}/src/deb/${imageName}.desktop</src>
                                     <type>file</type>
                                     <mapper>
                                         <type>perm</type>
@@ -336,7 +328,7 @@
                     <execution>
                         <id>build-windows-installer</id>
                         <configuration>
-                            <scriptFile>${basedir}/src/nsis/irc-gpt-bot.nsi</scriptFile>
+                            <scriptFile>${project.basedir}/src/nsis/irc-gpt-bot.nsi</scriptFile>
                             <outputFile>IrcGPTBotSetup-${project.version}.exe</outputFile>
                         </configuration>
                         <goals>
@@ -358,7 +350,7 @@
                         </goals>
                         <configuration>
                             <!-- mandatory -->
-                            <name>irc-gpt-bot</name>
+                            <name>irc-chatgpt-bot</name>
                             <mainClass>${mainClass}</mainClass>
                             <!-- optional -->
                             <copyDependencies>false</copyDependencies>
@@ -379,7 +371,7 @@
                                 <additionalModule>java.xml</additionalModule>
                             </additionalModules>
                             <linuxConfig>
-                                <pngFile>${project.basedir}/src/main/resources/irc-gpt-bot.png</pngFile>
+                                <pngFile>${project.basedir}/src/main/resources/irc-chatgpt-bot.png</pngFile>
                                 <generateAppImage>true</generateAppImage>
                                 <generateDeb>false</generateDeb>
                                 <generateRpm>false</generateRpm>
