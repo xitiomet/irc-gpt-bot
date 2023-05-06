@@ -16,6 +16,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
+import java.util.regex.Pattern;
 
 public class ChatGPT 
 {
@@ -110,6 +111,9 @@ public class ChatGPT
                         respBody = respBody.substring(1, respBody.length() - 2);
                         ChatGPT.this.log("Removed Silly Quotes!");
                     }
+                    respBody = respBody.replaceAll(Pattern.quote("As an AI language model,"), "");
+                    respBody = respBody.replaceAll(Pattern.quote("as an AI language model,"), "");
+                    respBody = respBody.replaceAll(Pattern.quote("an AI language model"), "");
                     ChatMessage respMsg = new ChatMessage(ChatGPT.this.settings.optString("nickname"), null, respBody, new Date(System.currentTimeMillis()));
                     return respMsg;
                 } catch (Exception e) {
