@@ -116,7 +116,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
     private long messagesSeen;
     private long messagesHandled;
     private File settingsFile;
-    private File logsFolder;
+    public static File logsFolder;
 
     public IRCGPTBotMain(JSONObject settings, File settingsFile)
     {
@@ -128,10 +128,11 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         this.settingsFile = settingsFile;
         this.settings = settings;
         String defaultLogPath = new File(settingsFile.getParentFile(), "irc-gpt-bot-logs").toString();
-        this.logsFolder = new File(this.settings.optString("logPath", defaultLogPath));
-        if (!this.logsFolder.exists())
+        IRCGPTBotMain.logsFolder = new File(this.settings.optString("logPath", defaultLogPath));
+        //this.settings.put("logPath", IRCGPTBotMain.logsFolder.toString());
+        if (!IRCGPTBotMain.logsFolder.exists())
         {
-            this.logsFolder.mkdirs();
+            IRCGPTBotMain.logsFolder.mkdirs();
         }
         this.logs = new HashMap<String, ChatLog>();
         this.privateChats = new ArrayList<String>();
@@ -671,7 +672,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         }
     }
 
-    private void log(Exception e)
+    public static void log(Exception e)
     {
 
         String msg = e.getMessage();
@@ -682,13 +683,13 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable, Consumer<Exc
         logAppend("exceptions.log", msg + "\n" + baos.toString());
     }
 
-    private synchronized void logAppend(String filename, String text)
+    public static synchronized void logAppend(String filename, String text)
     {
         try
         {
             String pattern = "HH:mm:ss yyyy-MM-dd";
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
-            FileOutputStream logOutputStream = new FileOutputStream(new File(this.logsFolder, filename), true);;
+            FileOutputStream logOutputStream = new FileOutputStream(new File(IRCGPTBotMain.logsFolder, filename), true);;
             PrintWriter logWriter = new PrintWriter(logOutputStream, true, Charset.forName("UTF-8"));
             logWriter.println("[" + simpleDateFormat.format(new Date(System.currentTimeMillis())) + "] " + text);
             logWriter.flush();

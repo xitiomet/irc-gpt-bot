@@ -22,26 +22,10 @@ public class ChatGPT
 {
     private ExecutorService executorService;
     private JSONObject settings;
-    private FileOutputStream fos;
-    private PrintWriter pw;
-    private SimpleDateFormat simpleDateFormat;
-    private File logsFolder;
     
     public ChatGPT(JSONObject settings)
     {
-        String pattern = "yyyy-MM-dd HH:mm:ss";
-        this.simpleDateFormat = new SimpleDateFormat(pattern);
         this.settings = settings;
-        this.logsFolder = new File(this.settings.optString("logPath", "./irc-gpt-bot-logs/"));
-
-        if (settings.has("gptLog"))
-        {
-            try
-            {
-                this.fos = new FileOutputStream(new File(this.logsFolder, "gpt.log"), true);
-                this.pw = new PrintWriter(fos, true, Charset.forName("UTF-8"));
-            } catch (Exception e) {}
-        }
         ThreadFactory tf = new ThreadFactory() {
             public Thread newThread(Runnable r) {
                 Thread x = new Thread(r);
@@ -67,17 +51,15 @@ public class ChatGPT
 
     private void log(String text)
     {
-        if (this.pw != null)
-        {
-            this.pw.println("[" + this.simpleDateFormat.format(new Date(System.currentTimeMillis())) + "] " + text);
-            this.pw.flush();
-        }
+        IRCGPTBotMain.logAppend("openai.log", text);
     }
 
     public Future<ChatMessage> callChatGPT(JSONArray messages) 
     {
-        Callable<ChatMessage> callable = new Callable<ChatMessage>() {
-            public ChatMessage call() {
+        Callable<ChatMessage> callable = new Callable<ChatMessage>() 
+        {
+            public ChatMessage call()
+            {
                 try
                 {
                     String url = "https://api.openai.com/v1/chat/completions";
@@ -117,7 +99,7 @@ public class ChatGPT
                     ChatMessage respMsg = new ChatMessage(ChatGPT.this.settings.optString("nickname"), null, respBody, new Date(System.currentTimeMillis()));
                     return respMsg;
                 } catch (Exception e) {
-                    e.printStackTrace(System.err);
+                    IRCGPTBotMain.log(e);
                     return new ChatMessage(ChatGPT.this.settings.optString("nickname"), null, "I'm sorry, I'm having trouble thinking right now. (" + e.getLocalizedMessage() + ")", new Date(System.currentTimeMillis()));
                 }
             }
