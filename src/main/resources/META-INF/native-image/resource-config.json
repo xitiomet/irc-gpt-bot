@@ -29,6 +29,9 @@
       "pattern":"\\Qirc-gpt-bot/index.html\\E"
     }, 
     {
+      "pattern":"\\Qirc-gpt-bot/index.js\\E"
+    }, 
+    {
       "pattern":"\\Qjetty-dir.css\\E"
     }, 
     {

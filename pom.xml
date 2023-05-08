@@ -14,7 +14,7 @@
         <maven.compiler.target>11</maven.compiler.target>
         <imageName>irc-gpt-bot</imageName>
         <graalvm.version>22.3.0</graalvm.version>
-        <skipNative>true</skipNative>
+        <skipNative>false</skipNative>
         <jettyVersion>9.4.40.v20210413</jettyVersion>
     </properties>
     <dependencies>

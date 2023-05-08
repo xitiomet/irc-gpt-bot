@@ -699,6 +699,10 @@
   "allDeclaredMethods":true
 },
 {
+  "name":"org.openstatic.InterfaceServlet",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
   "name":"sun.misc.Signal",
   "allDeclaredMethods":true,
   "methods":[{"name":"<init>","parameterTypes":["java.lang.String"] }]

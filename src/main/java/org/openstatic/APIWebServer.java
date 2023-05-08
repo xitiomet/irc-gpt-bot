@@ -62,13 +62,14 @@ public class APIWebServer implements IRCGPTBotListener
             holderAssets.setInitParameter("pathInfoOnly","true");
             context.addServlet(holderAssets, "/assets/*");
             */
-
+            /* 
             URL url = APIWebServer.class.getResource("/irc-gpt-bot/index.html");
             this.staticRoot = url.toString().replaceAll("index.html", "");
             DefaultServlet defaultServlet = new DefaultServlet();
             ServletHolder holderPwd = new ServletHolder("default", defaultServlet);
             holderPwd.setInitParameter("resourceBase", this.staticRoot);
-            context.addServlet(holderPwd, "/*");
+            */
+            context.addServlet(InterfaceServlet.class, "/*");
         } catch (Exception e) {
             e.printStackTrace(System.err);
         }
