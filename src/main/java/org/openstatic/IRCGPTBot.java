@@ -95,7 +95,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     public IRCGPTBot(String botId, JSONObject botOptions)
     {
         super();
-        this.statusLine = "Starting";
+        this.statusLine = "DISCONNECTED";
         this.messagesHandled = 0;
         this.messagesSeen = 0;
         this.setHints(Arrays.asList(Window.Hint.CENTERED));
@@ -480,7 +480,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         t.start();
     }
 
-    private void connect()
+    public void connect()
     {
         try
         {
@@ -533,6 +533,8 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                 IRCGPTBot.this.serverOptions();
             }
         } catch (Exception ne) {
+            this.statusLine = "ERROR";
+            this.fireStats();
             log(ne);
         }
     }
@@ -548,6 +550,24 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     public String getStatusLine()
     {
         return this.statusLine + " " + String.valueOf(this.messagesHandled) + "/" + String.valueOf(this.messagesSeen) + "/" + String.valueOf(this.errorCount);
+    }
+
+    public String getPreamble()
+    {
+        return this.botOptions.optString("systemPreamble", "");
+    }
+
+    public JSONObject toJSONObject()
+    {
+        JSONObject ro = new JSONObject();
+        ro.put("id", this.botId);
+        ro.put("nickname", this.botNickname);
+        ro.put("status", statusLine);
+        ro.put("model", this.botOptions.optString("model", "gpt-3.5-turbo"));
+        ro.put("messagesHandled", this.messagesHandled);
+        ro.put("messagesSeen", this.messagesSeen);
+        ro.put("errorCount", this.errorCount);
+        return ro;
     }
 
     public JSONObject getBotOptions()
@@ -665,7 +685,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         {
             return this.logs.get(target);
         } else {
-            ChatLog cl = new ChatLog(this.botOptions);
+            ChatLog cl = new ChatLog(this);
             this.logs.put(target,cl);
             return cl;
         }
@@ -678,6 +698,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         this.connectionLabel.setText("  CONNECTED   ");
         this.connectionLabel.setBackgroundColor(ANSI.BLACK);
         this.connectionLabel.setForegroundColor(ANSI.GREEN_BRIGHT);
+        this.fireStats();
     }
 
     @Handler 
@@ -687,6 +708,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         this.connectionLabel.setText(" DISCONNECTED ");
         this.connectionLabel.setBackgroundColor(ANSI.BLACK);
         this.connectionLabel.setForegroundColor(ANSI.RED_BRIGHT);
+        this.fireStats();
     }
 
     @Handler 
@@ -696,6 +718,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         this.connectionLabel.setText(" DISCONNECTED ");
         this.connectionLabel.setBackgroundColor(ANSI.BLACK);
         this.connectionLabel.setForegroundColor(ANSI.RED_BRIGHT);
+        this.fireStats();
     }
 
     @Handler 
@@ -705,6 +728,15 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         this.connectionLabel.setText("  * ERROR *   ");
         this.connectionLabel.setBackgroundColor(ANSI.BLACK);
         this.connectionLabel.setForegroundColor(ANSI.YELLOW_BRIGHT);
+        this.fireStats();
+    }
+
+    public void fireStats()
+    {
+        Thread x = new Thread(() -> {
+            IRCGPTBotMain.instance.listeners.forEach((l) -> l.onBotStats(IRCGPTBot.this));
+        });
+        x.start();
     }
     
     @Handler
@@ -721,6 +753,15 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         } catch (Exception e) {
 
         }
+    }
+
+    public void setPreamble(String preamble)
+    {
+        this.botOptions.put("systemPreamble", preamble);
+        Thread x = new Thread(() -> {
+            IRCGPTBotMain.instance.listeners.forEach((l) -> l.onPreambleChange(IRCGPTBot.this));
+        });
+        x.start();
     }
 
     private boolean botIsOp(Channel channel)
@@ -798,10 +839,16 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         }
     }
 
+    public void sendPrivateMessage(String to, String message)
+    {
+        this.client.sendMultiLineMessage(to, message);
+    }
+
     @Handler
     public void onChannelMessage(ChannelMessageEvent event)
     {
         this.messagesSeen++;
+        this.fireStats();
         User sender = event.getActor();
         String senderNick = sender.getNick();
         String body = event.getMessage();
@@ -854,6 +901,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                         cl.add(outMsg);
                         channel.sendMultiLineMessage(outText);
                         this.messagesHandled++;
+                        this.fireStats();
                     } catch (Exception e) {
                         log(e);
                     }
@@ -869,6 +917,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     public void onPrivateMessage(PrivateMessageEvent event)
     {
         this.messagesSeen++;
+        this.fireStats();
         User sender = event.getActor();
         String senderNick = sender.getNick();
         String body = event.getMessage();
@@ -897,6 +946,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                         logAppend(target + ".log", outMsg.toSimpleLine());
                         sender.sendMultiLineMessage(outText);
                         this.messagesHandled++;
+                        this.fireStats();
                     }
                 } else {
                     ChatMessage outMsg = new ChatMessage(sender.getNick(), this.botNickname, "I'm sorry, my private message features have been disabled.", new Date(System.currentTimeMillis()));
@@ -904,6 +954,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                     logAppend(target + ".log", outMsg.toSimpleLine());
                     sender.sendMultiLineMessage(outMsg.getBody());
                     this.messagesHandled++;
+                    this.fireStats();
                 }
             } catch (Exception e) {
                 log(e);
@@ -949,7 +1000,10 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     public void accept(Exception t)
     {
         if (!(t instanceof KittehNagException))
+        {
             this.errorCount++;
+            this.fireStats();
+        }
         log(t);
     }
 }

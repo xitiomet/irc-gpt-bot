@@ -2,6 +2,12 @@
   "resources":{
   "includes":[
     {
+      "pattern":"\\QMETA-INF/services/org.eclipse.jetty.http.HttpFieldPreEncoder\\E"
+    }, 
+    {
+      "pattern":"\\QMETA-INF/services/org.eclipse.jetty.websocket.api.extensions.Extension\\E"
+    }, 
+    {
       "pattern":"\\Qbigsnake-theme.properties\\E"
     }, 
     {
@@ -18,9 +24,41 @@
     }, 
     {
       "pattern":"\\Qdefrost-theme.properties\\E"
+    }, 
+    {
+      "pattern":"\\Qirc-gpt-bot/index.html\\E"
+    }, 
+    {
+      "pattern":"\\Qjetty-dir.css\\E"
+    }, 
+    {
+      "pattern":"\\Qorg/eclipse/jetty/http/encoding.properties\\E"
+    }, 
+    {
+      "pattern":"\\Qorg/eclipse/jetty/http/mime.properties\\E"
+    }, 
+    {
+      "pattern":"\\Qorg/eclipse/jetty/version/build.properties\\E"
     }
   ]},
-  "bundles":[{
-      "name":"multilang.lanterna-ui"
-    }]
+  "bundles":[
+    {
+      "name":"javax.servlet.LocalStrings",
+      "locales":[
+        "", 
+        "und"
+      ]
+    }, 
+    {
+      "name":"javax.servlet.http.LocalStrings",
+      "locales":[
+        "", 
+        "und"
+      ]
+    }, 
+    {
+      "name":"multilang.lanterna-ui",
+      "locales":["und"]
+    }
+  ]
 }

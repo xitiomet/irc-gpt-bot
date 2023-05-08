@@ -6,6 +6,9 @@
   "name":"[Ljava.lang.String;"
 },
 {
+  "name":"[Lorg.eclipse.jetty.servlet.ServletMapping;"
+},
+{
   "name":"[Lsun.security.pkcs.SignerInfo;"
 },
 {
@@ -322,8 +325,51 @@
   "methods":[{"name":"isHeadless","parameterTypes":[] }]
 },
 {
+  "name":"java.lang.Boolean",
+  "methods":[{"name":"valueOf","parameterTypes":["java.lang.String"] }]
+},
+{
+  "name":"java.lang.Byte",
+  "methods":[{"name":"valueOf","parameterTypes":["java.lang.String"] }]
+},
+{
+  "name":"java.lang.Class",
+  "methods":[{"name":"getModule","parameterTypes":[] }]
+},
+{
+  "name":"java.lang.Double",
+  "methods":[{"name":"valueOf","parameterTypes":["java.lang.String"] }]
+},
+{
+  "name":"java.lang.Float",
+  "methods":[{"name":"valueOf","parameterTypes":["java.lang.String"] }]
+},
+{
+  "name":"java.lang.Integer",
+  "methods":[{"name":"valueOf","parameterTypes":["java.lang.String"] }]
+},
+{
+  "name":"java.lang.Long",
+  "methods":[{"name":"valueOf","parameterTypes":["java.lang.String"] }]
+},
+{
+  "name":"java.lang.Module",
+  "methods":[
+    {"name":"getLayer","parameterTypes":[] }, 
+    {"name":"getName","parameterTypes":[] }
+  ]
+},
+{
+  "name":"java.lang.ModuleLayer",
+  "methods":[{"name":"configuration","parameterTypes":[] }]
+},
+{
   "name":"java.lang.Object",
   "allDeclaredMethods":true
+},
+{
+  "name":"java.lang.Short",
+  "methods":[{"name":"valueOf","parameterTypes":["java.lang.String"] }]
 },
 {
   "name":"java.lang.String"
@@ -343,12 +389,25 @@
   "name":"java.lang.management.RuntimeMXBean",
   "methods":[
     {"name":"getInputArguments","parameterTypes":[] }, 
-    {"name":"getName","parameterTypes":[] }
+    {"name":"getName","parameterTypes":[] }, 
+    {"name":"getUptime","parameterTypes":[] }
   ]
 },
 {
   "name":"java.lang.management.ThreadInfo",
   "fields":[{"name":"virtual"}]
+},
+{
+  "name":"java.lang.module.Configuration",
+  "methods":[{"name":"findModule","parameterTypes":["java.lang.String"] }]
+},
+{
+  "name":"java.lang.module.ModuleReference",
+  "methods":[{"name":"location","parameterTypes":[] }]
+},
+{
+  "name":"java.lang.module.ResolvedModule",
+  "methods":[{"name":"reference","parameterTypes":[] }]
 },
 {
   "name":"java.nio.Bits",
@@ -401,6 +460,29 @@
 {
   "name":"net.engio.mbassy.dispatch.ReflectiveHandlerInvocation",
   "methods":[{"name":"<init>","parameterTypes":["net.engio.mbassy.subscription.SubscriptionContext"] }]
+},
+{
+  "name":"org.eclipse.jetty.servlet.ServletHandler$Default404Servlet",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"org.eclipse.jetty.util.ModuleLocation",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"org.eclipse.jetty.util.log.Slf4jLog"
+},
+{
+  "name":"org.eclipse.jetty.util.log.StdErrLog",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"org.eclipse.jetty.websocket.common.extensions.compress.PerMessageDeflateExtension",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"org.eclipse.jetty.websocket.server.WebSocketServerFactory",
+  "methods":[{"name":"<init>","parameterTypes":["javax.servlet.ServletContext","org.eclipse.jetty.websocket.api.WebSocketPolicy"] }]
 },
 {
   "name":"org.kitteh.irc.client.library.defaults.feature.DefaultEventManager",
@@ -583,6 +665,24 @@
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
+  "name":"org.openstatic.APIWebServer$ApiServlet",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"org.openstatic.APIWebServer$EventsWebSocket",
+  "queryAllDeclaredMethods":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"onClose","parameterTypes":["org.eclipse.jetty.websocket.api.Session","int","java.lang.String"] }, 
+    {"name":"onConnect","parameterTypes":["org.eclipse.jetty.websocket.api.Session"] }, 
+    {"name":"onText","parameterTypes":["org.eclipse.jetty.websocket.api.Session","java.lang.String"] }
+  ]
+},
+{
+  "name":"org.openstatic.APIWebServer$EventsWebSocketServlet",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
   "name":"org.openstatic.IRCGPTBot",
   "queryAllDeclaredMethods":true,
   "methods":[
@@ -590,6 +690,7 @@
     {"name":"onChannelMessage","parameterTypes":["org.kitteh.irc.client.library.event.channel.ChannelMessageEvent"] }, 
     {"name":"onClientConnectionClosedEvent","parameterTypes":["org.kitteh.irc.client.library.event.connection.ClientConnectionClosedEvent"] }, 
     {"name":"onClientConnectionEndedEvent","parameterTypes":["org.kitteh.irc.client.library.event.connection.ClientConnectionEndedEvent"] }, 
+    {"name":"onClientConnectionFailedEvent","parameterTypes":["org.kitteh.irc.client.library.event.connection.ClientConnectionFailedEvent"] }, 
     {"name":"onConnectedEvent","parameterTypes":["org.kitteh.irc.client.library.event.connection.ClientConnectionEstablishedEvent"] }
   ]
 },

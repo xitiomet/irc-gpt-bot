@@ -67,6 +67,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
     public static IRCGPTBotMain instance;
     public static File logsFolder;
 
+    private APIWebServer apiServer;
+    public HashSet<IRCGPTBotListener> listeners;
     private HashMap<String, IRCGPTBot> bots;
 	private Screen screen;
     private Terminal terminal;
@@ -85,6 +87,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         this.bots = new HashMap<String, IRCGPTBot>();
         this.keepRunning = true;
         this.mainPanel = new ActionListBox();
+        this.listeners = new HashSet<IRCGPTBotListener>();
         mainPanel.setListItemRenderer(this.lir);
         IRCGPTBotMain.instance = this;
         String defaultLogPath = new File(settingsFile.getParentFile(), "irc-gpt-bot-logs").toString();
@@ -144,9 +147,12 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         } catch (Exception wex) {
             log(wex);
         }
+        this.apiServer = new APIWebServer();
+        this.apiServer.setState(IRCGPTBotMain.settings.optBoolean("apiServer", false));
+        this.addIRCGPTBotListener(this.apiServer);
     }
 
-    public synchronized void launchBot(String botId, JSONObject botOptions)
+    public synchronized IRCGPTBot launchBot(String botId, JSONObject botOptions)
     {
         final IRCGPTBot bot = new IRCGPTBot(botId, botOptions);
         bot.start();
@@ -162,7 +168,11 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
                 return bot.getBotId();
             }
         });
-        //this.listeners.forEach((l) -> l.onBotStarted(bot));
+        Thread x = new Thread(() -> {
+            IRCGPTBotMain.instance.listeners.forEach((l) -> l.onBotAdded(bot));
+        });
+        x.start();
+        return bot;
     }
 
     private ListItemRenderer<Runnable,ActionListBox> lir = new ListItemRenderer<Runnable,ActionListBox>()
@@ -174,6 +184,17 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         }
     };
 
+    public void addIRCGPTBotListener(IRCGPTBotListener l)
+    {
+        this.listeners.add(l);
+    }
+
+    public void removeIRCGPTBotListener(IRCGPTBotListener l)
+    {
+        if (this.listeners.contains(l))
+            this.listeners.remove(l);
+    }
+
     private IRCGPTBot getBotAtIndex(int idx)
     {
         Runnable r = this.mainPanel.getItemAt(idx);
@@ -184,7 +205,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         return this.bots.get(botId);
     }
 
-    private IRCGPTBot getBotbyIdentifier(String identifier)
+    public IRCGPTBot getBotbyIdentifier(String identifier)
     {
         return this.bots.get(identifier);
     }
@@ -197,6 +218,11 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         if (spaceIndex >= 0)
             botId = botId.substring(0, spaceIndex);
         return this.bots.get(botId);
+    }
+
+    public Collection<IRCGPTBot> getBots()
+    {
+        return this.bots.values();
     }
 
     private int getMainListIndex(IRCGPTBot bot)
@@ -235,6 +261,10 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
             } catch (Exception e) {}
             //IRCGPTBotMain.this.gui.removeWindow(bot);
             //this.listeners.forEach((l) -> l.onBotShutdown(bot));
+            Thread x = new Thread(() -> {
+                IRCGPTBotMain.instance.listeners.forEach((l) -> l.onBotRemoved(bot));
+            });
+            x.start();
         }
     }
 
@@ -401,6 +431,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
 
     public static void main(String[] args)
     {
+        System.setProperty("org.eclipse.jetty.util.log.class", "org.eclipse.jetty.util.log.StdErrLog");
+        System.setProperty("org.eclipse.jetty.LEVEL", "OFF");
         CommandLine cmd = null;
         IRCGPTBotMain.settingsFile = new File(System.getProperty("user.home"),".irc-gpt-bot.json");
         IRCGPTBotMain.settings = migrateConfigIfNeeded(loadJSONObject(settingsFile));

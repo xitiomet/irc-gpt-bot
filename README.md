@@ -12,6 +12,7 @@ Features:
  * Can respond to private messages
  * Can greet users with a brief summary of the conversation before they joined
  * Lanterna Interface - runs well in "screen" environment, no desktop required
+ * Launch multiple bots on multiple servers.
 
 if you would like to play around with my instance of irc-gpt-bot goto <a href="https://irc.openstatic.org/">irc.openstatic.org</a> and join #lobby. @charlieGPT is running on irc-gpt-bot.
 

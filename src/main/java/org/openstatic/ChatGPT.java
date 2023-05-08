@@ -30,13 +30,6 @@ public class ChatGPT
         this.executorService = Executors.newSingleThreadExecutor(tf);
     }
 
-    public Future<ChatMessage> callChatGPT(JSONObject botOptions, ChatMessage message, String system) 
-    {
-        ChatLog cl = new ChatLog(botOptions);
-        cl.add(message);
-        return callChatGPT(botOptions, cl);
-    }
-
     public Future<ChatMessage> callChatGPT(JSONObject botOptions, final ChatLog messages) 
     {
         return callChatGPT(botOptions, messages.getGPTMessages());
