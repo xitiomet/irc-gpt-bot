@@ -26,10 +26,28 @@
       "pattern":"\\Qdefrost-theme.properties\\E"
     }, 
     {
+      "pattern":"\\Qirc-gpt-bot/CONNECTED.svg\\E"
+    }, 
+    {
+      "pattern":"\\Qirc-gpt-bot/DISCONNECTED.svg\\E"
+    }, 
+    {
+      "pattern":"\\Qirc-gpt-bot/ERROR.svg\\E"
+    }, 
+    {
+      "pattern":"\\Qirc-gpt-bot/favicon.ico\\E"
+    }, 
+    {
+      "pattern":"\\Qirc-gpt-bot/icon-32.png\\E"
+    }, 
+    {
       "pattern":"\\Qirc-gpt-bot/index.html\\E"
     }, 
     {
       "pattern":"\\Qirc-gpt-bot/index.js\\E"
+    }, 
+    {
+      "pattern":"\\Qirc-gpt-bot/win.ico\\E"
     }, 
     {
       "pattern":"\\Qjetty-dir.css\\E"

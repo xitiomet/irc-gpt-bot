@@ -69,6 +69,8 @@ public class InterfaceServlet extends HttpServlet
             return "image/gif";
         } else if (lc_file.endsWith(".png")) {
             return "image/png";
+        } else if (lc_file.endsWith(".svg")) {
+            return "image/svg+xml";
         } else if (lc_file.endsWith(".bmp")) {
             return "image/x-ms-bmp";
         } else if (lc_file.endsWith(".mp3")) {
