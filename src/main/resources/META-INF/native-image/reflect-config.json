@@ -583,6 +583,17 @@
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
+  "name":"org.openstatic.IRCGPTBot",
+  "queryAllDeclaredMethods":true,
+  "methods":[
+    {"name":"onChannelJoin","parameterTypes":["org.kitteh.irc.client.library.event.channel.ChannelJoinEvent"] }, 
+    {"name":"onChannelMessage","parameterTypes":["org.kitteh.irc.client.library.event.channel.ChannelMessageEvent"] }, 
+    {"name":"onClientConnectionClosedEvent","parameterTypes":["org.kitteh.irc.client.library.event.connection.ClientConnectionClosedEvent"] }, 
+    {"name":"onClientConnectionEndedEvent","parameterTypes":["org.kitteh.irc.client.library.event.connection.ClientConnectionEndedEvent"] }, 
+    {"name":"onConnectedEvent","parameterTypes":["org.kitteh.irc.client.library.event.connection.ClientConnectionEstablishedEvent"] }
+  ]
+},
+{
   "name":"org.openstatic.IRCGPTBotMain",
   "allDeclaredMethods":true
 },

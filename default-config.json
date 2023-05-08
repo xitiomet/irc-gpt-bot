@@ -1,20 +1,28 @@
 {
-    "nickname": "chatGPT",
-    "channels": ["#lobby"],
-    "channelKeys": {
-        "#lobby": "password"
-    },
-    "user": null,
-    "botOps": ["xitiomet"],
-    "ignore": ["AnnoyingUser"],
-    "realName": null,
-    "password": null,
-    "server": "127.0.0.1",
     "openAiKey": "",
-    "contextDepth": 15,
-    "systemPreamble": "Only respond in hacker speak",
-    "secure": false,
-    "acceptInvites": true,
-    "model": "gpt-3.5-turbo",
-    "privateMessages": true
+    "logPath": "irc-gpt-bot-logs",
+    "bots": {
+        "chatGPT": {
+            "nickname": "chatGPT",
+            "channels": {
+                "#lobby": {
+                    "join": true,
+                    "key": null
+                }
+            },
+            "user": null,
+            "botOps": ["xitiomet"],
+            "ignore": ["AnnoyingUser"],
+            "realName": null,
+            "password": null,
+            "server": "127.0.0.1",
+            "contextDepth": 15,
+            "systemPreamble": "Only respond in hacker speak",
+            "secure": false,
+            "acceptInvites": true,
+            "gptEnabled": true,
+            "model": "gpt-3.5-turbo",
+            "privateMessages": true
+        }
+    }
 }

@@ -11,12 +11,12 @@ import org.json.JSONObject;
 public class ChatLog
 {
     private ArrayList<ChatMessage> messages;
-    private JSONObject settings;
+    private JSONObject botOptions;
 
-    public ChatLog(JSONObject settings)
+    public ChatLog(JSONObject botOptions)
     {
         this.messages = new ArrayList<ChatMessage>();
-        this.settings = settings;
+        this.botOptions = botOptions;
     }
 
     public void add(ChatMessage cm)
@@ -44,7 +44,7 @@ public class ChatLog
 
     public String getConversationalContext()
     {
-        int skipAmt = this.messages.size() - settings.optInt("contextDepth", 5);
+        int skipAmt = this.messages.size() - botOptions.optInt("contextDepth", 5);
         if (skipAmt < 0) skipAmt = 0;
         Stream<ChatMessage> rMessages = this.messages.stream().skip(skipAmt);
         return rMessages.map((msg) -> {
@@ -55,19 +55,19 @@ public class ChatLog
     public JSONArray getGPTMessages()
     {
         JSONArray ra = new JSONArray();
-        if (this.settings.has("systemPreamble"))
+        if (this.botOptions.has("systemPreamble"))
         {
             JSONObject msgS = new JSONObject();
             msgS.put("role", "system");
-            msgS.put("content", this.settings.optString("systemPreamble"));
+            msgS.put("content", this.botOptions.optString("systemPreamble"));
             ra.put(msgS);
         }
-        int skipAmt = this.messages.size() - settings.optInt("contextDepth", 5);
+        int skipAmt = this.messages.size() - botOptions.optInt("contextDepth", 5);
         if (skipAmt < 0) skipAmt = 0;
         Stream<ChatMessage> rMessages = this.messages.stream().skip(skipAmt);
         rMessages.forEach((msg) -> {
             String role = "user";
-            if (msg.getSender().equals(this.settings.optString("nickname")))
+            if (msg.getSender().equals(this.botOptions.optString("nickname")))
                 role = "assistant";
             ra.put(msg.toGPTMessage(role));
         });
