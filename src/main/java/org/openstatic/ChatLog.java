@@ -62,7 +62,7 @@ public class ChatLog
             msgS.put("content", this.bot.getBotOptions().optString("systemPreamble"));
             ra.put(msgS);
         }
-        int skipAmt = this.messages.size() - bot.getBotOptions().optInt("contextDepth", 5);
+        int skipAmt = (this.messages.size() - bot.getBotOptions().optInt("contextDepth", 5));
         if (skipAmt < 0) skipAmt = 0;
         Stream<ChatMessage> rMessages = this.messages.stream().skip(skipAmt);
         rMessages.forEach((msg) -> {

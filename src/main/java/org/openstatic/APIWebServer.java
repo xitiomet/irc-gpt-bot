@@ -1,6 +1,10 @@
 package org.openstatic;
 
 import org.json.*;
+import org.kitteh.irc.client.library.element.Channel;
+import org.kitteh.irc.client.library.element.User;
+import org.kitteh.irc.client.library.event.channel.ChannelMessageEvent;
+import org.kitteh.irc.client.library.event.user.PrivateMessageEvent;
 
 import java.io.IOException;
 import java.io.BufferedReader;
@@ -45,30 +49,12 @@ public class APIWebServer implements IRCGPTBotListener
         APIWebServer.instance = this;
         this.wsSessions = new ArrayList<WebSocketSession>();
         this.sessionProps = new HashMap<WebSocketSession, JSONObject>();
-        httpServer = new Server(6553);
-
+        httpServer = new Server(IRCGPTBotMain.settings.optInt("apiPort", 6553));
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
         context.setContextPath("/");
         context.addServlet(ApiServlet.class, "/ircgptbot/api/*");
         context.addServlet(EventsWebSocketServlet.class, "/ircgptbot/*");
         try {
-            /*
-            DefaultServlet assetServlet = new DefaultServlet();
-            ServletHolder holderAssets = new ServletHolder("assets", assetServlet);
-            String assetsPath = MidiTools.getAssetFolder().toPath().toUri().toASCIIString();
-            System.err.println("Assets Path: " + assetsPath);
-            holderAssets.setInitParameter("resourceBase", assetsPath);
-            holderAssets.setInitParameter("dirAllowed","true");
-            holderAssets.setInitParameter("pathInfoOnly","true");
-            context.addServlet(holderAssets, "/assets/*");
-            */
-            /* 
-            URL url = APIWebServer.class.getResource("/irc-gpt-bot/index.html");
-            this.staticRoot = url.toString().replaceAll("index.html", "");
-            DefaultServlet defaultServlet = new DefaultServlet();
-            ServletHolder holderPwd = new ServletHolder("default", defaultServlet);
-            holderPwd.setInitParameter("resourceBase", this.staticRoot);
-            */
             context.addServlet(InterfaceServlet.class, "/*");
         } catch (Exception e) {
             e.printStackTrace(System.err);
@@ -80,8 +66,7 @@ public class APIWebServer implements IRCGPTBotListener
     {
         IRCGPTBotMain.instance.getBots().forEach((bot) -> {
             JSONObject msg = new JSONObject();
-            msg.put("type", "bot");
-            msg.put("action", "added");
+            msg.put("action", "botAdded");
             msg.put("id", bot.getBotId());
             msg.put("stats", bot.toJSONObject());
             msg.put("preamble", bot.getPreamble());
@@ -115,6 +100,28 @@ public class APIWebServer implements IRCGPTBotListener
                         IRCGPTBotMain.instance.removeBot(bot);
                     }
                 }
+                if (command.equals("subscribe"))
+                {
+                    String objectId = j.optString("id", null);
+                    if (objectId != null)
+                    {
+                        IRCGPTBot bot = IRCGPTBotMain.instance.getBotbyIdentifier(objectId);
+                        JSONArray subscriptions;
+                        if (sessionProperties.has("subscriptions"))
+                        {
+                            subscriptions = sessionProperties.optJSONArray("subscriptions");
+                        } else {
+                            subscriptions = new JSONArray();
+                        }
+                        subscriptions.put(bot.getBotId());
+                        sessionProperties.put("subscriptions", subscriptions);
+                        JSONObject authObj = new JSONObject();
+                        authObj.put("action", "subscribed");
+                        authObj.put("id", bot.getBotId());
+                        authObj.put("subscriptions", subscriptions);
+                        session.getRemote().sendStringByFuture(authObj.toString());
+                    }
+                }
                 if (command.equals("reconnect"))
                 {
                     String objectId = j.optString("id", null);
@@ -122,6 +129,51 @@ public class APIWebServer implements IRCGPTBotListener
                     {
                         IRCGPTBot bot = IRCGPTBotMain.instance.getBotbyIdentifier(objectId);
                         bot.connect();
+                    }
+                }
+                if (command.equals("join"))
+                {
+                    String objectId = j.optString("id", null);
+                    if (objectId != null)
+                    {
+                        IRCGPTBot bot = IRCGPTBotMain.instance.getBotbyIdentifier(objectId);
+                        if (j.has("key"))
+                        {
+                            bot.joinChannel(j.optString("channel", null),j.optString("key", null));
+                        } else {
+                            bot.joinChannel(j.optString("channel", null));
+                        }
+                    }
+                }
+                if (command.equals("part"))
+                {
+                    String objectId = j.optString("id", null);
+                    if (objectId != null)
+                    {
+                        IRCGPTBot bot = IRCGPTBotMain.instance.getBotbyIdentifier(objectId);
+                        bot.partChannel(j.optString("channel", null));
+                    }
+                }
+                if (command.equals("privmsg"))
+                {
+                    String objectId = j.optString("id", null);
+                    if (objectId != null)
+                    {
+                        IRCGPTBot bot = IRCGPTBotMain.instance.getBotbyIdentifier(objectId);
+                        String message = j.optString("message");
+                        String to = j.optString("to");
+                        bot.sendPrivateMessage(to, message);
+                    }
+                }
+                if (command.equals("notice"))
+                {
+                    String objectId = j.optString("id", null);
+                    if (objectId != null)
+                    {
+                        IRCGPTBot bot = IRCGPTBotMain.instance.getBotbyIdentifier(objectId);
+                        String message = j.optString("message");
+                        String to = j.optString("to");
+                        bot.sendNotice(to, message);
                     }
                 }
                 if (command.equals("preamble"))
@@ -152,25 +204,27 @@ public class APIWebServer implements IRCGPTBotListener
                         if (!password.equals(IRCGPTBotMain.settings.optString("apiPassword")))
                         {
                             JSONObject authObj = new JSONObject();
-                            authObj.put("type", "user");
-                            authObj.put("action", "authfail");
+                            authObj.put("action", "authFail");
                             authObj.put("error", "Invalid Password!");
                             session.getRemote().sendStringByFuture(authObj.toString());
                         } else {
                             sessionProperties.put("auth", true);
                             JSONObject authObj = new JSONObject();
-                            authObj.put("type", "user");
-                            authObj.put("action", "authok");
+                            authObj.put("action", "authOk");
                             session.getRemote().sendStringByFuture(authObj.toString());
                             shareBots(session);
                         }
                     } catch (Exception e) {
                         JSONObject authObj = new JSONObject();
-                        authObj.put("type", "user");
-                        authObj.put("action", "authfail");
+                        authObj.put("action", "authFail");
                         authObj.put("error", e.getLocalizedMessage());
                         session.getRemote().sendStringByFuture(authObj.toString());
                     }
+                } else {
+                    JSONObject authObj = new JSONObject();
+                    authObj.put("action", command);
+                    authObj.put("error", "You must first authenticate before issuing commands");
+                    session.getRemote().sendStringByFuture(authObj.toString());
                 }
             }
         }
@@ -189,6 +243,26 @@ public class APIWebServer implements IRCGPTBotListener
                 httpServer.stop();
             } catch (Exception e) {
                 e.printStackTrace(System.err);
+            }
+        }
+    }
+
+    public void broadcastJSONObjectToSubscribers(String subId, JSONObject jo) 
+    {
+        String message = jo.toString();
+        for (Session s : this.wsSessions) {
+            try {
+                JSONObject sessionProps = this.sessionProps.get(s);
+                if (sessionProps.has("subscriptions"))
+                {
+                    JSONArray subscriptions = sessionProps.optJSONArray("subscriptions");
+                    if (IRCGPTBotMain.inJSONArray(subscriptions, subId))
+                    {
+                        s.getRemote().sendStringByFuture(message);
+                    }
+                }
+            } catch (Exception e) {
+
             }
         }
     }
@@ -299,22 +373,27 @@ public class APIWebServer implements IRCGPTBotListener
                     String target = request.getPathInfo();
                     //System.err.println("Path: " + target);
                     JSONObject response = new JSONObject();
-                    try {
-                        if ("/bots/add/".equals(target)) {
-                            JSONObject requestPost = readJSONObjectPOST(request);
-                            if (requestPost.has("id") && requestPost.has("botOptions") && requestPost.has("apiPassword"))
-                            {
-                                if (requestPost.optString("apiPassword", "").equals(IRCGPTBotMain.settings.optString("apiPassword")))
+                    JSONObject requestPost = readJSONObjectPOST(request);
+                    if (IRCGPTBotMain.settings.optString("apiPassword","").equals(requestPost.optString("apiPassword")))
+                    {       
+                        try {
+                            if ("/bots/add/".equals(target)) {
+                                if (requestPost.has("id") && requestPost.has("botOptions") && requestPost.has("apiPassword"))
                                 {
-                                    IRCGPTBot bot = IRCGPTBotMain.instance.launchBot(requestPost.optString("id"), requestPost.optJSONObject("botOptions"));
-                                    response.put("bot", bot.toJSONObject());
-                                } else {
-                                    response.put("error","Invalid apiPassword");
+                                    if (requestPost.optString("apiPassword", "").equals(IRCGPTBotMain.settings.optString("apiPassword")))
+                                    {
+                                        IRCGPTBot bot = IRCGPTBotMain.instance.launchBot(requestPost.optString("id"), requestPost.optJSONObject("botOptions"));
+                                        response.put("bot", bot.toJSONObject());
+                                    } else {
+                                        response.put("error","Invalid apiPassword");
+                                    }
                                 }
                             }
+                        } catch (Exception x) {
+                            x.printStackTrace(System.err);
                         }
-                    } catch (Exception x) {
-                        x.printStackTrace(System.err);
+                    } else {
+                        response.put("error", "Invalid apiPassword!");
                     }
                     httpServletResponse.getWriter().println(response.toString());
         }
@@ -356,6 +435,25 @@ public class APIWebServer implements IRCGPTBotListener
                                         String message = request.getParameter("message");
                                         String to = request.getParameter("to");
                                         bot.sendPrivateMessage(to, message);
+                                    } else if ("notice".equals(command) && parameterNames.contains("message") && parameterNames.contains("to")) {
+                                        String message = request.getParameter("message");
+                                        String to = request.getParameter("to");
+                                        bot.sendNotice(to, message);
+                                    } else if ("join".equals(command) && parameterNames.contains("channel")) {
+                                        String channel = request.getParameter("channel");
+                                        if (!parameterNames.contains("key"))
+                                            bot.joinChannel(channel);
+                                        else
+                                            bot.joinChannel(channel, request.getParameter("key"));
+                                    } else if ("part".equals(command) && parameterNames.contains("channel")) {
+                                        String channel = request.getParameter("channel");
+                                        bot.partChannel(channel);
+                                    } else if ("remove".equals(command)) {
+                                        IRCGPTBotMain.instance.removeBot(bot);
+                                    } else if ("shutdown".equals(command)) {
+                                        bot.shutdown();
+                                    } else if ("reconnect".equals(command)) {
+                                        bot.connect();
                                     }
                                 }
                             }
@@ -375,20 +473,18 @@ public class APIWebServer implements IRCGPTBotListener
     @Override
     public void onBotRemoved(IRCGPTBot bot) {
         JSONObject msg = new JSONObject();
-        msg.put("type", "bot");
         msg.put("id", bot.getBotId());
         msg.put("stats", bot.toJSONObject());
-        msg.put("action", "removed");
+        msg.put("action", "botRemoved");
         this.broadcastJSONObject(msg);
     }
 
     @Override
     public void onBotAdded(IRCGPTBot bot) {
         JSONObject msg = new JSONObject();
-        msg.put("type", "bot");
         msg.put("id", bot.getBotId());
         msg.put("stats", bot.toJSONObject());
-        msg.put("action", "added");
+        msg.put("action", "botAdded");
         msg.put("preamble", bot.getPreamble());
         this.broadcastJSONObject(msg);
     }
@@ -396,22 +492,49 @@ public class APIWebServer implements IRCGPTBotListener
     @Override
     public void onBotStats(IRCGPTBot bot) {
         JSONObject msg = new JSONObject();
-        msg.put("type", "bot");
         msg.put("id", bot.getBotId());
         msg.put("stats", bot.toJSONObject());
-        msg.put("action", "stats");
+        msg.put("action", "botStats");
         this.broadcastJSONObject(msg);
     }
 
     @Override
     public void onPreambleChange(IRCGPTBot bot) {
         JSONObject msg = new JSONObject();
-        msg.put("type", "bot");
         msg.put("id", bot.getBotId());
         msg.put("stats", bot.toJSONObject());
-        msg.put("action", "preamble");
+        msg.put("action", "botPreamble");
         msg.put("preamble", bot.getPreamble());
         this.broadcastJSONObject(msg);
+    }
+
+    @Override
+    public void onPrivateMessage(IRCGPTBot bot, PrivateMessageEvent pme)
+    {
+        User sender = pme.getActor();
+        String senderNick = sender.getNick();
+        String body = pme.getMessage();
+        JSONObject msg = new JSONObject();
+        msg.put("id", bot.getBotId());
+        msg.put("from", senderNick);
+        msg.put("message", body);
+        msg.put("action", "privmsg");
+        broadcastJSONObjectToSubscribers(bot.getBotId(), msg);
+    }
+
+    @Override
+    public void onChannelMessage(IRCGPTBot bot, ChannelMessageEvent event) {
+        User sender = event.getActor();
+        String senderNick = sender.getNick();
+        String body = event.getMessage();
+        Channel channel = event.getChannel();
+        JSONObject msg = new JSONObject();
+        msg.put("id", bot.getBotId());
+        msg.put("from", senderNick);
+        msg.put("channel", channel.getName());
+        msg.put("message", body);
+        msg.put("action", "channel");
+        broadcastJSONObjectToSubscribers(bot.getBotId(), msg);
     }
 
 }

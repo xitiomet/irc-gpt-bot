@@ -156,11 +156,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                                 mdb.setTextBoxSize(new TerminalSize(30, 1));
                                 TextInputDialog md = mdb.build();
                                 String channelName = md.showDialog(IRCGPTBotMain.instance.gui);
-                                if (channelName != null && !"".equals(channelName))
-                                {
-                                    IRCGPTBot.this.client.addChannel(channelName);
-                                    IRCGPTBot.this.addChannelToSettings(channelName);
-                                }
+                                IRCGPTBot.this.joinChannel(channelName);
                             } else if ("(Join A Channel with Key)".equals(channelSelected)) {
                                 TextInputDialogBuilder mdb = new TextInputDialogBuilder();
                                 mdb.setTitle("Enter Channel Name");
@@ -596,14 +592,18 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         {
             if (!"".equals(channelName))
             {
-                JSONArray channelsSettings = IRCGPTBot.this.botOptions.getJSONArray("channels");
-                List<Object> channelNames = channelsSettings.toList();
-                if (!channelNames.contains(channelName))
-                    channelsSettings.put(channelName);
-                IRCGPTBot.this.botOptions.put("channels", channelsSettings);
-                JSONObject channelKeys = IRCGPTBot.this.botOptions.getJSONObject("channelKeys");
-                channelKeys.put(channelName, key);
-                IRCGPTBot.this.botOptions.put("channelKeys", channelKeys);
+                JSONObject channels = IRCGPTBot.this.botOptions.getJSONObject("channels");
+                JSONObject channelObject;
+                if (!channels.has(channelName))
+                {
+                    channelObject = new JSONObject();
+                } else {
+                    channelObject = channels.getJSONObject(channelName);
+                }
+                channelObject.put("join", true);
+                channelObject.put("key", key);
+                channels.put(channelName, channelObject);
+                IRCGPTBot.this.botOptions.put("channels", channels);
                 IRCGPTBotMain.instance.saveSettings();
             }
         }
@@ -624,6 +624,33 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
             }
         }
         IRCGPTBot.this.botOptions.put("channels", channels);
+    }
+
+    public void joinChannel(String channelName, String key)
+    {
+        if (channelName != null && !"".equals(channelName))
+        {
+            IRCGPTBot.this.client.addKeyProtectedChannel(channelName, key);
+            IRCGPTBot.this.addKeyChannelToSettings(channelName, key);
+        }
+    }
+
+    public void joinChannel(String channelName)
+    {
+        if (channelName != null && !"".equals(channelName))
+        {
+            IRCGPTBot.this.client.addChannel(channelName);
+            IRCGPTBot.this.addChannelToSettings(channelName);
+        }
+    }
+
+    public void partChannel(String channelName)
+    {
+        if (channelName != null && !"".equals(channelName))
+        {
+            IRCGPTBot.this.client.removeChannel(channelName);
+            IRCGPTBot.this.removeChannelFromSettings(channelName);
+        }
     }
 
     private void addChannelToSettings(String channelName)
@@ -729,6 +756,22 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         this.connectionLabel.setBackgroundColor(ANSI.BLACK);
         this.connectionLabel.setForegroundColor(ANSI.YELLOW_BRIGHT);
         this.fireStats();
+    }
+
+    public void fireChannelMessage(final ChannelMessageEvent cme)
+    {
+        Thread x = new Thread(() -> {
+            IRCGPTBotMain.instance.listeners.forEach((l) -> l.onChannelMessage(IRCGPTBot.this, cme));
+        });
+        x.start();
+    }
+
+    public void firePrivateMessage(final PrivateMessageEvent pme)
+    {
+        Thread x = new Thread(() -> {
+            IRCGPTBotMain.instance.listeners.forEach((l) -> l.onPrivateMessage(IRCGPTBot.this, pme));
+        });
+        x.start();
     }
 
     public void fireStats()
@@ -844,10 +887,16 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         this.client.sendMultiLineMessage(to, message);
     }
 
+    public void sendNotice(String to, String message)
+    {
+        this.client.sendMultiLineNotice(to, message);
+    }
+
     @Handler
     public void onChannelMessage(ChannelMessageEvent event)
     {
         this.messagesSeen++;
+        this.fireChannelMessage(event);
         this.fireStats();
         User sender = event.getActor();
         String senderNick = sender.getNick();
@@ -917,6 +966,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     public void onPrivateMessage(PrivateMessageEvent event)
     {
         this.messagesSeen++;
+        this.firePrivateMessage(event);
         this.fireStats();
         User sender = event.getActor();
         String senderNick = sender.getNick();

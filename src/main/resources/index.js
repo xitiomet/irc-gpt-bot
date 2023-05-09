@@ -18,6 +18,11 @@ function getParameterByName(name, url = window.location.href)
     return decodeURIComponent(results[2].replace(/\+/g, ' '));
 }
 
+function launchBotWindow()
+{
+    var myWindow = window.open('launch.html?apiPassword=' + document.getElementById('password').value, "LaunchBot", "width=455,height=635");
+}
+
 function sendEvent(wsEvent)
 {
     var out_event = JSON.stringify(wsEvent);
@@ -48,6 +53,34 @@ function savePreamble(objectId)
     }
 }
 
+function notice(objectId)
+{
+    var channelName = prompt("Enter Channel Name or Nickname (ex: #lobby)");
+    var notice = prompt("Enter Notice Message");
+    if (channelName != undefined && channelName != '' && notice != undefined)
+    {
+        sendEvent({"command":"notice", "id": objectId, "to": channelName, "message": notice});
+    }
+}
+
+function joinChannel(objectId)
+{
+    var channelName = prompt("Enter Channel Name (ex: #lobby)");
+    if (channelName != undefined && channelName != '')
+    {
+        sendEvent({"command":"join", "id": objectId, "channel": channelName});
+    }
+}
+
+function partChannel(objectId)
+{
+    var channelName = prompt("Enter Channel Name (ex: #lobby)");
+    if (channelName != undefined && channelName != '')
+    {
+        sendEvent({"command":"part", "id": objectId, "channel": channelName});
+    }
+}
+
 function reconnectBot(objectId)
 {
     sendEvent({"command":"reconnect", "id": objectId});
@@ -63,15 +96,6 @@ function deleteBot(objectId)
 {
     if (confirm("Are you sure you want to delete this bot?"))
         sendEvent({"command":"remove", "id": objectId});
-}
-
-function launchBot()
-{
-    var botId = prompt("Enter Bot Identifier");
-    if (botId != null)
-    {
-        sendEvent({"command":"launch", "botOptions": {}, "id": botId});
-    }
 }
 
 function doAuth()
@@ -92,7 +116,7 @@ function removeBot(botId)
     }
 }
 
-function addOrUpdateBot(json)
+function addBot(json)
 {
     var objectId = json.id;
     var tag = "bot_" + objectId;
@@ -131,7 +155,7 @@ function addOrUpdateBot(json)
         avatarImgTag.style.height = '64px';
         avatarImgTag.style.width = '64px';
         nicknameTag.innerHTML = "<b style=\"font-size: 18px;\">" + json.stats.nickname + "</b><br />" + json.stats.model;
-        actionsTag.innerHTML = "<button style=\"width: 92px;\" onClick=\"reconnectBot('" + objectId + "')\">Reconnect</button><br /><button style=\"width: 92px;\" onClick=\"shutdownBot('" + objectId + "')\">Shutdown</button><br /><button style=\"width: 92px;\" onClick=\"deleteBot('" + objectId + "')\">Delete</button><br />";
+        actionsTag.innerHTML = "<table><tr><td><button style=\"width: 128px;\" onClick=\"reconnectBot('" + objectId + "')\">Reconnect</button><br /><button style=\"width: 128px;\" onClick=\"joinChannel('" + objectId + "')\">Join Channel</button><br /><button style=\"width: 128px;\" onClick=\"partChannel('" + objectId + "')\">Leave Channel</button></td><td><button style=\"width: 128px;\" onClick=\"notice('" + objectId + "')\">Notice</button><br /><button style=\"width: 128px;\" onClick=\"shutdownBot('" + objectId + "')\">Shutdown</button><br /><button style=\"width: 128px;\" onClick=\"deleteBot('" + objectId + "')\">Delete</button></td></tr></table>";
         var preambleText = '';
         if (json.hasOwnProperty('preamble'))
             preambleText = json.preamble;
@@ -150,6 +174,37 @@ function addOrUpdateBot(json)
     if (avatarImgTag.src != targetStatusIcon)
         avatarImgTag.src = targetStatusIcon;
 }
+
+
+function updateBot(json)
+{
+    var objectId = json.id;
+    var tag = "bot_" + objectId;
+    var avatarTagId = "avatar_" + objectId;
+    var avatarImgTagId = "avatar_img_" + objectId;
+    var nicknameTagId = "nickname_" + objectId;
+    var statsTagId = "stats_" + objectId;
+    var preambleTagId = "preamble_" + objectId;
+    var actionsTagId  = "actions_" + objectId;
+
+    var avatarTag, botTag, nicknameTag, statsTag, actionsTag, preambleTag;
+    botTag = document.getElementById(tag);
+    if (botTag == null)
+    {
+        return;
+    } else {
+        avatarTag = document.getElementById(avatarTagId);
+        avatarImgTag = document.getElementById(avatarImgTagId);
+        nicknameTag = document.getElementById(nicknameTagId);
+        statsTag = document.getElementById(statsTagId);
+        actionsTag = document.getElementById(actionsTagId);
+    }
+    statsTag.innerHTML = "<b>Messages Handled</b> " + json.stats.messagesHandled + "<br /><b>Messages Seen</b> " + json.stats.messagesSeen + "<br /><b>Errors</b> " + json.stats.errorCount;
+    var targetStatusIcon = json.stats.status + ".svg";
+    if (avatarImgTag.src != targetStatusIcon)
+        avatarImgTag.src = targetStatusIcon;
+}
+
 
 function setupWebsocket()
 {
@@ -187,30 +242,25 @@ function setupWebsocket()
                 console.log("Receive: " + e.data);
             }
             var jsonObject = JSON.parse(e.data);
-            if (jsonObject.hasOwnProperty("type") && jsonObject.hasOwnProperty("action"))
+            if (jsonObject.hasOwnProperty("action"))
             {
-                var type = jsonObject.type;
                 var action = jsonObject.action;
-                if (type == 'bot')
+                if (action == 'botRemoved')
                 {
-                    if (action == 'removed')
-                    {
-                        removeBot(jsonObject.id);
-                    } else if (action == 'preamble') {
-                        document.getElementById('preambleText_' + jsonObject.id).value = jsonObject.preamble;
-                        preambles[jsonObject.id] = jsonObject.preamble;
-                    } else {
-                        addOrUpdateBot(jsonObject);
-                    }
-                } else if (type == 'user') {
-                    if (action == 'authok')
-                    {
-                        document.getElementById('login').style.display = 'none';
-                        document.getElementById('console').style.display = 'block';
-                        document.getElementById('launchBotButton').style.display = 'inline-block';
-                    } else if (action == 'authfail') {
-                        document.getElementById('errorMsg').innerHTML = jsonObject.error;
-                    }
+                    removeBot(jsonObject.id);
+                } else if (action == 'botPreamble') {
+                    document.getElementById('preambleText_' + jsonObject.id).value = jsonObject.preamble;
+                    preambles[jsonObject.id] = jsonObject.preamble;
+                } else if (action == 'botAdded') {
+                    addBot(jsonObject);
+                } else if (action == 'botStats') {
+                    updateBot(jsonObject);
+                } else if (action == 'authOk') {
+                    document.getElementById('login').style.display = 'none';
+                    document.getElementById('console').style.display = 'block';
+                    document.getElementById('launchBotButton').style.display = 'inline-block';
+                } else if (action == 'authFail') {
+                    document.getElementById('errorMsg').innerHTML = jsonObject.error;
                 }
             }
         };

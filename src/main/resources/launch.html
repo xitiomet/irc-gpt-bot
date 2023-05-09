@@ -1,0 +1,131 @@
+<html>
+<head>
+    <script src="jquery.min.js"></script>
+    <script type="text/javascript">
+        function getParameterByName(name, url = window.location.href) 
+        {
+            name = name.replace(/[\[\]]/g, '\\$&');
+            var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+                results = regex.exec(url);
+            if (!results) return null;
+            if (!results[2]) return '';
+            return decodeURIComponent(results[2].replace(/\+/g, ' '));
+        }
+
+        function launch()
+        {
+            var botId = document.getElementById('botId').value;
+            var botOptions = {"systemPreamble": document.getElementById('systemPreamble').value};
+            var inputs = document.getElementsByTagName("input");
+            var inputsList = Array.prototype.slice.call(inputs);
+            inputsList.forEach(element => {
+                if (element.type == 'checkbox')
+                {
+                    botOptions[element.id] = element.checked;
+                } else if (element.type == 'number') {
+                    botOptions[element.id] = parseInt(element.value);
+                } else if (element.type == 'text') {
+                    if (element.id != 'botId')
+                    {
+                        if (element.value != "")
+                            botOptions[element.id] = element.value;
+                    }
+                }
+            });
+            console.log(botOptions);
+            var launchCode = {
+                "id": botId,
+                "botOptions": botOptions,
+                "apiPassword": getParameterByName('apiPassword')
+            };
+            postJSON("ircgptbot/api/bots/add/", launchCode, () => { window.close() }, () => { window.close() });
+        }
+
+        function postJSON(url, data, onSuccess, onError) {
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: JSON.stringify(data),
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                success: onSuccess,
+                error: onError
+            });
+        }
+    </script>
+</head>
+
+<body>
+    <h2>Launch Bot</h2>
+    <table>
+        <tr>
+            <td>Bot Identifier</td>
+            <td><input type="text" id="botId" placeholder="MyGPTBot" /></td>
+        </tr>
+        <tr>
+            <td>Bot IRC Nickname</td>
+            <td><input type="text" id="nickname" placeholder="chatGPT" /></td>
+        </tr>
+        <tr>
+            <td>Bot IRC Username</td>
+            <td><input type="text" id="user" placeholder="chatGPT" value="chatGPT" /></td>
+        </tr>
+        <tr>
+            <td>Bot IRC Password</td>
+            <td><input type="text" id="password" placeholder="" value="" /></td>
+        </tr>
+        <tr>
+            <td>Bot IRC Real Name</td>
+            <td><input type="text" id="realName" placeholder="chatGPT" value="chatGPT" /></td>
+        </tr>
+        <tr>
+            <td>IRC Server</td>
+            <td><input type="text" id="server" placeholder="irc.yourserver.net" /></td>
+        </tr>
+        <tr>
+            <td>IRC Port</td>
+            <td><input type="text" id="port" placeholder="6667" value="6667" /></td>
+        </tr>
+        <tr>
+            <td>SSL</td>
+            <td><input type="checkbox" id="secure" /></td>
+        </tr>
+        <tr>
+            <td>Preamble</td>
+            <td><textarea id="systemPreamble" /></textarea></td>
+        </tr>
+        <tr>
+            <td>Private Messages</td>
+            <td><input type="checkbox" id="privateMessages" checked="true" /></td>
+        </tr>
+        <tr>
+            <td>Accept Channel Invites</td>
+            <td><input type="checkbox" id="acceptInvites" checked="true" /></td>
+        </tr>
+        <tr>
+            <td>Greet users on channel join</td>
+            <td><input type="checkbox" id="greet" checked="true" /></td>
+        </tr>
+        <tr>
+            <td>Greet users publicly (in the channel)</td>
+            <td><input type="checkbox" id="greetPublic" checked="true" /></td>
+        </tr>
+        <tr>
+            <td>chatGPT enabled for this bot</td>
+            <td><input type="checkbox" id="gptEnabled" checked="true" /></td>
+        </tr>
+        <tr>
+            <td>OpenAI Model</td>
+            <td><input type="text" id="model" value="gpt-3.5-turbo" /></td>
+        </tr>
+        <tr>
+            <td>Context Depth (how many messages should chatGPT see for context?)</td>
+            <td><input type="number" id="contextDepth" value="15" /></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><button onclick="launch()">Launch!</button></td>
+        </tr>
+    </table>
+</body>
+</html>

@@ -1,13 +1,19 @@
 {
     "openAiKey": "",
+    "apiServer": true,
+    "apiPassword": "changeme",
+    "apiPort": 6553,
     "logPath": "irc-gpt-bot-logs",
     "bots": {
         "chatGPT": {
             "nickname": "chatGPT",
             "channels": {
                 "#lobby": {
+                    "join": true
+                },
+                "#keyed": {
                     "join": true,
-                    "key": null
+                    "key": "key"
                 }
             },
             "user": null,
@@ -16,10 +22,13 @@
             "realName": null,
             "password": null,
             "server": "127.0.0.1",
+            "port": 6667,
             "contextDepth": 15,
             "systemPreamble": "Only respond in hacker speak",
             "secure": false,
             "acceptInvites": true,
+            "greet": true,
+            "greetPublic": false,
             "gptEnabled": true,
             "model": "gpt-3.5-turbo",
             "privateMessages": true

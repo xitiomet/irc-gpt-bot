@@ -47,6 +47,12 @@
       "pattern":"\\Qirc-gpt-bot/index.js\\E"
     }, 
     {
+      "pattern":"\\Qirc-gpt-bot/jquery.min.js\\E"
+    }, 
+    {
+      "pattern":"\\Qirc-gpt-bot/launch.html\\E"
+    }, 
+    {
       "pattern":"\\Qirc-gpt-bot/win.ico\\E"
     }, 
     {

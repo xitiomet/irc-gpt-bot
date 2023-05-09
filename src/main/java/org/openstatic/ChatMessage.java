@@ -48,7 +48,12 @@ public class ChatMessage
     {
         JSONObject msgU = new JSONObject();
         msgU.put("role", role);
-        msgU.put("content", this.body);
+        if (role.equals("user"))
+        {
+            msgU.put("content", this.getSender() + " says \"" + this.body + "\"");
+        } else {
+            msgU.put("content", this.body);
+        }
         return msgU;
     }
 
