@@ -861,7 +861,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                         messages.put(msgS);
                     }
                     greetCommand.put("role", "user");
-                    greetCommand.put("content", "Here is a conversation\n" + cl.getConversationalContext() + "\nProvide a Greeting for " + joiner.getNick() + ", who just joined the conversation and summarize what has been said so far, do not use more then 512 characters.");
+                    greetCommand.put("content", "Here is a conversation\n" + cl.getConversationalContext() + "\n\nProvide a Greeting for " + joiner.getNick() + ", who just joined the conversation. As part of the greeting summarize what has been said so far, do not use more then 512 characters.");
                     messages.put(greetCommand);
                     Future<ChatMessage> gptResponse = IRCGPTBotMain.chatGPT.callChatGPT(this.botOptions, messages);
                     ChatMessage outMsg = gptResponse.get();
