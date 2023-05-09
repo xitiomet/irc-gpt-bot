@@ -388,6 +388,27 @@ public class APIWebServer implements IRCGPTBotListener
                                         response.put("error","Invalid apiPassword");
                                     }
                                 }
+                            } else if (target.startsWith("/bot/")) {
+                                target = target.substring(5);
+                                StringTokenizer st = new StringTokenizer(target, "/", false);
+                                if (st.hasMoreTokens())
+                                {
+                                    String objectId = st.nextToken();
+                                    IRCGPTBot bot = IRCGPTBotMain.instance.getBotbyIdentifier(objectId);
+                                    if (bot != null)
+                                    {
+                                        response.put("bot", bot.toJSONObject());
+                                        if (st.hasMoreTokens())
+                                        {
+                                            String command = st.nextToken();
+                                            if ("preamble".equals(command) && requestPost.has("preamble"))
+                                            {
+                                                bot.setPreamble(requestPost.optString("preamble"));
+                                                response.put("preamble", bot.getPreamble());
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         } catch (Exception x) {
                             x.printStackTrace(System.err);
@@ -454,6 +475,12 @@ public class APIWebServer implements IRCGPTBotListener
                                         bot.shutdown();
                                     } else if ("reconnect".equals(command)) {
                                         bot.connect();
+                                    }  else if ("preamble".equals(command)) {
+                                        if (parameterNames.contains("preamble"))
+                                        {
+                                            bot.setPreamble(request.getParameter("preamble"));
+                                        }
+                                        response.put("preamble", bot.getPreamble());
                                     }
                                 }
                             }

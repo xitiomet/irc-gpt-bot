@@ -1,0 +1,52 @@
+<html>
+<head>
+    <script src="jquery.min.js"></script>
+    <script type="text/javascript">
+        function getParameterByName(name, url = window.location.href) 
+        {
+            name = name.replace(/[\[\]]/g, '\\$&');
+            var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+                results = regex.exec(url);
+            if (!results) return null;
+            if (!results[2]) return '';
+            return decodeURIComponent(results[2].replace(/\+/g, ' '));
+        }
+
+        function save()
+        {
+            var preamble = document.getElementById('systemPreamble').value;
+            var updateCode = {
+                "preamble": preamble,
+                "apiPassword": getParameterByName('apiPassword')
+            };
+            postJSON("ircgptbot/api/bot/" + encodeURIComponent(getParameterByName('id')) + "/preamble/", updateCode, () => { window.close() }, () => { window.close() });
+        }
+
+        function postJSON(url, data, onSuccess, onError) {
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: JSON.stringify(data),
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                success: onSuccess,
+                error: onError
+            });
+        }
+
+        function loaded()
+        {
+            $.getJSON('ircgptbot/api/bot/' + getParameterByName('id') + '/preamble/?apiPassword=' + encodeURIComponent(getParameterByName('apiPassword')) + '&id=' + encodeURIComponent(getParameterByName('id')), function(json) {
+                document.getElementById('systemPreamble').value = json.preamble;
+                document.getElementById('botTitle').innerHTML = json.bot.id + " - Preamble";
+            });
+        }
+    </script>
+</head>
+
+<body onload="loaded()" style="text-align: center;">
+    <h2 id="botTitle">Preamble</h2>
+    <textarea id="systemPreamble" rows="30" cols="50" /></textarea></td><br /><br />
+    <button onclick="save()" style="width: 128px; height: 48px;">Save</button></td>
+</body>
+</html>

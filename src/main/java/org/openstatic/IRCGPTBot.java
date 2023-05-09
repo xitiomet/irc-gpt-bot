@@ -559,7 +559,13 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         ro.put("id", this.botId);
         ro.put("nickname", this.botNickname);
         ro.put("status", statusLine);
-        ro.put("model", this.botOptions.optString("model", "gpt-3.5-turbo"));
+        if (this.botOptions.optBoolean("gptEnabled", true))
+        {
+            ro.put("model", this.botOptions.optString("model", "gpt-3.5-turbo"));
+        } else {
+            ro.put("model", "API Only");
+        }
+        ro.put("ircServer", this.botOptions.optString("server",null));
         ro.put("messagesHandled", this.messagesHandled);
         ro.put("messagesSeen", this.messagesSeen);
         ro.put("errorCount", this.errorCount);

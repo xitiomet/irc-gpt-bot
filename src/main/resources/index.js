@@ -6,7 +6,6 @@ var protocol = location.protocol;
 var port = location.port;
 var wsProtocol = 'ws';
 var httpUrl = '';
-var preambles = {};
 
 function getParameterByName(name, url = window.location.href) 
 {
@@ -18,9 +17,14 @@ function getParameterByName(name, url = window.location.href)
     return decodeURIComponent(results[2].replace(/\+/g, ' '));
 }
 
+function editPreambleWindow(botId)
+{
+    var myWindow = window.open('preamble.html?apiPassword=' + encodeURIComponent(document.getElementById('password').value) + '&id=' + encodeURIComponent(botId), "Edit Preamble", "width=455,height=635");
+}
+
 function launchBotWindow()
 {
-    var myWindow = window.open('launch.html?apiPassword=' + document.getElementById('password').value, "LaunchBot", "width=455,height=635");
+    var myWindow = window.open('launch.html?apiPassword=' + encodeURIComponent(document.getElementById('password').value), "LaunchBot", "width=455,height=635");
 }
 
 function sendEvent(wsEvent)
@@ -33,23 +37,6 @@ function sendEvent(wsEvent)
         connection.send(out_event);
     } catch (err) {
         console.log(err);
-    }
-}
-
-function savePreamble(objectId)
-{
-    var preamble = document.getElementById('preambleText_' + objectId).value;
-    if (preamble != null)
-    {
-        if (preamble != preambles[objectId])
-        {
-            if (confirm("Save Changes to preamble?"))
-            {
-                sendEvent({"command":"preamble", "id": objectId, "preamble": preamble});
-            } else {
-                document.getElementById('preambleText_' + objectId).value = preambles[objectId];
-            }
-        }
     }
 }
 
@@ -124,10 +111,9 @@ function addBot(json)
     var avatarImgTagId = "avatar_img_" + objectId;
     var nicknameTagId = "nickname_" + objectId;
     var statsTagId = "stats_" + objectId;
-    var preambleTagId = "preamble_" + objectId;
     var actionsTagId  = "actions_" + objectId;
 
-    var avatarTag, botTag, nicknameTag, statsTag, actionsTag, preambleTag;
+    var avatarTag, botTag, nicknameTag, statsTag, actionsTag;
     botTag = document.getElementById(tag);
     if (botTag == null)
     {
@@ -141,26 +127,18 @@ function addBot(json)
         avatarTag.id = nicknameTagId;
         statsTag = document.createElement("td");
         statsTag.id = statsTagId;
-        preambleTag = document.createElement("td");
-        preambleTag.id = preambleTagId;
         actionsTag = document.createElement("td");
         actionsTag.id = actionsTagId;
         botTag.appendChild(avatarTag);
         botTag.appendChild(nicknameTag);
         botTag.appendChild(statsTag);
-        botTag.appendChild(preambleTag);
         botTag.appendChild(actionsTag);
         avatarTag.appendChild(avatarImgTag);
         avatarImgTag.src = json.stats.status + ".svg";
         avatarImgTag.style.height = '64px';
         avatarImgTag.style.width = '64px';
         nicknameTag.innerHTML = "<b style=\"font-size: 18px;\">" + json.stats.nickname + "</b><br />" + json.stats.model;
-        actionsTag.innerHTML = "<table><tr><td><button style=\"width: 128px;\" onClick=\"reconnectBot('" + objectId + "')\">Reconnect</button><br /><button style=\"width: 128px;\" onClick=\"joinChannel('" + objectId + "')\">Join Channel</button><br /><button style=\"width: 128px;\" onClick=\"partChannel('" + objectId + "')\">Leave Channel</button></td><td><button style=\"width: 128px;\" onClick=\"notice('" + objectId + "')\">Notice</button><br /><button style=\"width: 128px;\" onClick=\"shutdownBot('" + objectId + "')\">Shutdown</button><br /><button style=\"width: 128px;\" onClick=\"deleteBot('" + objectId + "')\">Delete</button></td></tr></table>";
-        var preambleText = '';
-        if (json.hasOwnProperty('preamble'))
-            preambleText = json.preamble;
-        preambleTag.innerHTML = "<textarea style=\"width: 550px; height: 80px;\" onBlur=\"savePreamble('" + objectId + "')\" id=\"preambleText_" + objectId + "\">" + preambleText + "</textarea>";
-        preambles[objectId] = preambleText;
+        actionsTag.innerHTML = "<table><tr><td><button style=\"width: 128px;\" onClick=\"editPreambleWindow('" + objectId + "')\">Edit Preamble</button><br /><button style=\"width: 128px;\" onClick=\"reconnectBot('" + objectId + "')\">Reconnect</button><br /><button style=\"width: 128px;\" onClick=\"joinChannel('" + objectId + "')\">Join Channel</button><br /><button style=\"width: 128px;\" onClick=\"partChannel('" + objectId + "')\">Leave Channel</button></td><td><button style=\"width: 128px;\" onClick=\"notice('" + objectId + "')\">Notice</button><br /><button style=\"width: 128px;\" onClick=\"shutdownBot('" + objectId + "')\">Shutdown</button><br /><button style=\"width: 128px;\" onClick=\"deleteBot('" + objectId + "')\">Delete</button></td></tr></table>";
         document.getElementById("botTable").appendChild(botTag);
     } else {
         avatarTag = document.getElementById(avatarTagId);
@@ -184,10 +162,9 @@ function updateBot(json)
     var avatarImgTagId = "avatar_img_" + objectId;
     var nicknameTagId = "nickname_" + objectId;
     var statsTagId = "stats_" + objectId;
-    var preambleTagId = "preamble_" + objectId;
     var actionsTagId  = "actions_" + objectId;
 
-    var avatarTag, botTag, nicknameTag, statsTag, actionsTag, preambleTag;
+    var avatarTag, botTag, nicknameTag, statsTag, actionsTag;
     botTag = document.getElementById(tag);
     if (botTag == null)
     {
@@ -248,9 +225,6 @@ function setupWebsocket()
                 if (action == 'botRemoved')
                 {
                     removeBot(jsonObject.id);
-                } else if (action == 'botPreamble') {
-                    document.getElementById('preambleText_' + jsonObject.id).value = jsonObject.preamble;
-                    preambles[jsonObject.id] = jsonObject.preamble;
                 } else if (action == 'botAdded') {
                     addBot(jsonObject);
                 } else if (action == 'botStats') {
