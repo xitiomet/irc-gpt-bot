@@ -124,9 +124,11 @@ function addBot(json)
         avatarImgTag = document.createElement("img")
         avatarImgTag.id = avatarImgTagId;
         nicknameTag = document.createElement("td");
+        nicknameTag.style.minWidth = '138px';
         avatarTag.id = nicknameTagId;
         statsTag = document.createElement("td");
         statsTag.id = statsTagId;
+        statsTag.style.minWidth = '160px';
         actionsTag = document.createElement("td");
         actionsTag.id = actionsTagId;
         botTag.appendChild(avatarTag);

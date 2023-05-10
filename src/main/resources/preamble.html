@@ -19,7 +19,7 @@
                 "preamble": preamble,
                 "apiPassword": getParameterByName('apiPassword')
             };
-            postJSON("ircgptbot/api/bot/" + encodeURIComponent(getParameterByName('id')) + "/preamble/", updateCode, () => { window.close() }, () => { window.close() });
+            postJSON("/ircgptbot/api/bot/" + encodeURIComponent(getParameterByName('id')) + "/preamble/", updateCode, () => { window.close() }, () => { window.close() });
         }
 
         function postJSON(url, data, onSuccess, onError) {
@@ -36,7 +36,7 @@
 
         function loaded()
         {
-            $.getJSON('ircgptbot/api/bot/' + getParameterByName('id') + '/preamble/?apiPassword=' + encodeURIComponent(getParameterByName('apiPassword')) + '&id=' + encodeURIComponent(getParameterByName('id')), function(json) {
+            $.getJSON('/ircgptbot/api/bot/' + getParameterByName('id') + '/preamble/?apiPassword=' + encodeURIComponent(getParameterByName('apiPassword')) + '&id=' + encodeURIComponent(getParameterByName('id')), function(json) {
                 document.getElementById('systemPreamble').value = json.preamble;
                 document.getElementById('botTitle').innerHTML = json.bot.id + " - Preamble";
             });
