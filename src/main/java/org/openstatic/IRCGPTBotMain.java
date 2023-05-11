@@ -14,15 +14,8 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
 import java.util.Set;
-import java.util.SortedSet;
-import java.util.StringTokenizer;
-import java.util.concurrent.Future;
-import java.util.function.Consumer;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
@@ -51,12 +44,10 @@ import com.googlecode.lanterna.gui2.dialogs.TextInputDialog;
 import com.googlecode.lanterna.gui2.dialogs.TextInputDialogBuilder;
 import com.googlecode.lanterna.input.KeyStroke;
 import com.googlecode.lanterna.input.KeyType;
-import com.googlecode.lanterna.gui2.WindowShadowRenderer;
 import com.googlecode.lanterna.screen.Screen;
 import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.Terminal;
-import com.googlecode.lanterna.terminal.swing.SwingTerminal;
 import com.googlecode.lanterna.terminal.swing.SwingTerminalFrame;
 
 public class IRCGPTBotMain extends BasicWindow implements Runnable
@@ -91,7 +82,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         mainPanel.setListItemRenderer(this.lir);
         IRCGPTBotMain.instance = this;
         String defaultLogPath = new File(settingsFile.getParentFile(), "irc-gpt-bot-logs").toString();
-        IRCGPTBotMain.logsFolder = new File(this.settings.optString("logPath", defaultLogPath));
+        IRCGPTBotMain.logsFolder = new File(IRCGPTBotMain.settings.optString("logPath", defaultLogPath));
         if (!IRCGPTBotMain.logsFolder.exists())
         {
             IRCGPTBotMain.logsFolder.mkdirs();
@@ -331,8 +322,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         {
             botsJSON.put(bot.getBotId(), bot.getBotOptions());
         }
-        IRCGPTBotMain.this.settings.put("bots", botsJSON);
-        saveJSONObject(IRCGPTBotMain.this.settingsFile, IRCGPTBotMain.this.settings);
+        IRCGPTBotMain.settings.put("bots", botsJSON);
+        saveJSONObject(IRCGPTBotMain.settingsFile, IRCGPTBotMain.settings);
     }
 
     @Override

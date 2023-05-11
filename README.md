@@ -2,7 +2,7 @@
 
 An IRC Bot powered by chatGPT
 
-This is not your typical IRC bot, it does not manage operator status, channel voice or anything administrative. It answers questions, greets users and provides summaries using chatGPT
+This is not your typical IRC bot, It answers questions, greets users and provides summaries using chatGPT's API. If the bot has operator status on a channel you can specify a list of nicknames that should also be granted operator status.
 
 Features:
  * Ability to modify system preamble instructions without restarting bot

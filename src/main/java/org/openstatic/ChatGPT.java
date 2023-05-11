@@ -32,7 +32,13 @@ public class ChatGPT
 
     public Future<ChatMessage> callChatGPT(JSONObject botOptions, final ChatLog messages) 
     {
-        return callChatGPT(botOptions, messages.getGPTMessages());
+        String user = null;
+        ChatMessage lastMessage = messages.getLastMessage();
+        if (lastMessage != null)
+        {
+            user = lastMessage.getSender();
+        }
+        return callChatGPT(botOptions, messages.getGPTMessages(), user);
     }
 
     private void log(String text)
@@ -40,7 +46,13 @@ public class ChatGPT
         IRCGPTBotMain.logAppend("openai.log", text);
     }
 
-    public Future<ChatMessage> callChatGPT(JSONObject botOptions, JSONArray messages) 
+    public Future<ChatMessage> callChatGPT(JSONObject botOptions, JSONArray messages)
+    {
+        return callChatGPT(botOptions, messages, null);
+    } 
+
+
+    public Future<ChatMessage> callChatGPT(JSONObject botOptions, JSONArray messages, String user) 
     {
         Callable<ChatMessage> callable = new Callable<ChatMessage>() 
         {
@@ -56,6 +68,8 @@ public class ChatGPT
                     JSONObject data = new JSONObject();
                     data.put("model", botOptions.optString("model", "gpt-3.5-turbo"));
                     data.put("messages", messages);
+                    if (user != null)
+                       data.put("user", user);
                     ChatGPT.this.log("\033[0;92mSending Payload to chatGPT..\033[0m");
                     ChatGPT.this.log(data.toString(2));
                     con.setDoOutput(true);
@@ -82,11 +96,12 @@ public class ChatGPT
                     respBody = respBody.replaceAll(Pattern.quote("As an AI language model,"), "");
                     respBody = respBody.replaceAll(Pattern.quote("as an AI language model,"), "");
                     respBody = respBody.replaceAll(Pattern.quote("an AI language model"), "");
+                    respBody = respBody.replaceAll(Pattern.quote("OpenAI"), "OpenAI (bot available at https://openstatic.org/projects/ircgptbot/)");
                     ChatMessage respMsg = new ChatMessage(botOptions.optString("nickname"), null, respBody, new Date(System.currentTimeMillis()));
                     return respMsg;
                 } catch (Exception e) {
                     IRCGPTBotMain.log(e);
-                    return new ChatMessage(botOptions.optString("nickname"), null, "I'm sorry, I'm having trouble thinking right now. (" + e.getLocalizedMessage() + ")", new Date(System.currentTimeMillis()));
+                    return new ChatMessage(botOptions.optString("nickname"), null, "I'm sorry, I'm having trouble thinking right now. Give me a few minutes and try again.", new Date(System.currentTimeMillis()));
                 }
             }
         };

@@ -8,21 +8,16 @@ import org.kitteh.irc.client.library.event.user.PrivateMessageEvent;
 
 import java.io.IOException;
 import java.io.BufferedReader;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Set;
 import java.util.StringTokenizer;
-import java.util.concurrent.Future;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.server.Server;
 
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
@@ -42,7 +37,6 @@ public class APIWebServer implements IRCGPTBotListener
     protected HashMap<WebSocketSession, JSONObject> sessionProps;
 
     protected static APIWebServer instance;
-    private String staticRoot;
 
     public APIWebServer()
     {
