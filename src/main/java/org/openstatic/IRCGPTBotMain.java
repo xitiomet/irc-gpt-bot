@@ -14,6 +14,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -571,5 +572,50 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         } else {
             return null;
         }
+    }
+
+    public static String trimPeriods(String s) 
+    {
+        // Trim periods from beginning of string
+        while (s.startsWith(".") || s.startsWith("?") || s.startsWith("!") || s.startsWith(",") || s.startsWith(":") || s.startsWith(";")) {
+            s = s.substring(1);
+        }
+        
+        // Trim periods from end of string
+        while (s.endsWith(".") || s.endsWith("?") || s.endsWith("!") || s.endsWith(",") || s.endsWith(":") || s.endsWith(";")) {
+            s = s.substring(0, s.length() - 1);
+        }
+        
+        // Return trimmed string
+        return s;
+    }
+
+    public static String[] getUncommonWords(String sentence) {
+        // Remove punctuation and convert to lowercase
+        String cleanedSentence = sentence.toLowerCase();
+        
+        // Split the sentence into individual words
+        String[] words = cleanedSentence.split("\\s+");
+
+        for(int i = 0; i < words.length; i++)
+        {
+            words[i] = trimPeriods(words[i]);
+        }
+        
+        // Load the list of common words to exclude
+        List<String> commonWords = Arrays.asList("the", "be", "to", "of", "and", "a", "in", "that", "have", "i", "it", "for", "not", "on", "with", "he", "as", "you", "do", "at", "this", "but", "his", "by", "from", "they", "we", "say", "her", "she", "or", "an", "will", "my", "one", "all", "would", "there", "their", "what", "so", "up", "out", "if", "about", "who", "get", "which", "go", "me", "when", "make", "can", "like", "time", "no", "just", "him", "know", "take", "person", "into", "year", "your", "good", "some", "could", "them", "see", "other", "than", "then", "now", "look", "only", "come", "its", "over", "think", "also", "back", "after", "use", "two", "how", "our", "work", "first", "well", "way", "even", "new", "want", "because", "any", "these", "give", "day", "most", "us");
+        
+        // Create a list to hold the words we want to keep
+        List<String> result = new ArrayList<>();
+        
+        // Loop through each word in the array and add it to the result list if it's not a common word and not already present
+        for (String word : words) {
+            if (!commonWords.contains(word) && !result.contains(word)) {
+                result.add(word);
+            }
+        }
+        
+        // Convert the list to an array and return it
+        return result.toArray(new String[0]);
     }
 }

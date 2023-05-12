@@ -47,6 +47,7 @@ copy "default-config.json" to "~/.irc-gpt-bot.json" and fill in the blanks with 
             "server": "127.0.0.1",   // Server to connect to
             "contextDepth": 5,       // How much history to provide chatGPT for context
             "systemPreamble": "Only respond in l33t speak",  // Some rules for chatGPT to follow
+            "definitionServer": "https://...", // A url for providing dynamic context to the systemPreamble
             "port": 6667,            // IRC Port
             "secure": false,         // Does this server require a secure connection
             "greet": false,          // Should the bot greet people joining the channel?
@@ -73,13 +74,52 @@ IRC GPT Bot: An IRC Bot for chatGPT
 
 When directly messaging this bot it will respond to all messages, however in a channel a user needs to use the bots name or be responding to a question the bot asked.
 
+
 ### Greeting mode
 if greeting is enabled the bot will greet new users entering the channel along with a summary of the conversation
 
 Example with preamble set to "Respond to all messages in a victorian style":
+```text
+(11:51:56 AM) brian: did you know that pencils are made of lead?
+(11:52:08 AM) Bob: not anymore they started making them out of graphite
+(11:52:15 AM) brian: oh really? thats interesting
+(11:52:21 AM) xitiomet [~xitiomet@Xi04.lan] entered the room.
+(11:52:25 AM) chatGPT: Greetings and salutations, dear xitiomet! Pray tell, how doth thee fare on this fine day? To recapitulate the discourse heretofore, brian didst proclaim that pencils were made of lead whilst Bob doth rebut that pencils are instead fashioned from graphite. This revelation didst strike brian with interest and awe.
+```
 
-    (11:51:56 AM) brian: did you know that pencils are made of lead?
-    (11:52:08 AM) Bob: not anymore they started making them out of graphite
-    (11:52:15 AM) brian: oh really? thats interesting
-    (11:52:21 AM) xitiomet [~xitiomet@Xi04.lan] entered the room.
-    (11:52:25 AM) chatGPT: Greetings and salutations, dear xitiomet! Pray tell, how doth thee fare on this fine day? To recapitulate the discourse heretofore, brian didst proclaim that pencils were made of lead whilst Bob doth rebut that pencils are instead fashioned from graphite. This revelation didst strike brian with interest and awe.
+
+### Definition Server
+In order to make the bot more dynamic without training my own custom model, i came up with a pretty simple solution, keywords that add context.
+if you add a "definitionServer" url to your bot, every request will be broken down to a list of keywords within the "contextDepth" of the conversation, commmon words are also removed.
+You obviously shouldn't define words that chatGPT already understands, but lets say you want it to know about something like your website.
+
+
+As a simple example lets say the user says "The quick brown fox jumps over the lazy dog"
+
+"The Quick brown fox jumps over the lazy dog" would become:
+
+```json
+{
+    "keywords": ["quick", "brown", "fox", "jumps", "lazy", "dog"]
+}
+```
+This object would then be POST'ed to your "definitionServer" URL:
+
+You're servers response should look something like this:
+```json
+{
+    "quick": "to move fast or with haste",
+    "brown": "a color",
+}
+```
+
+Then the systemPreamble is updated for this request with something like this:
+```text
+Definitions below this line
+
+quick:
+    to move fast or with haste
+
+brown:
+    a color
+```

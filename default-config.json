@@ -25,6 +25,7 @@
             "port": 6667,
             "contextDepth": 15,
             "systemPreamble": "Only respond in hacker speak",
+            "definitionServer": "https://...",
             "secure": false,
             "acceptInvites": true,
             "greet": true,
