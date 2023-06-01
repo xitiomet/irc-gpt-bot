@@ -124,7 +124,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
 
             Panel bottomLabelPanel = new Panel();
             bottomLabelPanel.setFillColorOverride(ANSI.RED);
-            this.bottomLabel = new Label("F2: Launch Bot    F4: Destroy Selected Bot    F12: Shutdown");
+            this.bottomLabel = new Label("F2: Launch Bot   F4: Destroy Selected Bot   F11: Set OpenAI Key   F12: Shutdown");
             this.bottomLabel.setBackgroundColor(ANSI.RED);
             this.bottomLabel.setForegroundColor(ANSI.BLACK);
             bottomLabelPanel.addComponent(this.bottomLabel);            
@@ -332,6 +332,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
     {
         KeyStroke F2 = new KeyStroke(KeyType.F2);
         KeyStroke F4 = new KeyStroke(KeyType.F4);
+        KeyStroke F11 = new KeyStroke(KeyType.F11);
+
         KeyStroke F12 = new KeyStroke(KeyType.F12);
         KeyStroke ESC = new KeyStroke(KeyType.Escape);
         //System.err.println("Main Thread Begin");
@@ -603,7 +605,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         }
         
         // Load the list of common words to exclude
-        List<String> commonWords = Arrays.asList("the", "be", "to", "of", "and", "a", "in", "that", "have", "i", "it", "for", "not", "on", "with", "he", "as", "you", "do", "at", "this", "but", "his", "by", "from", "they", "we", "say", "her", "she", "or", "an", "will", "my", "one", "all", "would", "there", "their", "what", "so", "up", "out", "if", "about", "who", "get", "which", "go", "me", "when", "make", "can", "like", "time", "no", "just", "him", "know", "take", "person", "into", "year", "your", "good", "some", "could", "them", "see", "other", "than", "then", "now", "look", "only", "come", "its", "over", "think", "also", "back", "after", "use", "two", "how", "our", "work", "first", "well", "way", "even", "new", "want", "because", "any", "these", "give", "day", "most", "us");
+        List<String> commonWords = Arrays.asList("the", "be", "to", "of", "and", "a", "in", "that", "have", "i", "it", "for", "not", "on", "with", "he", "as", "you", "do", "at", "this", "but", "his", "by", "from", "they", "we", "say", "her", "she", "or", "an", "will", "my", "one", "all", "would", "there", "their", "what", "so", "up", "out", "if", "about", "who", "get", "which", "go", "me", "when", "make", "can", "like", "time", "no", "just", "him", "know", "take", "person", "into", "year", "your", "good", "some", "could", "them", "see", "other", "than", "then", "now", "look", "only", "come", "its", "over", "think", "also", "back", "after", "use", "two", "how", "our", "work", "first", "well", "way", "even", "new", "want", "because", "any", "these", "give", "day", "most", "us", "yes", "no", "maybe");
         
         // Create a list to hold the words we want to keep
         List<String> result = new ArrayList<>();

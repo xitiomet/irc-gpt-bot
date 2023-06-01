@@ -59,6 +59,7 @@ copy "default-config.json" to "~/.irc-gpt-bot.json" and fill in the blanks with 
     },
     "openAiKey": "",         // Your Open-AI API Key
     "logPath": "./irc-gpt-bot-logs/" // Log path
+}
 ```
 NOTE: Make sure you either remove the default "botOps" or edit it to reflect your own nickname!
 
