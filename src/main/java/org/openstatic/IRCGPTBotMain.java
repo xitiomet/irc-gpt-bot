@@ -124,7 +124,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
 
             Panel bottomLabelPanel = new Panel();
             bottomLabelPanel.setFillColorOverride(ANSI.RED);
-            this.bottomLabel = new Label("F2: Launch Bot   F4: Destroy Selected Bot   F11: Set OpenAI Key   F12: Shutdown");
+            this.bottomLabel = new Label("F2: Launch Bot  |  F4: Destroy Selected Bot  |  F10: Set OpenAI Key  |  F12: Shutdown");
             this.bottomLabel.setBackgroundColor(ANSI.RED);
             this.bottomLabel.setForegroundColor(ANSI.BLACK);
             bottomLabelPanel.addComponent(this.bottomLabel);            
@@ -279,6 +279,10 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
                     }
                 }
             }
+            if (!settings.has("openAiKey"))
+            {
+                editOpenAiKey();
+            }
             this.mainThread = new Thread(this);
             this.mainThread.start();
         }
@@ -332,7 +336,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
     {
         KeyStroke F2 = new KeyStroke(KeyType.F2);
         KeyStroke F4 = new KeyStroke(KeyType.F4);
-        KeyStroke F11 = new KeyStroke(KeyType.F11);
+        KeyStroke F10 = new KeyStroke(KeyType.F10);
 
         KeyStroke F12 = new KeyStroke(KeyType.F12);
         KeyStroke ESC = new KeyStroke(KeyType.Escape);
@@ -363,6 +367,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
                             }
                         });
                         z.start();
+                    } else if (keyStroke.equals(F10)) {
+                        editOpenAiKey();
                     } else if (keyStroke.equals(F4)) {
                         final IRCGPTBot bot = this.getSelectedBot();
                         Thread z = new Thread(() -> {
@@ -397,6 +403,21 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
             }
         }
         System.exit(0);
+    }
+
+    public void editOpenAiKey()
+    {
+        Thread z = new Thread(() -> {
+            TextInputDialogBuilder mdb = new TextInputDialogBuilder();
+            mdb.setTitle("Edit OpenAI Key");
+            mdb.setInitialContent(IRCGPTBotMain.settings.optString("openAiKey", ""));
+            mdb.setTextBoxSize(new TerminalSize(60, 1));
+            TextInputDialog md = mdb.build();
+            String openAiKey = md.showDialog(IRCGPTBotMain.this.gui);
+            IRCGPTBotMain.settings.put("openAiKey", openAiKey);
+            saveSettings();
+        });
+        z.start();
     }
 
     public void shutdown()
@@ -474,7 +495,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
 
     public static JSONObject migrateConfigIfNeeded(JSONObject config)
     {
-        if (!config.has("bots"))
+        if (!config.has("bots") && config.has("nickname"))
         {
             JSONObject bots = new JSONObject();
             JSONObject bot = new JSONObject(config.toString());

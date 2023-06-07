@@ -27,6 +27,7 @@ from a terminal.
 NOTE: You can also find the latest builds here: [https://openstatic.org/projects/ircgptbot/](https://openstatic.org/projects/ircgptbot/) (scroll to bottom)
 
 copy "default-config.json" to "~/.irc-gpt-bot.json" and fill in the blanks with your information. You can also create a config file anywhere and use the -f option.
+DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid JSON.
 
 ```json
 {
