@@ -117,6 +117,10 @@ public class ChatLog
                 role = "assistant";
             ra.put(msg.toGPTMessage(role));
         });
+        JSONObject postableInstruct = new JSONObject();
+        postableInstruct.put("role","user");
+        postableInstruct.put("content","respond as " + botOptions.optString("nickname") + ":");
+        ra.put(postableInstruct);
         return ra;
     }
 }
