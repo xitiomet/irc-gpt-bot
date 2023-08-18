@@ -1,0 +1,5 @@
+#!/bin/bash
+echo irc-gpt-bot Post-Install Script Running!
+update-rc.d irc-gpt-bot defaults
+update-rc.d irc-gpt-bot enable
+/etc/init.d/irc-gpt-bot start

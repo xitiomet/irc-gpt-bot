@@ -1,0 +1,16 @@
+#!/bin/bash
+echo irc-gpt-bot Pre-Install Script Running!
+if [ "$1" = install ]; then
+    echo Creating ircgptbot user
+    useradd -s /usr/sbin/nologin -r -M ircgptbot -d /etc/irc-gpt-bot
+fi
+if [[ ! -e /etc/irc-gpt-bot ]]; then
+    mkdir /etc/irc-gpt-bot
+    chown -R ircgptbot:ircgptbot /etc/irc-gpt-bot
+    echo Created /etc/irc-gpt-bot/
+fi
+if [[ ! -e /var/log/irc-gpt-bot ]]; then
+    mkdir /var/log/irc-gpt-bot
+    chown -R ircgptbot:ircgptbot /var/log/irc-gpt-bot
+    echo Created /var/log/irc-gpt-bot/
+fi

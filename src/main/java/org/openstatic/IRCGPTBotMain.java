@@ -108,34 +108,37 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
                 this.terminal = new DefaultTerminalFactory().setInitialTerminalSize(new TerminalSize(80, 24)).createHeadlessTerminal();
             }
 
-            this.screen = new TerminalScreen(this.terminal);
-            this.wm = new DefaultWindowManager();
-            this.gui = new MultiWindowTextGUI(screen, this.wm, new EmptySpace(TextColor.ANSI.BLACK));
-            Panel backgroundPanel = new Panel(new BorderLayout());
-            backgroundPanel.setFillColorOverride(ANSI.BLACK);
+            if (!settings.optBoolean("headless", false))
+            {
+                this.screen = new TerminalScreen(this.terminal);
+                this.wm = new DefaultWindowManager();
+                this.gui = new MultiWindowTextGUI(screen, this.wm, new EmptySpace(TextColor.ANSI.BLACK));
+                Panel backgroundPanel = new Panel(new BorderLayout());
+                backgroundPanel.setFillColorOverride(ANSI.BLACK);
 
-            Panel topLabelPanel = new Panel();
-            topLabelPanel.setFillColorOverride(ANSI.RED);
-            this.topLabel = new Label("IRC GPT BOT - https://openstatic.org/projects/ircgptbot/");
-            this.topLabel.setBackgroundColor(ANSI.RED);
-            this.topLabel.setForegroundColor(ANSI.BLACK);
-            topLabelPanel.addComponent(this.topLabel);            
-            backgroundPanel.addComponent(topLabelPanel, BorderLayout.Location.TOP);
+                Panel topLabelPanel = new Panel();
+                topLabelPanel.setFillColorOverride(ANSI.RED);
+                this.topLabel = new Label("IRC GPT BOT - https://openstatic.org/projects/ircgptbot/");
+                this.topLabel.setBackgroundColor(ANSI.RED);
+                this.topLabel.setForegroundColor(ANSI.BLACK);
+                topLabelPanel.addComponent(this.topLabel);            
+                backgroundPanel.addComponent(topLabelPanel, BorderLayout.Location.TOP);
 
-            Panel bottomLabelPanel = new Panel();
-            bottomLabelPanel.setFillColorOverride(ANSI.RED);
-            this.bottomLabel = new Label("F2: Launch Bot  |  F4: Destroy Selected Bot  |  F10: Set OpenAI Key  |  F12: Shutdown");
-            this.bottomLabel.setBackgroundColor(ANSI.RED);
-            this.bottomLabel.setForegroundColor(ANSI.BLACK);
-            bottomLabelPanel.addComponent(this.bottomLabel);            
-            backgroundPanel.addComponent(bottomLabelPanel, BorderLayout.Location.BOTTOM);
+                Panel bottomLabelPanel = new Panel();
+                bottomLabelPanel.setFillColorOverride(ANSI.RED);
+                this.bottomLabel = new Label("F2: Launch Bot  |  F4: Destroy Selected Bot  |  F10: Set OpenAI Key  |  F12: Shutdown");
+                this.bottomLabel.setBackgroundColor(ANSI.RED);
+                this.bottomLabel.setForegroundColor(ANSI.BLACK);
+                bottomLabelPanel.addComponent(this.bottomLabel);            
+                backgroundPanel.addComponent(bottomLabelPanel, BorderLayout.Location.BOTTOM);
 
-            this.gui.getBackgroundPane().setComponent(backgroundPanel);
+                this.gui.getBackgroundPane().setComponent(backgroundPanel);
 
-            this.setComponent(this.mainPanel.withBorder(Borders.singleLine("Loaded Bots")));
-            IRCGPTBotMain.this.gui.addWindow(IRCGPTBotMain.this);
+                this.setComponent(this.mainPanel.withBorder(Borders.singleLine("Loaded Bots")));
+                IRCGPTBotMain.this.gui.addWindow(IRCGPTBotMain.this);
 
-            IRCGPTBotMain.this.screen.startScreen();
+                IRCGPTBotMain.this.screen.startScreen();
+            }
         } catch (Exception wex) {
             log(wex);
         }
@@ -152,7 +155,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         this.mainPanel.addItem(bot.getBotId(), new Runnable() {
             public void run()
             {
-                IRCGPTBotMain.this.gui.addWindow(bot);
+                if (IRCGPTBotMain.this.gui != null)
+                   IRCGPTBotMain.this.gui.addWindow(bot);
             }
             
             public String toString()
@@ -328,6 +332,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
             botsJSON.put(bot.getBotId(), bot.getBotOptions());
         }
         IRCGPTBotMain.settings.put("bots", botsJSON);
+        if (IRCGPTBotMain.settings.has("headless"))
+            IRCGPTBotMain.settings.remove("headless");
         saveJSONObject(IRCGPTBotMain.settingsFile, IRCGPTBotMain.settings);
     }
 
@@ -345,55 +351,58 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         {
             try
             {
-                IRCGPTBotMain.this.gui.updateScreen();
-                KeyStroke keyStroke = IRCGPTBotMain.this.terminal.pollInput();
-                if (keyStroke != null)
+                if (IRCGPTBotMain.this.gui != null)
                 {
-                    if (keyStroke.equals(F12))
+                    IRCGPTBotMain.this.gui.updateScreen();
+                    KeyStroke keyStroke = IRCGPTBotMain.this.terminal.pollInput();
+                    if (keyStroke != null)
                     {
-                        shutdown();
-                    } else if (keyStroke.equals(F2)) {
-                        Thread z = new Thread(() -> {
-                            TextInputDialogBuilder mdb = new TextInputDialogBuilder();
-                            mdb.setTitle("Bot Identifier (a name to identify the bot by, no spaces)");
-                            mdb.setInitialContent("");
-                            mdb.setTextBoxSize(new TerminalSize(60, 1));
-                            TextInputDialog md = mdb.build();
-                            String botId = md.showDialog(IRCGPTBotMain.this.gui);
-                            botId = botId.replaceAll(Pattern.quote(" "), "");
-                            if (!"".equals(botId) && botId != null)
-                            {
-                                IRCGPTBotMain.this.launchBot(botId, new JSONObject());
-                            }
-                        });
-                        z.start();
-                    } else if (keyStroke.equals(F10)) {
-                        editOpenAiKey();
-                    } else if (keyStroke.equals(F4)) {
-                        final IRCGPTBot bot = this.getSelectedBot();
-                        Thread z = new Thread(() -> {
-                            TextInputDialogBuilder mdb = new TextInputDialogBuilder();
-                            mdb.setTitle("Enter Bot Identifier to Delete: " + bot.getBotId());
-                            mdb.setInitialContent("");
-                            mdb.setTextBoxSize(new TerminalSize(60, 1));
-                            TextInputDialog md = mdb.build();
-                            String botId = md.showDialog(IRCGPTBotMain.this.gui);
-                            if (!"".equals(botId) && botId != null)
-                            {
-                                if (botId.equals(bot.getBotId()))
-                                    this.removeBot(bot);
-                            }
-                        });
-                        z.start();
-                        
-                    } else if (keyStroke.equals(ESC)) {
-                        Window aw = IRCGPTBotMain.this.gui.getActiveWindow();
-                        if (aw instanceof IRCGPTBot)
+                        if (keyStroke.equals(F12))
                         {
-                            IRCGPTBotMain.this.gui.removeWindow(aw);
+                            shutdown();
+                        } else if (keyStroke.equals(F2)) {
+                            Thread z = new Thread(() -> {
+                                TextInputDialogBuilder mdb = new TextInputDialogBuilder();
+                                mdb.setTitle("Bot Identifier (a name to identify the bot by, no spaces)");
+                                mdb.setInitialContent("");
+                                mdb.setTextBoxSize(new TerminalSize(60, 1));
+                                TextInputDialog md = mdb.build();
+                                String botId = md.showDialog(IRCGPTBotMain.this.gui);
+                                botId = botId.replaceAll(Pattern.quote(" "), "");
+                                if (!"".equals(botId) && botId != null)
+                                {
+                                    IRCGPTBotMain.this.launchBot(botId, new JSONObject());
+                                }
+                            });
+                            z.start();
+                        } else if (keyStroke.equals(F10)) {
+                            editOpenAiKey();
+                        } else if (keyStroke.equals(F4)) {
+                            final IRCGPTBot bot = this.getSelectedBot();
+                            Thread z = new Thread(() -> {
+                                TextInputDialogBuilder mdb = new TextInputDialogBuilder();
+                                mdb.setTitle("Enter Bot Identifier to Delete: " + bot.getBotId());
+                                mdb.setInitialContent("");
+                                mdb.setTextBoxSize(new TerminalSize(60, 1));
+                                TextInputDialog md = mdb.build();
+                                String botId = md.showDialog(IRCGPTBotMain.this.gui);
+                                if (!"".equals(botId) && botId != null)
+                                {
+                                    if (botId.equals(bot.getBotId()))
+                                        this.removeBot(bot);
+                                }
+                            });
+                            z.start();
+                            
+                        } else if (keyStroke.equals(ESC)) {
+                            Window aw = IRCGPTBotMain.this.gui.getActiveWindow();
+                            if (aw instanceof IRCGPTBot)
+                            {
+                                IRCGPTBotMain.this.gui.removeWindow(aw);
+                            }
+                        } else {
+                            IRCGPTBotMain.this.gui.handleInput(keyStroke);
                         }
-                    } else {
-                        IRCGPTBotMain.this.gui.handleInput(keyStroke);
                     }
                 }
                 Thread.sleep(100);
@@ -407,17 +416,23 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
 
     public void editOpenAiKey()
     {
-        Thread z = new Thread(() -> {
-            TextInputDialogBuilder mdb = new TextInputDialogBuilder();
-            mdb.setTitle("Edit OpenAI Key");
-            mdb.setInitialContent(IRCGPTBotMain.settings.optString("openAiKey", ""));
-            mdb.setTextBoxSize(new TerminalSize(60, 1));
-            TextInputDialog md = mdb.build();
-            String openAiKey = md.showDialog(IRCGPTBotMain.this.gui);
-            IRCGPTBotMain.settings.put("openAiKey", openAiKey);
-            saveSettings();
-        });
-        z.start();
+        if (IRCGPTBotMain.this.gui != null)
+        {
+            Thread z = new Thread(() -> {
+                TextInputDialogBuilder mdb = new TextInputDialogBuilder();
+                mdb.setTitle("Edit OpenAI Key");
+                mdb.setInitialContent(IRCGPTBotMain.settings.optString("openAiKey", ""));
+                mdb.setTextBoxSize(new TerminalSize(60, 1));
+                TextInputDialog md = mdb.build();
+                String openAiKey = md.showDialog(IRCGPTBotMain.this.gui);
+                IRCGPTBotMain.settings.put("openAiKey", openAiKey);
+                saveSettings();
+            });
+            z.start();
+        } else {
+            System.err.println("No OpenAI Key in config file!");
+            System.exit(0);
+        }
     }
 
     public void shutdown()
@@ -456,6 +471,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         options.addOption(new Option("?", "help", false, "Shows help"));
         options.addOption(new Option("f", "config", true, "Specify a config file (.json) to use"));
         options.addOption(new Option("g", "gui", false, "Turn on GUI mode"));
+        options.addOption(new Option("h", "headless", false, "Turn on Headless mode"));
         options.addOption(new Option("l", "log-output", true, "Specify log output path"));
         try
         {
@@ -477,6 +493,10 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
             if (cmd.hasOption("g"))
             {
                 IRCGPTBotMain.settings.put("guiMode", true);
+            }
+            if (cmd.hasOption("h"))
+            {
+                IRCGPTBotMain.settings.put("headless", true);
             }
             IRCGPTBotMain.chatGPT = new ChatGPT();
             IRCGPTBotMain botMain = new IRCGPTBotMain();

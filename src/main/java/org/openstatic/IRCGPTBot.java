@@ -1037,8 +1037,11 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                 IRCGPTBot.this.joinedChannelsLabel.setText("Joined Channels: " + String.valueOf(joinedChannels));
                 IRCGPTBot.this.messagesHandledLabel.setText("Messages Handled: " + String.valueOf(IRCGPTBot.this.messagesHandled) + " / " + String.valueOf(IRCGPTBot.this.messagesSeen));
                 IRCGPTBot.this.errorCountLabel.setText("Errors: " + String.valueOf(IRCGPTBot.this.errorCount));
-                IRCGPTBotMain.instance.gui.updateScreen();
-                IRCGPTBotMain.instance.gui.processInput();
+                if (IRCGPTBotMain.instance.gui != null)
+                {
+                    IRCGPTBotMain.instance.gui.updateScreen();
+                    IRCGPTBotMain.instance.gui.processInput();
+                }
                 Thread.sleep(200);
             } catch (Exception e) {
                 //log(e);
