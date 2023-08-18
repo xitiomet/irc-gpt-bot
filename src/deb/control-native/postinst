@@ -3,3 +3,6 @@ echo irc-gpt-bot Post-Install Script Running!
 update-rc.d irc-gpt-bot defaults
 update-rc.d irc-gpt-bot enable
 /etc/init.d/irc-gpt-bot start
+echo Bot Server available at http://127.0.0.1:6553/
+echo default password is "changeme"
+echo edit /etc/irc-gpt-bot/irc-gpt-bot.json to change password!

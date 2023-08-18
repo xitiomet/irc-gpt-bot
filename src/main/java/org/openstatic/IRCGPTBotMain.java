@@ -90,26 +90,25 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         }
         try
         {
-            if (settings.optBoolean("guiMode", false))
-            {
-                final SwingTerminalFrame swingTerminal = new DefaultTerminalFactory().setInitialTerminalSize(new TerminalSize(80, 24)).createSwingTerminal();
-                swingTerminal.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-                SwingUtilities.invokeAndWait(() -> {
-                    swingTerminal.setTitle("IRC GPT BOT");
-                    try
-                    {
-                        swingTerminal.setIconImage(ImageIO.read(IRCGPTBotMain.class.getResourceAsStream("/irc-gpt-bot/icon-32.png")));
-                    } catch (Exception e) {}
-                    swingTerminal.setLocation(40, 40);
-                    swingTerminal.setVisible(true);
-                });
-                this.terminal = swingTerminal;
-            } else {
-                this.terminal = new DefaultTerminalFactory().setInitialTerminalSize(new TerminalSize(80, 24)).createHeadlessTerminal();
-            }
-
             if (!settings.optBoolean("headless", false))
             {
+                if (settings.optBoolean("guiMode", false))
+                {
+                    final SwingTerminalFrame swingTerminal = new DefaultTerminalFactory().setInitialTerminalSize(new TerminalSize(80, 24)).createSwingTerminal();
+                    swingTerminal.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+                    SwingUtilities.invokeAndWait(() -> {
+                        swingTerminal.setTitle("IRC GPT BOT");
+                        try
+                        {
+                            swingTerminal.setIconImage(ImageIO.read(IRCGPTBotMain.class.getResourceAsStream("/irc-gpt-bot/icon-32.png")));
+                        } catch (Exception e) {}
+                        swingTerminal.setLocation(40, 40);
+                        swingTerminal.setVisible(true);
+                    });
+                    this.terminal = swingTerminal;
+                } else {
+                    this.terminal = new DefaultTerminalFactory().setInitialTerminalSize(new TerminalSize(80, 24)).createHeadlessTerminal();
+                }
                 this.screen = new TerminalScreen(this.terminal);
                 this.wm = new DefaultWindowManager();
                 this.gui = new MultiWindowTextGUI(screen, this.wm, new EmptySpace(TextColor.ANSI.BLACK));
