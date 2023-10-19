@@ -1,0 +1,19 @@
+#!/bin/bash
+echo irc-gpt-bot Pre-Install Script Running!
+echo Creating ircgptbot user
+useradd -s /usr/sbin/nologin -r -M ircgptbot -d /etc/irc-gpt-bot
+if [[ ! -e /etc/irc-gpt-bot ]]; then
+    mkdir /etc/irc-gpt-bot
+    chown -R ircgptbot:ircgptbot /etc/irc-gpt-bot
+    echo Created /etc/irc-gpt-bot/
+    echo "(You can leave this blank if you dont have it)"
+    read -p 'OpenAI API Key: ' apikey
+    echo "{\"apiPassword\":\"changeme\",\"apiServer\": true,\"openAiKey\":\"$apikey\"}" > /etc/irc-gpt-bot/irc-gpt-bot.json
+    chown ircgptbot:ircgptbot /etc/irc-gpt-bot/irc-gpt-bot.json
+    echo Created config /etc/irc-gpt-bot/irc-gpt-bot.json
+fi
+if [[ ! -e /var/log/irc-gpt-bot ]]; then
+    mkdir /var/log/irc-gpt-bot
+    chown -R ircgptbot:ircgptbot /var/log/irc-gpt-bot
+    echo Created /var/log/irc-gpt-bot/
+fi

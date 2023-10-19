@@ -327,6 +327,18 @@
                                     </mapper>
                                 </data>
                                 <data>
+                                    <src>${basedir}/src/deb/irc-gpt-bot.init.d</src>
+                                    <dst>irc-gpt-bot</dst>
+                                    <type>file</type>
+                                    <mapper>
+                                        <type>perm</type>
+                                        <prefix>/etc/init.d</prefix>
+                                        <user>loader</user>
+                                        <group>loader</group>
+                                        <filemode>755</filemode>
+                                    </mapper>
+                                </data>
+                                <data>
                                     <src>${project.basedir}/src/main/resources/icon-64.png</src>
                                     <type>file</type>
                                     <mapper>

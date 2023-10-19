@@ -148,6 +148,10 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
 
     public synchronized IRCGPTBot launchBot(String botId, JSONObject botOptions)
     {
+        if (this.settings.has("completionsApiUrl") && ! botSettings.has("completionsApiUrl"))
+        {
+            botSettings.put("completionsApiUrl", settings.optString("completionsApiUrl", "https://api.openai.com/v1/chat/completions"))
+        }
         final IRCGPTBot bot = new IRCGPTBot(botId, botOptions);
         bot.start();
         this.bots.put(botId, bot);

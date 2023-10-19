@@ -1,0 +1,3 @@
+#!/bin/bash
+echo irc-gpt-bot Pre-Remove Script Running!
+/etc/init.d/irc-gpt-bot stop

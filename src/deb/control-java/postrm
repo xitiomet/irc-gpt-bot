@@ -1,0 +1,11 @@
+#!/bin/bash
+echo irc-gpt-bot Post-Remove Script Running!
+if [ "$1" = remove ]; then
+    echo Removing ircgptbot user
+    deluser --force ircgptbot
+fi
+if [ "$1" = purge ]; then
+    echo Removing irc-gpt-bot directory
+    rm -R /etc/irc-gpt-bot/
+    rm -R /var/log/irc-gpt-bot/
+fi

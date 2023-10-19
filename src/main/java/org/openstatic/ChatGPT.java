@@ -60,7 +60,7 @@ public class ChatGPT
             {
                 try
                 {
-                    String url = "https://api.openai.com/v1/chat/completions";
+                    String url = botOptions.optString("completionsApiUrl", "https://api.openai.com/v1/chat/completions");
                     HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
                     con.setRequestMethod("POST");
                     con.setRequestProperty("Content-Type", "application/json");

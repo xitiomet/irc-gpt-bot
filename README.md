@@ -59,7 +59,8 @@ DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid J
         }
     },
     "openAiKey": "",         // Your Open-AI API Key
-    "logPath": "./irc-gpt-bot-logs/" // Log path
+    "logPath": "./irc-gpt-bot-logs/", // Log path
+    "completionsApiUrl": "https://api.openai.com/v1/chat/completions" //optional for local ai server can also be in bot config
 }
 ```
 NOTE: Make sure you either remove the default "botOps" or edit it to reflect your own nickname!
