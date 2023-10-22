@@ -18,13 +18,22 @@ if you would like to play around with my instance of irc-gpt-bot goto <a href="h
 
 ![](https://openstatic.org/projects/ircgptbot/irc-gpt-bot-ss.png)
 
-To compile this project please run:
+### Setting up irc-gpt-bot
+At the bottom of this page you will find a few different options for installing this project. If you are using a debian based x86-64 linux environment i highly suggest using the native package. 
+It will automatically setup irc-gpt-bot as a headless service with config files located in /etc/irc-gpt-bot
+
+```bash
+$ sudo dpkg -i irc-gpt-bot-native.deb
+```
+To disable the service simply remove /etc/init.d/irc-gpt-bot or remove its executable flag
+
+If you wish to run irc-gpt-bot with its terminal interface simply run "irc-gpt-bot"
+
+To compile this project from source please run:
 ```bash
 $ mvn package
 ```
 from a terminal.
-
-NOTE: You can also find the latest builds here: [https://openstatic.org/projects/ircgptbot/](https://openstatic.org/projects/ircgptbot/) (scroll to bottom)
 
 copy "default-config.json" to "~/.irc-gpt-bot.json" and fill in the blanks with your information. You can also create a config file anywhere and use the -f option.
 DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid JSON.
@@ -60,6 +69,9 @@ DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid J
     },
     "openAiKey": "",         // Your Open-AI API Key
     "logPath": "./irc-gpt-bot-logs/", // Log path
+    "apiServer": true, // provide api server and web interface
+    "apiPort": 6553, // port for api server and web interface
+    "apiPassword": "changeme", // password for api server and web interface
     "completionsApiUrl": "https://api.openai.com/v1/chat/completions" //optional for local ai server can also be in bot config
 }
 ```
@@ -69,14 +81,49 @@ You may also start the bot using only command line arguments (for scripting purp
 ```bash
 usage: irc-gpt-bot
 IRC GPT Bot: An IRC Bot for chatGPT
- -?,--help                    Shows help
- -f,--config <arg>            Specify a config file (.json) to use
- -l,--log-output <arg>        Specify log output path
- -g,--gui                     Turn on GUI mode
+ -?,--help               Shows help
+ -f,--config <arg>       Specify a config file (.json) to use
+ -g,--gui                Turn on GUI mode
+ -h,--headless           Turn on Headless mode
+ -l,--log-output <arg>   Specify log output path
 ```
 
 When directly messaging this bot it will respond to all messages, however in a channel a user needs to use the bots name or be responding to a question the bot asked.
 
+### API Server / Web interface
+
+irc-gpt-bot also provides a web interface and api server for ease of use. By default this is configured for port 6553 with password "changeme"
+If you plan on exposing this interface to the internet, i highly encourage wrapping it with SSL on nginx.
+
+first you should create an upstream for ircgptbot
+```
+upstream ircgptbot {
+   server 127.0.0.1:6553;
+}
+```
+
+then in the server section of your config
+```
+  location ~ ^/bot(/?)(.*) {
+              proxy_pass http://ircgptbot/$2;
+              proxy_http_version 1.1;
+              proxy_set_header Host irc.openstatic.org;
+              proxy_set_header X-Real-IP $remote_addr;
+  }
+
+  location ~ ^/ircgptbot(/?)(.*) {
+              proxy_pass http://ircgptbot;
+              proxy_http_version 1.1;
+              proxy_set_header Upgrade $http_upgrade;
+              proxy_set_header Connection "upgrade";
+              proxy_set_header Host irc.openstatic.org;
+              proxy_set_header X-Real-IP $remote_addr;
+  }
+```
+NOTE: the first entry can be set to whatever path you like, but the websocket must be mounted at /ircgptbot on the server
+
+The web interface will provide you with the ability to launch and control bots.
+![](https://openstatic.org/projects/ircgptbot/ircgptweb.png)
 
 ### Greeting mode
 if greeting is enabled the bot will greet new users entering the channel along with a summary of the conversation
