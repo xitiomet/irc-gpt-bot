@@ -903,15 +903,21 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         String senderNick = sender.getNick();
         String body = event.getMessage();
         Channel channel = event.getChannel();
-        List<String> nicknames = channel.getNicknames()
+        String target = channel.getName();
+
+        if (senderNick.equals(botNickname))
+        {
+            logAppend(target + ".log", "(BOT) " + senderNick + ": " + body);
+            return;
+        }
+
+        if (!IRCGPTBotMain.inJSONArray(botOptions.optJSONArray("ignore"), senderNick))
+        {
+            List<String> nicknames = channel.getNicknames()
                                         .stream()
                                         .filter((nickname) -> !IRCGPTBotMain.inJSONArray(botOptions.optJSONArray("ignore"), nickname))
                                         .collect(Collectors.toList());
-        int userCount = nicknames.size();
-        String target = channel.getName();
-                            
-        if (!senderNick.equals(botNickname) && nicknames.contains(senderNick))
-        {
+            int userCount = nicknames.size();
             ChatLog cl = this.getChatLog(target);
             ChatMessage msg = new ChatMessage(senderNick, channel.getName(), body, new Date(System.currentTimeMillis()));
             ChatMessage previosMsg = cl.getLastMessage();
