@@ -501,7 +501,10 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                 {
                     server = server.password(botOptions.optString("password"));
                 }
-                this.client = server.then().build();
+                try
+                {
+                    this.client = server.then().build();
+                } catch (KittehNagException nagExc) {}
                 this.client.setExceptionListener(this);
                 this.client.connect();
                 this.client.getEventManager().registerEventListener(this);
