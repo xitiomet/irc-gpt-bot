@@ -529,7 +529,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         } catch (Exception ne) {
             this.statusLine = "ERROR";
             this.fireStats();
-            log(ne);
+            log("Connect Failure - ", ne);
         }
     }
 
@@ -678,8 +678,13 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
 
     public void log(Exception e)
     {
+        log(null, e);
+    }
 
-        String msg = e.getMessage();
+    public void log(String msgString, Exception e)
+    {
+
+        String msg = (msgString != null ? msgString : "") + e.getMessage();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         PrintStream ps = new PrintStream(baos, true, Charset.forName("UTF-8"));
         e.printStackTrace(ps);
