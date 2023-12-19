@@ -694,12 +694,14 @@
   "name":"org.openstatic.IRCGPTBot",
   "queryAllDeclaredMethods":true,
   "methods":[
+    {"name":"onChannelInvite","parameterTypes":["org.kitteh.irc.client.library.event.channel.ChannelInviteEvent"] }, 
     {"name":"onChannelJoin","parameterTypes":["org.kitteh.irc.client.library.event.channel.ChannelJoinEvent"] }, 
     {"name":"onChannelMessage","parameterTypes":["org.kitteh.irc.client.library.event.channel.ChannelMessageEvent"] }, 
     {"name":"onClientConnectionClosedEvent","parameterTypes":["org.kitteh.irc.client.library.event.connection.ClientConnectionClosedEvent"] }, 
     {"name":"onClientConnectionEndedEvent","parameterTypes":["org.kitteh.irc.client.library.event.connection.ClientConnectionEndedEvent"] }, 
     {"name":"onClientConnectionFailedEvent","parameterTypes":["org.kitteh.irc.client.library.event.connection.ClientConnectionFailedEvent"] }, 
-    {"name":"onConnectedEvent","parameterTypes":["org.kitteh.irc.client.library.event.connection.ClientConnectionEstablishedEvent"] }
+    {"name":"onConnectedEvent","parameterTypes":["org.kitteh.irc.client.library.event.connection.ClientConnectionEstablishedEvent"] }, 
+    {"name":"onPrivateMessage","parameterTypes":["org.kitteh.irc.client.library.event.user.PrivateMessageEvent"] }
   ]
 },
 {
