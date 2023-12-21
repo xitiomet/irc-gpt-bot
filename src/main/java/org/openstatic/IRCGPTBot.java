@@ -506,23 +506,8 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                     this.client = server.then().build();
                 } catch (Exception nagExc) {}
                 this.client.setExceptionListener(this);
-                this.client.connect();
                 this.client.getEventManager().registerEventListener(this);
-                final JSONObject channels = botOptions.getJSONObject("channels");
-                Set<String> channelNames = channels.keySet();
-                for(String channelName : channelNames)
-                {
-                    JSONObject channelObject = channels.getJSONObject(channelName);
-                    if (channelObject.optBoolean("join", false))
-                    {
-                        if (channelObject.has("key"))
-                        {
-                            IRCGPTBot.this.client.addKeyProtectedChannel(channelName, channelObject.optString("key"));
-                        } else {
-                            IRCGPTBot.this.client.addChannel(channelName);
-                        }
-                    }
-                }
+                this.client.connect();
             } else {
                 IRCGPTBot.this.serverOptions();
             }
@@ -735,6 +720,21 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         this.connectionLabel.setBackgroundColor(ANSI.BLACK);
         this.connectionLabel.setForegroundColor(ANSI.GREEN_BRIGHT);
         this.fireStats();
+        final JSONObject channels = botOptions.getJSONObject("channels");
+        Set<String> channelNames = channels.keySet();
+        for(String channelName : channelNames)
+        {
+            JSONObject channelObject = channels.getJSONObject(channelName);
+            if (channelObject.optBoolean("join", false))
+            {
+                if (channelObject.has("key"))
+                {
+                    IRCGPTBot.this.client.addKeyProtectedChannel(channelName, channelObject.optString("key"));
+                } else {
+                    IRCGPTBot.this.client.addChannel(channelName);
+                }
+            }
+        }
     }
 
     @Handler 
