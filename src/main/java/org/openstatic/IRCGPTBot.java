@@ -570,6 +570,29 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         return this.botNickname;
     }
 
+    private boolean bodyMentionsBot(String body)
+    {
+        if (body == null)
+            return false;
+        String lcBody = body.toLowerCase();
+        if (lcBody.contains(this.botNickname.toLowerCase()))
+            return true;
+        JSONArray aliases = this.botOptions.optJSONArray("aliases");
+        if (aliases != null)
+        {
+            for (Object alias : aliases)
+            {
+                if (alias != null)
+                {
+                    String lcAlias = alias.toString().toLowerCase().trim();
+                    if (!lcAlias.isEmpty() && lcBody.contains(lcAlias))
+                        return true;
+                }
+            }
+        }
+        return false;
+    }
+
     public String getNicknameAtServer()
     {
         return this.botNickname + "@" + this.botOptions.get("server");
@@ -932,7 +955,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
             cl.add(msg);
             
             boolean botAskedQuestion = false;
-            boolean containsBotName = body.toLowerCase().contains(this.botNickname.toLowerCase());
+            boolean containsBotName = this.bodyMentionsBot(body);
             boolean lastMessageWasBot = false;
             boolean userCountIsTwo = (userCount == 2);
             if (previosMsg != null)

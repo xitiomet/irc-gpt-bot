@@ -19,6 +19,7 @@
             "user": null,
             "botOps": ["xitiomet"],
             "ignore": ["AnnoyingUser"],
+            "aliases": ["chat", "gpt"],
             "realName": null,
             "password": null,
             "server": "127.0.0.1",

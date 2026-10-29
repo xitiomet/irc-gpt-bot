@@ -51,6 +51,7 @@ DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid J
                 }
             },  
             "ignore": ["AnnoyingUser"], // Bot should completely ignore these nicknames (can be used for other bots or abusive users)
+            "aliases": ["chat", "gpt"], // Extra names (besides the nickname) the bot should respond to when mentioned
             "user": null,            // IRC User field (for bot)
             "realName": null,        // IRC Real Name field (for bot)
             "password": null,        // IRC Password (for bot)
