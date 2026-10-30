@@ -386,6 +386,37 @@
                 </executions>
             </plugin>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>fetch-appimagetool</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <property name="appimagetool.cacheDir" value="${user.home}/.cache/irc-gpt-bot"/>
+                                <property name="appimagetool.cache" value="${appimagetool.cacheDir}/appimagetool-x86_64.AppImage"/>
+                                <property name="appimagetool.dest" value="${project.build.directory}/assets/appimagetool"/>
+                                <property name="appimagetool.url" value="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"/>
+                                <mkdir dir="${appimagetool.cacheDir}"/>
+                                <mkdir dir="${project.build.directory}/assets"/>
+                                <get src="${appimagetool.url}"
+                                    dest="${appimagetool.cache}"
+                                    skipexisting="true"
+                                    verbose="true"
+                                    retries="3"/>
+                                <copy file="${appimagetool.cache}" tofile="${appimagetool.dest}" overwrite="true"/>
+                                <chmod file="${appimagetool.dest}" perm="755"/>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>io.github.fvarrui</groupId>
                 <artifactId>javapackager</artifactId>
                 <version>1.7.0</version>
