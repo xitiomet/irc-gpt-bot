@@ -53,6 +53,9 @@
       "pattern":"\\Qirc-gpt-bot/launch.html\\E"
     }, 
     {
+      "pattern":"\\Qirc-gpt-bot/model.html\\E"
+    },
+    {
       "pattern":"\\Qirc-gpt-bot/preamble.html\\E"
     }, 
     {

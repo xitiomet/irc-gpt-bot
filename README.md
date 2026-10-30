@@ -127,6 +127,9 @@ NOTE: the first entry can be set to whatever path you like, but the websocket mu
 The web interface will provide you with the ability to launch and control bots.
 ![](https://openstatic.org/projects/ircgptbot/ircgptweb.png)
 
+Native builds embed web assets using the allowlist in [resource-config.json](src/main/resources/META-INF/native-image/resource-config.json).
+When adding a web page, include its `irc-gpt-bot/` resource path in that file, then rebuild with `mvn package` and restart using the rebuilt executable. Otherwise the native executable will return 404 for the missing page.
+
 ### Greeting mode
 if greeting is enabled the bot will greet new users entering the channel along with a summary of the conversation
 
