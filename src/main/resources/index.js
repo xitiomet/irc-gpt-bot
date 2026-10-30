@@ -17,14 +17,9 @@ function getParameterByName(name, url = window.location.href)
     return decodeURIComponent(results[2].replace(/\+/g, ' '));
 }
 
-function editPreambleWindow(botId)
+function editModelPromptWindow(botId)
 {
-    var myWindow = window.open('preamble.html?apiPassword=' + encodeURIComponent(document.getElementById('password').value) + '&id=' + encodeURIComponent(botId), "Edit Preamble", "width=455,height=635");
-}
-
-function editModelWindow(botId)
-{
-    var myWindow = window.open('model.html?apiPassword=' + encodeURIComponent(document.getElementById('password').value) + '&id=' + encodeURIComponent(botId), "Change Model", "width=380,height=560");
+    window.open('preamble.html?apiPassword=' + encodeURIComponent(document.getElementById('password').value) + '&id=' + encodeURIComponent(botId), "Edit Model/Prompt", "width=520,height=720");
 }
 
 function launchBotWindow()
@@ -132,7 +127,7 @@ function addBot(json)
         avatarImgTag.style.height = '64px';
         avatarImgTag.style.width = '64px';
         nicknameTag.innerHTML = "<b style=\"font-size: 18px;\">" + json.stats.nickname + "</b><br />" + json.stats.model;
-        actionsTag.innerHTML = "<table><tr><td><button style=\"width: 128px;\" onClick=\"editPreambleWindow('" + objectId + "')\">Edit Preamble</button><br /><button style=\"width: 128px;\" onClick=\"editModelWindow('" + objectId + "')\">Change Model</button><br /><button style=\"width: 128px;\" onClick=\"reconnectBot('" + objectId + "')\">Reconnect</button><br /><button style=\"width: 128px;\" onClick=\"channelsWindow('" + objectId + "')\">Channels</button></td><td><button style=\"width: 128px;\" onClick=\"notice('" + objectId + "')\">Notice</button><br /><button style=\"width: 128px;\" onClick=\"shutdownBot('" + objectId + "')\">Shutdown</button><br /><button style=\"width: 128px;\" onClick=\"deleteBot('" + objectId + "')\">Delete</button></td></tr></table>";
+        actionsTag.innerHTML = "<table><tr><td><button style=\"width: 128px;\" onClick=\"editModelPromptWindow('" + objectId + "')\">Edit Model/Prompt</button><br /><button style=\"width: 128px;\" onClick=\"reconnectBot('" + objectId + "')\">Reconnect</button><br /><button style=\"width: 128px;\" onClick=\"channelsWindow('" + objectId + "')\">Channels</button></td><td><button style=\"width: 128px;\" onClick=\"notice('" + objectId + "')\">Notice</button><br /><button style=\"width: 128px;\" onClick=\"shutdownBot('" + objectId + "')\">Shutdown</button><br /><button style=\"width: 128px;\" onClick=\"deleteBot('" + objectId + "')\">Delete</button></td></tr></table>";
         document.getElementById("botTable").appendChild(botTag);
     } else {
         avatarTag = document.getElementById(avatarTagId);

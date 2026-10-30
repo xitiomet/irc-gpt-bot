@@ -1,5 +1,7 @@
 <html>
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Edit Model/Prompt</title>
     <script src="jquery.min.js"></script>
     <script type="text/javascript">
         function getParameterByName(name, url = window.location.href) 
@@ -14,39 +16,86 @@
 
         function save()
         {
+            var button = document.getElementById('saveButton');
+            if (button.disabled)
+                return;
             var preamble = document.getElementById('systemPreamble').value;
             var updateCode = {
+                "model": document.getElementById('model').value,
                 "preamble": preamble,
                 "apiPassword": getParameterByName('apiPassword')
             };
-            postJSON("/ircgptbot/api/bot/" + encodeURIComponent(getParameterByName('id')) + "/preamble/", updateCode, () => { window.close() }, () => { window.close() });
-        }
-
-        function postJSON(url, data, onSuccess, onError) {
+            button.disabled = true;
+            document.getElementById('status').textContent = 'Saving...';
             $.ajax({
-                url: url,
+                url: "/ircgptbot/api/bot/" + encodeURIComponent(getParameterByName('id')) + "/preamble/",
                 type: 'POST',
-                data: JSON.stringify(data),
+                data: JSON.stringify(updateCode),
                 contentType: 'application/json; charset=utf-8',
                 dataType: 'json',
-                success: onSuccess,
-                error: onError
+                timeout: 15000
+            }).done(function(json) {
+                if (json.error || json.model !== updateCode.model || json.preamble !== preamble)
+                    document.getElementById('status').textContent = json.error || 'Unable to save the model and prompt.';
+                else
+                {
+                    document.getElementById('status').textContent = 'Saved.';
+                    window.close();
+                }
+            }).fail(function() {
+                document.getElementById('status').textContent = 'Unable to save. Please retry.';
+            }).always(function() {
+                button.disabled = false;
             });
         }
 
         function loaded()
         {
-            $.getJSON('/ircgptbot/api/bot/' + getParameterByName('id') + '/preamble/?apiPassword=' + encodeURIComponent(getParameterByName('apiPassword')) + '&id=' + encodeURIComponent(getParameterByName('id')), function(json) {
+            document.getElementById('status').textContent = 'Loading model and prompt...';
+            $.ajax({
+                url: '/ircgptbot/api/bot/' + encodeURIComponent(getParameterByName('id')) + '/models/',
+                data: { apiPassword: getParameterByName('apiPassword') },
+                dataType: 'json',
+                cache: false,
+                timeout: 30000
+            }).done(function(json) {
+                if (json.error || !json.bot || typeof json.preamble !== 'string' || !json.model || !Array.isArray(json.models))
+                {
+                    document.getElementById('status').textContent = json.error || 'Unable to load model and prompt. Reopen this window to retry.';
+                    return;
+                }
+                document.getElementById('botTitle').textContent = json.bot.id + ' - Model/Prompt';
                 document.getElementById('systemPreamble').value = json.preamble;
-                document.getElementById('botTitle').innerHTML = json.bot.id + " - Preamble";
+                var select = document.getElementById('model');
+                select.textContent = '';
+                var models = json.models.slice();
+                if (models.indexOf(json.model) == -1)
+                    models.push(json.model);
+                models.forEach(function(model) {
+                    var option = document.createElement('option');
+                    option.value = model;
+                    option.textContent = model;
+                    option.selected = model == json.model;
+                    select.appendChild(option);
+                });
+                select.disabled = false;
+                document.getElementById('systemPreamble').disabled = false;
+                document.getElementById('saveButton').disabled = false;
+                document.getElementById('status').textContent = json.models.length ? '' : 'No models returned. Keeping the current model; check your API key and modelsApiUrl.';
+            }).fail(function() {
+                document.getElementById('status').textContent = 'Unable to load model and prompt. Reopen this window to retry.';
             });
         }
     </script>
 </head>
 
-<body onload="loaded()" style="text-align: center;">
-    <h2 id="botTitle">Preamble</h2>
-    <textarea id="systemPreamble" rows="30" cols="50" /></textarea></td><br /><br />
-    <button onclick="save()" style="width: 128px; height: 48px;">Save</button></td>
+<body onload="loaded()" style="font-family: Sans Serif; margin: 20px;">
+    <h2 id="botTitle" style="text-align: center;">Edit Model/Prompt</h2>
+    <label for="model">Model</label><br>
+    <select id="model" disabled style="width: 100%; margin-bottom: 16px;"></select><br>
+    <label for="systemPreamble">System preamble</label><br>
+    <textarea id="systemPreamble" rows="24" disabled style="width: 100%; box-sizing: border-box;"></textarea>
+    <p id="status" role="status"></p>
+    <button id="saveButton" onclick="save()" disabled style="width: 128px; height: 48px;">Save</button>
 </body>
 </html>

@@ -405,8 +405,20 @@ public class APIWebServer implements IRCGPTBotListener
                                             String command = st.nextToken();
                                             if ("preamble".equals(command) && requestPost.has("preamble"))
                                             {
-                                                bot.setPreamble(requestPost.optString("preamble"));
-                                                response.put("preamble", bot.getPreamble());
+                                                if (requestPost.has("model") && requestPost.optString("model").trim().isEmpty())
+                                                {
+                                                    response.put("error", "Select a model.");
+                                                }
+                                                else
+                                                {
+                                                    bot.setPreamble(requestPost.optString("preamble"));
+                                                    if (requestPost.has("model"))
+                                                        bot.setModel(requestPost.optString("model"));
+                                                    else
+                                                        IRCGPTBotMain.instance.saveSettings();
+                                                    response.put("preamble", bot.getPreamble());
+                                                    response.put("model", bot.getModel());
+                                                }
                                             }
                                             else if ("model".equals(command) && requestPost.has("model"))
                                             {
@@ -516,6 +528,7 @@ public class APIWebServer implements IRCGPTBotListener
                                         response.put("preamble", bot.getPreamble());
                                     } else if ("models".equals(command)) {
                                         response.put("model", bot.getModel());
+                                        response.put("preamble", bot.getPreamble());
                                         response.put("models", bot.getAvailableModels());
                                     }
                                 }
