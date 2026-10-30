@@ -1,0 +1,159 @@
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Channels</title>
+    <script src="jquery.min.js"></script>
+    <script type="text/javascript">
+        var parameters = new URLSearchParams(window.location.search);
+        var botUrl = '/ircgptbot/api/bot/' + encodeURIComponent(parameters.get('id')) + '/';
+        var connected = false;
+        var busy = false;
+        var refreshTimer;
+        var channelNames = [];
+
+        function setStatus(message)
+        {
+            document.getElementById('status').textContent = message;
+        }
+
+        function updateButtons()
+        {
+            document.querySelectorAll('button').forEach(function(button) {
+                button.disabled = busy || !connected;
+            });
+        }
+
+        function renderChannels(channels)
+        {
+            var list = document.getElementById('channels');
+            list.textContent = '';
+            if (channels.length == 0)
+                list.textContent = 'The bot is not in any channels.';
+            channels.forEach(function(channel) {
+                var row = document.createElement('li');
+                var name = document.createElement('span');
+                name.textContent = channel;
+                var leave = document.createElement('button');
+                leave.textContent = 'Leave';
+                leave.onclick = function() {
+                    if (confirm('Leave ' + channel + '?'))
+                        channelAction('part', channel);
+                };
+                row.appendChild(name);
+                row.appendChild(leave);
+                list.appendChild(row);
+            });
+            updateButtons();
+        }
+
+        function refreshChannels()
+        {
+            clearTimeout(refreshTimer);
+            $.ajax({
+                url: botUrl,
+                data: { apiPassword: parameters.get('apiPassword') },
+                dataType: 'json',
+                cache: false,
+                timeout: 10000
+            }).done(function(json) {
+                if (json.error || !json.bot || !Array.isArray(json.bot.channels))
+                {
+                    connected = false;
+                    document.getElementById('connectionStatus').textContent = json.error || 'Bot unavailable or invalid channel list.';
+                    updateButtons();
+                    return;
+                }
+                connected = json.bot.status == 'CONNECTED';
+                document.getElementById('botTitle').textContent = json.bot.id + ' - Channels';
+                document.getElementById('connectionStatus').textContent = connected ? '' : 'The bot is not connected.';
+                var channels = json.bot.channels.slice().sort();
+                if (JSON.stringify(channels) != JSON.stringify(channelNames) || !document.getElementById('channels').hasChildNodes())
+                {
+                    channelNames = channels;
+                    renderChannels(channels);
+                }
+                updateButtons();
+            }).fail(function() {
+                connected = false;
+                document.getElementById('connectionStatus').textContent = 'Unable to load channels. Retrying...';
+                updateButtons();
+            }).always(function() {
+                refreshTimer = setTimeout(refreshChannels, 2000);
+            });
+        }
+
+        function channelAction(action, channel)
+        {
+            if (busy || !connected)
+            {
+                setStatus('Wait for the bot to be connected and the current request to finish.');
+                return;
+            }
+            channel = channel.trim();
+            if (!/^[#&+!][^\s,\x00\x07:]+$/.test(channel))
+            {
+                setStatus('Enter a channel name such as #lobby.');
+                return;
+            }
+            busy = true;
+            updateButtons();
+            setStatus('Sending request...');
+            $.ajax({
+                url: botUrl + 'channels/',
+                type: 'POST',
+                data: JSON.stringify({
+                    apiPassword: parameters.get('apiPassword'),
+                    action: action,
+                    channel: channel
+                }),
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                timeout: 10000
+            }).done(function(json) {
+                if (json.error || !json.bot)
+                {
+                    setStatus(json.error || 'Bot unavailable.');
+                    return;
+                }
+                setStatus((action == 'join' ? 'Join' : 'Leave') + ' requested for ' + channel + '. The list updates when the IRC server responds.');
+                if (action == 'join')
+                    document.getElementById('channelName').value = '';
+            }).fail(function() {
+                setStatus('Unable to complete the request. Check the channel list before retrying.');
+            }).always(function() {
+                busy = false;
+                updateButtons();
+            });
+        }
+
+        function loaded()
+        {
+            document.getElementById('joinForm').onsubmit = function(event) {
+                event.preventDefault();
+                channelAction('join', document.getElementById('channelName').value);
+            };
+            refreshChannels();
+        }
+    </script>
+    <style>
+        body { font-family: Sans Serif; margin: 20px; }
+        h2 { text-align: center; }
+        ul { list-style: none; padding: 0; }
+        li { display: flex; align-items: center; justify-content: space-between; margin: 8px 0; gap: 12px; }
+        li span { overflow-wrap: anywhere; }
+        button { padding: 6px 12px; }
+        input { padding: 6px; max-width: 65%; }
+    </style>
+</head>
+<body onload="loaded()">
+    <h2 id="botTitle">Channels</h2>
+    <p id="connectionStatus" role="status">Loading channels...</p>
+    <ul id="channels"></ul>
+    <form id="joinForm">
+        <label for="channelName">Join a channel</label><br>
+        <input id="channelName" type="text" placeholder="#lobby" required autocomplete="off">
+        <button type="submit" disabled>Join</button>
+    </form>
+    <p id="status" role="status"></p>
+</body>
+</html>

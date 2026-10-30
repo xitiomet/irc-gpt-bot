@@ -413,12 +413,38 @@ public class APIWebServer implements IRCGPTBotListener
                                                 bot.setModel(requestPost.optString("model"));
                                                 response.put("model", bot.getModel());
                                             }
+                                            else if ("channels".equals(command))
+                                            {
+                                                String action = requestPost.optString("action");
+                                                String channel = requestPost.optString("channel").trim();
+                                                if (!("join".equals(action) || "part".equals(action)))
+                                                {
+                                                    response.put("error", "Invalid channel action.");
+                                                }
+                                                else if (!channel.matches("[#&+!][^\\s,\\x00\\x07:]+"))
+                                                {
+                                                    response.put("error", "Enter a channel name such as #lobby.");
+                                                }
+                                                else if (!"CONNECTED".equals(bot.toJSONObject().optString("status")))
+                                                {
+                                                    response.put("error", "The bot is not connected.");
+                                                }
+                                                else if ("join".equals(action))
+                                                {
+                                                    bot.joinChannel(channel);
+                                                }
+                                                else
+                                                {
+                                                    bot.partChannel(channel);
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
                         } catch (Exception x) {
                             x.printStackTrace(System.err);
+                            response.put("error", "Unable to complete the bot command.");
                         }
                     } else {
                         response.put("error", "Invalid apiPassword!");

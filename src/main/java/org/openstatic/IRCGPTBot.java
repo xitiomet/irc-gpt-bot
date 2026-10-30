@@ -587,6 +587,10 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         ro.put("messagesHandled", this.messagesHandled);
         ro.put("messagesSeen", this.messagesSeen);
         ro.put("errorCount", this.errorCount);
+        JSONArray channels = new JSONArray();
+        if (this.client != null)
+            this.client.getChannels().forEach((channel) -> channels.put(channel.getName()));
+        ro.put("channels", channels);
         return ro;
     }
 

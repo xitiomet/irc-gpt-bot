@@ -55,22 +55,9 @@ function notice(objectId)
     }
 }
 
-function joinChannel(objectId)
+function channelsWindow(botId)
 {
-    var channelName = prompt("Enter Channel Name (ex: #lobby)");
-    if (channelName != undefined && channelName != '')
-    {
-        sendEvent({"command":"join", "id": objectId, "channel": channelName});
-    }
-}
-
-function partChannel(objectId)
-{
-    var channelName = prompt("Enter Channel Name (ex: #lobby)");
-    if (channelName != undefined && channelName != '')
-    {
-        sendEvent({"command":"part", "id": objectId, "channel": channelName});
-    }
+    window.open('channels.html?apiPassword=' + encodeURIComponent(document.getElementById('password').value) + '&id=' + encodeURIComponent(botId), "Channels", "width=455,height=560");
 }
 
 function reconnectBot(objectId)
@@ -145,7 +132,7 @@ function addBot(json)
         avatarImgTag.style.height = '64px';
         avatarImgTag.style.width = '64px';
         nicknameTag.innerHTML = "<b style=\"font-size: 18px;\">" + json.stats.nickname + "</b><br />" + json.stats.model;
-        actionsTag.innerHTML = "<table><tr><td><button style=\"width: 128px;\" onClick=\"editPreambleWindow('" + objectId + "')\">Edit Preamble</button><br /><button style=\"width: 128px;\" onClick=\"editModelWindow('" + objectId + "')\">Change Model</button><br /><button style=\"width: 128px;\" onClick=\"reconnectBot('" + objectId + "')\">Reconnect</button><br /><button style=\"width: 128px;\" onClick=\"joinChannel('" + objectId + "')\">Join Channel</button><br /><button style=\"width: 128px;\" onClick=\"partChannel('" + objectId + "')\">Leave Channel</button></td><td><button style=\"width: 128px;\" onClick=\"notice('" + objectId + "')\">Notice</button><br /><button style=\"width: 128px;\" onClick=\"shutdownBot('" + objectId + "')\">Shutdown</button><br /><button style=\"width: 128px;\" onClick=\"deleteBot('" + objectId + "')\">Delete</button></td></tr></table>";
+        actionsTag.innerHTML = "<table><tr><td><button style=\"width: 128px;\" onClick=\"editPreambleWindow('" + objectId + "')\">Edit Preamble</button><br /><button style=\"width: 128px;\" onClick=\"editModelWindow('" + objectId + "')\">Change Model</button><br /><button style=\"width: 128px;\" onClick=\"reconnectBot('" + objectId + "')\">Reconnect</button><br /><button style=\"width: 128px;\" onClick=\"channelsWindow('" + objectId + "')\">Channels</button></td><td><button style=\"width: 128px;\" onClick=\"notice('" + objectId + "')\">Notice</button><br /><button style=\"width: 128px;\" onClick=\"shutdownBot('" + objectId + "')\">Shutdown</button><br /><button style=\"width: 128px;\" onClick=\"deleteBot('" + objectId + "')\">Delete</button></td></tr></table>";
         document.getElementById("botTable").appendChild(botTag);
     } else {
         avatarTag = document.getElementById(avatarTagId);
@@ -260,4 +247,3 @@ function setupWebsocket()
 window.onload = function() {
     setupWebsocket();
 };
-

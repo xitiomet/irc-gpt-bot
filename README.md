@@ -125,6 +125,7 @@ then in the server section of your config
 NOTE: the first entry can be set to whatever path you like, but the websocket must be mounted at /ircgptbot on the server
 
 The web interface will provide you with the ability to launch and control bots.
+Each bot's **Channels** button opens a live list of its joined channels. Enter a channel name to join it, or click **Leave** beside a channel and confirm to leave it.
 ![](https://openstatic.org/projects/ircgptbot/ircgptweb.png)
 
 Native builds embed web assets using the allowlist in [resource-config.json](src/main/resources/META-INF/native-image/resource-config.json).
