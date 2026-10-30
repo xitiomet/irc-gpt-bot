@@ -178,6 +178,14 @@ public class APIWebServer implements IRCGPTBotListener
                         IRCGPTBotMain.instance.getBotbyIdentifier(objectId).setPreamble(j.optString("preamble", ""));
                     }
                 }
+                if (command.equals("model"))
+                {
+                    String objectId = j.optString("id", null);
+                    if (objectId != null && j.has("model"))
+                    {
+                        IRCGPTBotMain.instance.getBotbyIdentifier(objectId).setModel(j.optString("model", ""));
+                    }
+                }
                 if (command.equals("launch") && j.has("botOptions") && j.has("id"))
                 {
                     JSONObject botOptions = j.getJSONObject("botOptions");
@@ -400,6 +408,11 @@ public class APIWebServer implements IRCGPTBotListener
                                                 bot.setPreamble(requestPost.optString("preamble"));
                                                 response.put("preamble", bot.getPreamble());
                                             }
+                                            else if ("model".equals(command) && requestPost.has("model"))
+                                            {
+                                                bot.setModel(requestPost.optString("model"));
+                                                response.put("model", bot.getModel());
+                                            }
                                         }
                                     }
                                 }
@@ -475,6 +488,9 @@ public class APIWebServer implements IRCGPTBotListener
                                             bot.setPreamble(request.getParameter("preamble"));
                                         }
                                         response.put("preamble", bot.getPreamble());
+                                    } else if ("models".equals(command)) {
+                                        response.put("model", bot.getModel());
+                                        response.put("models", bot.getAvailableModels());
                                     }
                                 }
                             }

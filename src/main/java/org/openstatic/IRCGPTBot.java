@@ -54,6 +54,8 @@ import com.googlecode.lanterna.gui2.Panel;
 import com.googlecode.lanterna.gui2.Window;
 import com.googlecode.lanterna.gui2.dialogs.ListSelectDialog;
 import com.googlecode.lanterna.gui2.dialogs.ListSelectDialogBuilder;
+import com.googlecode.lanterna.gui2.dialogs.MessageDialog;
+import com.googlecode.lanterna.gui2.dialogs.MessageDialogButton;
 import com.googlecode.lanterna.gui2.CheckBox;
 import com.googlecode.lanterna.gui2.dialogs.TextInputDialog;
 import com.googlecode.lanterna.gui2.dialogs.TextInputDialogBuilder;
@@ -337,9 +339,42 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                                 z.start();
                             }
                         });
+                        Button changeModel = new Button("Change Model", new Runnable() {
+                            @Override
+                            public void run() {
+                                Thread z = new Thread(() -> {
+                                    try
+                                    {
+                                        MessageDialog.showMessageDialog(IRCGPTBotMain.instance.gui, "Change Model", "Fetching available models...", MessageDialogButton.OK);
+                                        JSONArray models = IRCGPTBot.this.getAvailableModels();
+                                        if (models.length() == 0)
+                                        {
+                                            MessageDialog.showMessageDialog(IRCGPTBotMain.instance.gui, "Change Model", "No models returned. Check your API key and modelsApiUrl.", MessageDialogButton.OK);
+                                            return;
+                                        }
+                                        ListSelectDialogBuilder<String> lsdb = new ListSelectDialogBuilder<String>();
+                                        for (int i = 0; i < models.length(); i++)
+                                        {
+                                            lsdb.addListItem(models.getString(i));
+                                        }
+                                        lsdb.setListBoxSize(new TerminalSize(40, 15));
+                                        lsdb.setTitle("Select Model");
+                                        lsdb.setDescription("Current: " + IRCGPTBot.this.getModel());
+                                        ListSelectDialog<String> lsd = (ListSelectDialog<String>) lsdb.build();
+                                        String modelSelected = lsd.showDialog(IRCGPTBotMain.instance.gui);
+                                        if (modelSelected != null)
+                                            IRCGPTBot.this.setModel(modelSelected);
+                                    } catch (Exception e2) {
+                                        log(e2);
+                                    }
+                                });
+                                z.start();
+                            }
+                        });
                         optionsPanel.addComponent(changeNickButton);
                         optionsPanel.addComponent(changeContextDepth);
                         optionsPanel.addComponent(editPreamble);
+                        optionsPanel.addComponent(changeModel);
                         optionsPanel.addComponent(saveButton);
                         optionsWindow.setComponent(optionsPanel);
                         IRCGPTBotMain.instance.gui.addWindowAndWait(optionsWindow);
@@ -596,6 +631,26 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     public String getNicknameAtServer()
     {
         return this.botNickname + "@" + this.botOptions.get("server");
+    }
+
+    public String getModel()
+    {
+        return this.botOptions.optString("model", "gpt-3.5-turbo");
+    }
+
+    public void setModel(String model)
+    {
+        if (model != null && !"".equals(model))
+        {
+            this.botOptions.put("model", model);
+            IRCGPTBotMain.instance.saveSettings();
+            this.fireStats();
+        }
+    }
+
+    public JSONArray getAvailableModels()
+    {
+        return IRCGPTBotMain.chatGPT.listModels(this.botOptions);
     }
 
     private void addKeyChannelToSettings(String channelName, String key)

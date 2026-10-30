@@ -73,7 +73,8 @@ DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid J
     "apiServer": true, // provide api server and web interface
     "apiPort": 6553, // port for api server and web interface
     "apiPassword": "changeme", // password for api server and web interface
-    "completionsApiUrl": "https://api.openai.com/v1/chat/completions" //optional for local ai server can also be in bot config
+    "completionsApiUrl": "https://api.openai.com/v1/chat/completions", //optional for local ai server can also be in bot config
+    "modelsApiUrl": "https://api.openai.com/v1/models" //optional, used to populate the model picker, can also be in bot config
 }
 ```
 NOTE: Make sure you either remove the default "botOps" or edit it to reflect your own nickname!

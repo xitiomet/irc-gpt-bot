@@ -6,6 +6,8 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Date;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -46,10 +48,54 @@ public class ChatGPT
         IRCGPTBotMain.logAppend("openai.log", text);
     }
 
+    private static String resolveApiUrl(JSONObject botOptions, String key, String defaultValue)
+    {
+        if (botOptions.has(key))
+            return botOptions.optString(key, defaultValue);
+        return IRCGPTBotMain.settings.optString(key, defaultValue);
+    }
+
     public Future<ChatMessage> callChatGPT(JSONObject botOptions, JSONArray messages)
     {
         return callChatGPT(botOptions, messages, null);
     } 
+
+    public JSONArray listModels(JSONObject botOptions)
+    {
+        JSONArray models = new JSONArray();
+        try
+        {
+            String url = resolveApiUrl(botOptions, "modelsApiUrl", "https://api.openai.com/v1/models");
+            HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
+            con.setRequestMethod("GET");
+            con.setRequestProperty("Content-Type", "application/json");
+            con.setRequestProperty("Authorization", "Bearer " + IRCGPTBotMain.settings.optString("openAiKey"));
+            String output = new BufferedReader(new InputStreamReader(con.getInputStream())).lines()
+                .reduce((a, b) -> a + b).get();
+            JSONObject response = new JSONObject(output);
+            JSONArray data = response.optJSONArray("data");
+            if (data != null)
+            {
+                ArrayList<String> ids = new ArrayList<String>();
+                for (int i = 0; i < data.length(); i++)
+                {
+                    JSONObject model = data.optJSONObject(i);
+                    if (model != null)
+                    {
+                        String id = model.optString("id", null);
+                        if (id != null && !ids.contains(id))
+                            ids.add(id);
+                    }
+                }
+                Collections.sort(ids);
+                for (String id : ids)
+                    models.put(id);
+            }
+        } catch (Exception e) {
+            IRCGPTBotMain.log(e);
+        }
+        return models;
+    }
 
 
     public Future<ChatMessage> callChatGPT(JSONObject botOptions, JSONArray messages, String user) 
@@ -60,7 +106,7 @@ public class ChatGPT
             {
                 try
                 {
-                    String url = botOptions.optString("completionsApiUrl", "https://api.openai.com/v1/chat/completions");
+                    String url = resolveApiUrl(botOptions, "completionsApiUrl", "https://api.openai.com/v1/chat/completions");
                     HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
                     con.setRequestMethod("POST");
                     con.setRequestProperty("Content-Type", "application/json");

@@ -22,6 +22,11 @@ function editPreambleWindow(botId)
     var myWindow = window.open('preamble.html?apiPassword=' + encodeURIComponent(document.getElementById('password').value) + '&id=' + encodeURIComponent(botId), "Edit Preamble", "width=455,height=635");
 }
 
+function editModelWindow(botId)
+{
+    var myWindow = window.open('model.html?apiPassword=' + encodeURIComponent(document.getElementById('password').value) + '&id=' + encodeURIComponent(botId), "Change Model", "width=380,height=560");
+}
+
 function launchBotWindow()
 {
     var myWindow = window.open('launch.html?apiPassword=' + encodeURIComponent(document.getElementById('password').value), "LaunchBot", "width=455,height=635");
@@ -125,7 +130,7 @@ function addBot(json)
         avatarImgTag.id = avatarImgTagId;
         nicknameTag = document.createElement("td");
         nicknameTag.style.minWidth = '138px';
-        avatarTag.id = nicknameTagId;
+        nicknameTag.id = nicknameTagId;
         statsTag = document.createElement("td");
         statsTag.id = statsTagId;
         statsTag.style.minWidth = '160px';
@@ -140,7 +145,7 @@ function addBot(json)
         avatarImgTag.style.height = '64px';
         avatarImgTag.style.width = '64px';
         nicknameTag.innerHTML = "<b style=\"font-size: 18px;\">" + json.stats.nickname + "</b><br />" + json.stats.model;
-        actionsTag.innerHTML = "<table><tr><td><button style=\"width: 128px;\" onClick=\"editPreambleWindow('" + objectId + "')\">Edit Preamble</button><br /><button style=\"width: 128px;\" onClick=\"reconnectBot('" + objectId + "')\">Reconnect</button><br /><button style=\"width: 128px;\" onClick=\"joinChannel('" + objectId + "')\">Join Channel</button><br /><button style=\"width: 128px;\" onClick=\"partChannel('" + objectId + "')\">Leave Channel</button></td><td><button style=\"width: 128px;\" onClick=\"notice('" + objectId + "')\">Notice</button><br /><button style=\"width: 128px;\" onClick=\"shutdownBot('" + objectId + "')\">Shutdown</button><br /><button style=\"width: 128px;\" onClick=\"deleteBot('" + objectId + "')\">Delete</button></td></tr></table>";
+        actionsTag.innerHTML = "<table><tr><td><button style=\"width: 128px;\" onClick=\"editPreambleWindow('" + objectId + "')\">Edit Preamble</button><br /><button style=\"width: 128px;\" onClick=\"editModelWindow('" + objectId + "')\">Change Model</button><br /><button style=\"width: 128px;\" onClick=\"reconnectBot('" + objectId + "')\">Reconnect</button><br /><button style=\"width: 128px;\" onClick=\"joinChannel('" + objectId + "')\">Join Channel</button><br /><button style=\"width: 128px;\" onClick=\"partChannel('" + objectId + "')\">Leave Channel</button></td><td><button style=\"width: 128px;\" onClick=\"notice('" + objectId + "')\">Notice</button><br /><button style=\"width: 128px;\" onClick=\"shutdownBot('" + objectId + "')\">Shutdown</button><br /><button style=\"width: 128px;\" onClick=\"deleteBot('" + objectId + "')\">Delete</button></td></tr></table>";
         document.getElementById("botTable").appendChild(botTag);
     } else {
         avatarTag = document.getElementById(avatarTagId);
@@ -178,6 +183,8 @@ function updateBot(json)
         statsTag = document.getElementById(statsTagId);
         actionsTag = document.getElementById(actionsTagId);
     }
+    if (nicknameTag != null)
+        nicknameTag.innerHTML = "<b style=\"font-size: 18px;\">" + json.stats.nickname + "</b><br />" + json.stats.model;
     statsTag.innerHTML = "<b>Messages Handled</b> " + json.stats.messagesHandled + "<br /><b>Messages Seen</b> " + json.stats.messagesSeen + "<br /><b>Errors</b> " + json.stats.errorCount;
     var targetStatusIcon = json.stats.status + ".svg";
     if (avatarImgTag.src != targetStatusIcon)

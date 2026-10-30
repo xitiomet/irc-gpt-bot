@@ -1,0 +1,82 @@
+<html>
+<head>
+    <script src="jquery.min.js"></script>
+    <script type="text/javascript">
+        function getParameterByName(name, url = window.location.href) 
+        {
+            name = name.replace(/[\[\]]/g, '\\$&');
+            var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+                results = regex.exec(url);
+            if (!results) return null;
+            if (!results[2]) return '';
+            return decodeURIComponent(results[2].replace(/\+/g, ' '));
+        }
+
+        function save()
+        {
+            var model = document.getElementById('model').value;
+            var updateCode = {
+                "model": model,
+                "apiPassword": getParameterByName('apiPassword')
+            };
+            postJSON("/ircgptbot/api/bot/" + encodeURIComponent(getParameterByName('id')) + "/model/", updateCode, () => { window.close() }, () => { window.close() });
+        }
+
+        function postJSON(url, data, onSuccess, onError) {
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: JSON.stringify(data),
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                success: onSuccess,
+                error: onError
+            });
+        }
+
+        function loaded()
+        {
+            document.getElementById('status').innerHTML = "Loading models&hellip;";
+            $.getJSON('/ircgptbot/api/bot/' + getParameterByName('id') + '/models/?apiPassword=' + encodeURIComponent(getParameterByName('apiPassword')) + '&id=' + encodeURIComponent(getParameterByName('id')), function(json) {
+                document.getElementById('botTitle').innerHTML = json.bot.id + " - Model";
+                var select = document.getElementById('model');
+                select.innerHTML = '';
+                var models = json.models || [];
+                var current = json.model;
+                var hasCurrent = false;
+                for (var i = 0; i < models.length; i++)
+                {
+                    var option = document.createElement('option');
+                    option.value = models[i];
+                    option.text = models[i];
+                    if (models[i] == current)
+                    {
+                        option.selected = true;
+                        hasCurrent = true;
+                    }
+                    select.appendChild(option);
+                }
+                if (!hasCurrent && current)
+                {
+                    var option = document.createElement('option');
+                    option.value = current;
+                    option.text = current + " (current)";
+                    option.selected = true;
+                    select.appendChild(option);
+                }
+                if (models.length == 0)
+                    document.getElementById('status').innerHTML = "No models returned. Check your API key and modelsApiUrl.";
+                else
+                    document.getElementById('status').innerHTML = '';
+            });
+        }
+    </script>
+</head>
+
+<body onload="loaded()" style="text-align: center; font-family: Sans Serif;">
+    <h2 id="botTitle">Model</h2>
+    <select id="model" size="20" style="width: 320px; font-size: 16px;"></select><br />
+    <p id="status"></p>
+    <button onclick="save()" style="width: 128px; height: 48px;">Save</button>
+</body>
+</html>
