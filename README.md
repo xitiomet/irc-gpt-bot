@@ -68,6 +68,8 @@ DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid J
             "gptEnabled": true,       // Is this bot connected to chatGPT (set to false for api only bot)
             "model": "gpt-3.5-turbo", // ChatGPT model to use
             "privateMessages": true,  // Respond to private messages
+            "gptTools": ["send_private_message", "send_notice", "send_action", "kick_user", "set_topic"], // Optional: IRC tools the AI may use (omit for all, [] for none)
+            "maxToolRounds": 5,       // Optional: max tool-calling round trips per reply
         }
     },
     "openAiKey": "",         // Your Open-AI API Key
@@ -75,7 +77,7 @@ DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid J
     "apiServer": true, // provide api server and web interface
     "apiPort": 6553, // port for api server and web interface
     "apiPassword": "changeme", // password for api server and web interface
-    "completionsApiUrl": "https://api.openai.com/v1/chat/completions", //optional for local ai server can also be in bot config
+    "responsesApiUrl": "https://api.openai.com/v1/responses", //optional for local ai server (must support the OpenAI Responses API) can also be in bot config
     "modelsApiUrl": "https://api.openai.com/v1/models" //optional, used to populate the model picker, can also be in bot config
 }
 ```
@@ -93,6 +95,20 @@ IRC GPT Bot: An IRC Bot for chatGPT
 ```
 
 When directly messaging this bot it will respond to all messages, however in a channel a user needs to use the bots name or be responding to a question the bot asked.
+
+### AI Tools
+
+The bot uses the OpenAI Responses API with function calling, so the model can act on IRC as well as reply:
+
+| Tool | Description |
+|------|-------------|
+| `send_private_message` | Send a private message to a user |
+| `send_notice` | Send a NOTICE to a user or channel |
+| `send_action` | Perform a `/me` action |
+| `kick_user` | Kick a user from the current channel (requires op; never kicks the bot itself or anyone in `botOps`) |
+| `set_topic` | Change the current channel's topic |
+
+`kick_user` and `set_topic` only apply to the channel the conversation is happening in and are not offered in private messages. Limit the available tools per bot with `"gptTools"`. Legacy `completionsApiUrl` settings are converted automatically by replacing `/chat/completions` with `/responses`.
 
 ### API Server / Web interface
 
