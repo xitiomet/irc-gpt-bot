@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.nio.charset.Charset;
@@ -23,6 +24,7 @@ import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 
 import org.apache.commons.cli.*;
+import org.apache.commons.cli.help.HelpFormatter;
 import org.json.*;
 
 import com.googlecode.lanterna.TerminalSize;
@@ -57,6 +59,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
     public static JSONObject settings;
     public static File settingsFile;
     public static IRCGPTBotMain instance;
+    private static boolean noConsoleGui = false;
     public static File logsFolder;
 
     private APIWebServer apiServer;
@@ -92,7 +95,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         {
             if (!settings.optBoolean("headless", false))
             {
-                if (settings.optBoolean("guiMode", false))
+                if (settings.optBoolean("guiMode", false) || IRCGPTBotMain.noConsoleGui)
                 {
                     final SwingTerminalFrame swingTerminal = new DefaultTerminalFactory().setInitialTerminalSize(new TerminalSize(80, 24)).createSwingTerminal();
                     swingTerminal.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -505,6 +508,11 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
             {
                 IRCGPTBotMain.settings.put("headless", true);
             }
+            else if (!cmd.hasOption("g") && System.console() == null && System.getProperty("os.name", "").startsWith("Windows"))
+            {
+                // The Windows native build has no console window, so the text UI needs the Swing terminal
+                IRCGPTBotMain.noConsoleGui = true;
+            }
             IRCGPTBotMain.chatGPT = new ChatGPT();
             IRCGPTBotMain botMain = new IRCGPTBotMain();
             botMain.start();
@@ -515,8 +523,13 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
     }
     public static void showHelp(Options options)
     {
-        HelpFormatter formatter = new HelpFormatter();
-        formatter.printHelp( "irc-gpt-bot", "IRC GPT Bot: An IRC Bot for chatGPT", options, "" );
+        try
+        {
+            HelpFormatter formatter = HelpFormatter.builder().get();
+            formatter.printHelp("irc-gpt-bot", "IRC GPT Bot: An IRC Bot for chatGPT", options, "", true);
+        } catch (IOException e) {
+            e.printStackTrace(System.err);
+        }
         System.exit(0);
     }
 

@@ -1,10 +1,10 @@
 package org.openstatic;
 
 import java.net.URL;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.eclipse.jetty.http.MimeTypes;
 
@@ -100,7 +100,7 @@ public class InterfaceServlet extends HttpServlet
         } else if (lc_file.endsWith(".3gp")) {
             return "video/3gpp";
         } else {
-            String result = MimeTypes.getDefaultMimeByExtension(filename);
+            String result = MimeTypes.DEFAULTS.getMimeByExtension(filename);
             if ("".equals(result) || result == null)
                 result = "application/octet-stream";
             return result;

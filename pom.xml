@@ -4,40 +4,40 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.openstatic</groupId>
     <artifactId>irc-gpt-bot</artifactId>
-    <version>1.5</version>
+    <version>1.7</version>
     <packaging>jar</packaging>
     <name>IrcGPTBot</name>
     <url>http://openstatic.org/</url>
     <properties>
         <mainClass>org.openstatic.IRCGPTBotMain</mainClass>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
         <imageName>irc-gpt-bot</imageName>
         <graalvm.version>22.3.0</graalvm.version>
         <skipNative>false</skipNative>
-        <jettyVersion>9.4.40.v20210413</jettyVersion>
+        <jettyVersion>12.1.14</jettyVersion>
     </properties>
     <dependencies>
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
-            <version>20160810</version>
+            <version>20260814</version>
         </dependency>
         <dependency>
             <groupId>org.kitteh.irc</groupId>
             <artifactId>client-lib</artifactId>
-            <version>8.0.0</version>
+            <version>9.0.0</version>
         </dependency>
         <dependency>
             <groupId>com.googlecode.lanterna</groupId>
             <artifactId>lanterna</artifactId>
-            <version>3.1.1</version>
+            <version>3.1.5</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/commons-cli/commons-cli -->
         <dependency>
             <groupId>commons-cli</groupId>
             <artifactId>commons-cli</artifactId>
-            <version>1.4</version>
+            <version>1.11.0</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
@@ -46,27 +46,17 @@
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-servlet</artifactId>
-            <version>${jettyVersion}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-io</artifactId>
-            <version>${jettyVersion}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-http</artifactId>
             <version>${jettyVersion}</version>
         </dependency>
         <dependency>
-            <groupId>org.eclipse.jetty.websocket</groupId>
-            <artifactId>websocket-servlet</artifactId>
+            <groupId>org.eclipse.jetty.ee11</groupId>
+            <artifactId>jetty-ee11-servlet</artifactId>
             <version>${jettyVersion}</version>
         </dependency>
         <dependency>
-            <groupId>org.eclipse.jetty.websocket</groupId>
-            <artifactId>websocket-server</artifactId>
+            <groupId>org.eclipse.jetty.ee11.websocket</groupId>
+            <artifactId>jetty-ee11-websocket-jetty-server</artifactId>
             <version>${jettyVersion}</version>
         </dependency>
     </dependencies>
@@ -75,7 +65,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>2.4</version>
+                <version>3.12.0</version>
                 <configuration>
                     <aggregate>true</aggregate>
                     <quiet>true</quiet>
@@ -109,7 +99,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.3.0</version>
+                <version>3.6.2</version>
                 <configuration>
                     <mainClass>${mainClass}</mainClass>
                     <transformers>
@@ -128,13 +118,15 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.graalvm.nativeimage</groupId>
-                <artifactId>native-image-maven-plugin</artifactId>
-                <version>21.2.0</version>
+                <groupId>org.graalvm.buildtools</groupId>
+                <artifactId>native-maven-plugin</artifactId>
+                <version>1.1.18</version>
+                <extensions>true</extensions>
                 <executions>
                     <execution>
+                        <id>build-native</id>
                         <goals>
-                            <goal>native-image</goal>
+                            <goal>compile-no-fork</goal>
                         </goals>
                         <phase>package</phase>
                     </execution>
@@ -144,324 +136,410 @@
                     <imageName>${imageName}</imageName>
                     <mainClass>${mainClass}</mainClass>
                     <buildArgs>
-                    --no-server
-                    --no-fallback
-                    --enable-https
-                    --enable-http
-                    -H:+UseServiceLoaderFeature
-                    --allow-incomplete-classpath
-                    --report-unsupported-elements-at-runtime
-                    -H:+ReportExceptionStackTraces --initialize-at-run-time=io.netty.handler.ssl.ReferenceCountedOpenSslContext --initialize-at-run-time=io.netty.handler.ssl.JdkNpnApplicationProtocolNegotiator --initialize-at-run-time=io.netty.handler.ssl.ConscryptAlpnSslEngine --initialize-at-run-time=io.netty.handler.ssl.ReferenceCountedOpenSslEngine --initialize-at-run-time=io.netty.handler.ssl.JettyAlpnSslEngine$ClientEngine --initialize-at-run-time=io.netty.handler.ssl.JettyAlpnSslEngine$ServerEngine --initialize-at-run-time=io.netty.handler.ssl.JettyNpnSslEngine --initialize-at-run-time=io.netty.util.internal.logging.Log4JLogger
+                        <buildArg>--no-fallback</buildArg>
+                        <buildArg>--enable-https</buildArg>
+                        <buildArg>--enable-http</buildArg>
+                        <buildArg>-H:+ReportExceptionStackTraces</buildArg>
+                        <buildArg>--initialize-at-run-time=io.netty.handler.ssl.ReferenceCountedOpenSslContext,io.netty.handler.ssl.JdkNpnApplicationProtocolNegotiator,io.netty.handler.ssl.ConscryptAlpnSslEngine,io.netty.handler.ssl.ReferenceCountedOpenSslEngine,io.netty.handler.ssl.JettyAlpnSslEngine$ClientEngine,io.netty.handler.ssl.JettyAlpnSslEngine$ServerEngine,io.netty.handler.ssl.JettyNpnSslEngine,io.netty.util.internal.logging.Log4JLogger,io.netty.handler.codec.compression.ZstdOptions,io.netty.handler.codec.compression.BrotliOptions</buildArg>
                     </buildArgs>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>com.akathist.maven.plugins.launch4j</groupId>
-                <artifactId>launch4j-maven-plugin</artifactId>
-                <version>2.0.1</version>
-                <executions>
-                    <execution>
-                        <id>l4j-gui</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>launch4j</goal>
-                        </goals>
-                        <configuration>
-                            <headerType>gui</headerType>
-                            <outfile>target/${imageName}.exe</outfile>
-                            <jar>target/${project.artifactId}-${project.version}.jar</jar>
-                            <!-- if <dontWrapJar>true</dontWrapJar> change to this conf <jar>${project.artifactId}-${project.version}.jar</jar> -->
-                            <dontWrapJar>false</dontWrapJar>
-                            <errTitle>Error in launch4j plugin</errTitle>
-                            <classPath>
-                                <mainClass>${mainClass}</mainClass>
-                            </classPath>
-                            <cmdLine>-g</cmdLine>
-                            <icon>${project.basedir}/src/main/resources/win.ico</icon>
-                            <chdir>.</chdir>
-                            <jre>
-                                <path>./jre</path>
-                                <minVersion>11</minVersion>
-                                <initialHeapSize>512</initialHeapSize>
-                                <maxHeapSize>1024</maxHeapSize>
-                                <opts>
-                                    <opt>-Djava.library.path=./natives/</opt>
-                                </opts>
-                            </jre>
-                            <versionInfo>
-                                <fileVersion>${project.version}.0.0</fileVersion>
-                                <txtFileVersion>${project.version}.0.0</txtFileVersion>
-                                <fileDescription>An IRC Bot for chatGPT</fileDescription>
-                                <copyright>Copyright (c) 2023</copyright>
-                                <companyName></companyName>
-                                <productVersion>1.0.0.0</productVersion>
-                                <txtProductVersion>${project.version}</txtProductVersion>
-                                <productName>${imageName}</productName>
-                                <internalName>${imageName}</internalName>
-                                <originalFilename>${imageName}.exe</originalFilename>
-                            </versionInfo>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <artifactId>jdeb</artifactId>
-                <groupId>org.vafer</groupId>
-                <version>1.8</version>
-                <executions>
-                    <!-- build native image debian package -->
-                    <execution>
-                        <id>native-debian-package</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>jdeb</goal>
-                        </goals>
-                        <configuration>
-                            <skip>${skipNative}</skip>
-                            <verbose>true</verbose>
-                            <snapshotExpand>true</snapshotExpand>
-                            <!-- expand "SNAPSHOT" to what is in the "USER" env variable -->
-                            <snapshotEnv>USER</snapshotEnv>
-                            <controlDir>${project.basedir}/src/deb/control-native</controlDir>
-                            <deb>${project.build.directory}/${project.artifactId}-${project.version}-native.deb</deb>
-                            <dataSet>
-                                <data>
-                                    <src>${project.build.directory}/${imageName}</src>
-                                    <type>file</type>
-                                    <mapper>
-                                        <type>perm</type>
-                                        <prefix>/usr/bin</prefix>
-                                        <user>loader</user>
-                                        <group>loader</group>
-                                        <filemode>755</filemode>
-                                    </mapper>
-                                </data>
-                                <data>
-                                    <src>${basedir}/src/deb/irc-gpt-bot.native.init.d</src>
-                                    <dst>irc-gpt-bot</dst>
-                                    <type>file</type>
-                                    <mapper>
-                                        <type>perm</type>
-                                        <prefix>/etc/init.d</prefix>
-                                        <user>loader</user>
-                                        <group>loader</group>
-                                        <filemode>755</filemode>
-                                    </mapper>
-                                </data>
-                                <data>
-                                    <src>${project.basedir}/src/main/resources/icon-64.png</src>
-                                    <type>file</type>
-                                    <mapper>
-                                        <type>perm</type>
-                                        <prefix>/usr/share/icons/${imageName}</prefix>
-                                        <user>loader</user>
-                                        <group>loader</group>
-                                        <filemode>755</filemode>
-                                    </mapper>
-                                </data>
-                                <data>
-                                    <src>${project.basedir}/src/deb/${imageName}.desktop</src>
-                                    <type>file</type>
-                                    <mapper>
-                                        <type>perm</type>
-                                        <prefix>/usr/share/applications</prefix>
-                                        <user>loader</user>
-                                        <group>loader</group>
-                                        <filemode>755</filemode>
-                                    </mapper>
-                                </data>
-                            </dataSet>
-                        </configuration>
-                    </execution>
-                    <!-- build java debian package -->
-                    <execution>
-                        <id>debian-package</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>jdeb</goal>
-                        </goals>
-                        <configuration>
-                            <verbose>true</verbose>
-                            <snapshotExpand>true</snapshotExpand>
-                            <!-- expand "SNAPSHOT" to what is in the "USER" env variable -->
-                            <snapshotEnv>USER</snapshotEnv>
-                            <controlDir>${project.basedir}/src/deb/control-java</controlDir>
-                            <deb>${project.build.directory}/${project.artifactId}-${project.version}-java.deb</deb>
-                            <dataSet>
-                                <data>
-                                    <src>${project.build.directory}/${project.build.finalName}.jar</src>
-                                    <type>file</type>
-                                    <mapper>
-                                        <type>perm</type>
-                                        <prefix>/usr/share/java</prefix>
-                                        <user>loader</user>
-                                        <group>loader</group>
-                                        <filemode>755</filemode>
-                                    </mapper>
-                                </data>
-                                <data>
-                                    <type>link</type>
-                                    <symlink>true</symlink>
-                                    <linkName>/usr/share/java/${imageName}.jar</linkName>
-                                    <linkTarget>/usr/share/java/${project.build.finalName}.jar</linkTarget>
-                                </data>
-                                <data>
-                                    <src>${project.basedir}/src/deb/${imageName}</src>
-                                    <type>file</type>
-                                    <mapper>
-                                        <type>perm</type>
-                                        <prefix>/usr/bin</prefix>
-                                        <user>loader</user>
-                                        <group>loader</group>
-                                        <filemode>755</filemode>
-                                    </mapper>
-                                </data>
-                                <data>
-                                    <src>${basedir}/src/deb/irc-gpt-bot.init.d</src>
-                                    <dst>irc-gpt-bot</dst>
-                                    <type>file</type>
-                                    <mapper>
-                                        <type>perm</type>
-                                        <prefix>/etc/init.d</prefix>
-                                        <user>loader</user>
-                                        <group>loader</group>
-                                        <filemode>755</filemode>
-                                    </mapper>
-                                </data>
-                                <data>
-                                    <src>${project.basedir}/src/main/resources/icon-64.png</src>
-                                    <type>file</type>
-                                    <mapper>
-                                        <type>perm</type>
-                                        <prefix>/usr/share/icons/${imageName}</prefix>
-                                        <user>loader</user>
-                                        <group>loader</group>
-                                        <filemode>755</filemode>
-                                    </mapper>
-                                </data>
-                                <data>
-                                    <src>${project.basedir}/src/deb/${imageName}.desktop</src>
-                                    <type>file</type>
-                                    <mapper>
-                                        <type>perm</type>
-                                        <prefix>/usr/share/applications</prefix>
-                                        <user>loader</user>
-                                        <group>loader</group>
-                                        <filemode>755</filemode>
-                                    </mapper>
-                                </data>
-                            </dataSet>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.digitalmediaserver</groupId>
-                <artifactId>nsis-maven-plugin</artifactId>
-                <version>1.0.2</version>
-                <configuration>
-                    <makensisExecutable>C:\Program Files (x86)\NSIS\makensis.exe</makensisExecutable>
-                    <makensisExecutableLinux>/usr/bin/makensis</makensisExecutableLinux>
-                    <makensisExecutableMacOS></makensisExecutableMacOS>
-                    <compression>lzma</compression>
-                    <compressionIsFinal>true</compressionIsFinal>
-                    <compressionDictSize>64</compressionDictSize>
-                    <defines>
-                        <PROJECT_NAME_SHORT>IRC-GPT-BOT</PROJECT_NAME_SHORT>
-                        <PROJECT_NAME_CAMEL>${project.name.camel}</PROJECT_NAME_CAMEL>
-                    </defines>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>build-windows-installer</id>
-                        <configuration>
-                            <scriptFile>${project.basedir}/src/nsis/irc-gpt-bot.nsi</scriptFile>
-                            <outputFile>IrcGPTBotSetup-${project.version}.exe</outputFile>
-                        </configuration>
-                        <goals>
-                            <goal>generate-headerfile</goal>
-                            <goal>make</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <version>3.1.0</version>
-                <executions>
-                    <execution>
-                        <id>fetch-appimagetool</id>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>run</goal>
-                        </goals>
-                        <configuration>
-                            <target>
-                                <property name="appimagetool.cacheDir" value="${user.home}/.cache/irc-gpt-bot"/>
-                                <property name="appimagetool.cache" value="${appimagetool.cacheDir}/appimagetool-x86_64.AppImage"/>
-                                <property name="appimagetool.dest" value="${project.build.directory}/assets/appimagetool"/>
-                                <property name="appimagetool.url" value="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"/>
-                                <mkdir dir="${appimagetool.cacheDir}"/>
-                                <mkdir dir="${project.build.directory}/assets"/>
-                                <get src="${appimagetool.url}"
-                                    dest="${appimagetool.cache}"
-                                    skipexisting="true"
-                                    verbose="true"
-                                    retries="3"/>
-                                <copy file="${appimagetool.cache}" tofile="${appimagetool.dest}" overwrite="true"/>
-                                <chmod file="${appimagetool.dest}" perm="755"/>
-                            </target>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>io.github.fvarrui</groupId>
-                <artifactId>javapackager</artifactId>
-                <version>1.7.0</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>package</goal>
-                        </goals>
-                        <configuration>
-                            <!-- mandatory -->
-                            <name>irc-chatgpt-bot</name>
-                            <mainClass>${mainClass}</mainClass>
-                            <!-- optional -->
-                            <copyDependencies>false</copyDependencies>
-                            <generateInstaller>true</generateInstaller>
-                            <administratorRequired>false</administratorRequired>
-                            <platform>linux</platform>
-                            <runnableJar>${project.basedir}/target/${project.artifactId}-${project.version}.jar</runnableJar>
-                            <bundleJre>true</bundleJre>
-                            <additionalModules>
-                                <additionalModule>jdk.crypto.ec</additionalModule>
-                                <additionalModule>java.base</additionalModule>
-                                <additionalModule>java.desktop</additionalModule>
-                                <additionalModule>java.logging</additionalModule>
-                                <additionalModule>java.management</additionalModule>
-                                <additionalModule>java.naming</additionalModule>
-                                <additionalModule>java.security.jgss</additionalModule>
-                                <additionalModule>java.sql</additionalModule>
-                                <additionalModule>java.xml</additionalModule>
-                            </additionalModules>
-                            <linuxConfig>
-                                <pngFile>${project.basedir}/src/main/resources/irc-chatgpt-bot.png</pngFile>
-                                <generateAppImage>true</generateAppImage>
-                                <generateDeb>false</generateDeb>
-                                <generateRpm>false</generateRpm>
-                                <wrapJar>false</wrapJar>
-                                <categories>
-                                    <category>Network</category>
-                                </categories>
-                            </linuxConfig>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>linux</id>
+            <activation>
+                <os>
+                    <family>unix</family>
+                    <name>linux</name>
+                </os>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.2.0</version>
+                        <executions>
+                            <execution>
+                                <id>fetch-appimagetool</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <property name="appimagetool.cacheDir" value="${user.home}/.cache/irc-gpt-bot"/>
+                                        <property name="appimagetool.cache" value="${appimagetool.cacheDir}/appimagetool-x86_64.AppImage"/>
+                                        <property name="appimagetool.dest" value="${project.build.directory}/assets/appimagetool"/>
+                                        <property name="appimagetool.url" value="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"/>
+                                        <mkdir dir="${appimagetool.cacheDir}"/>
+                                        <mkdir dir="${project.build.directory}/assets"/>
+                                        <get src="${appimagetool.url}"
+                                            dest="${appimagetool.cache}"
+                                            skipexisting="true"
+                                            verbose="true"
+                                            retries="3"/>
+                                        <copy file="${appimagetool.cache}" tofile="${appimagetool.dest}" overwrite="true"/>
+                                        <chmod file="${appimagetool.dest}" perm="755"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <artifactId>jdeb</artifactId>
+                        <groupId>org.vafer</groupId>
+                        <version>1.15</version>
+                        <executions>
+                            <!-- build native image debian package -->
+                            <execution>
+                                <id>native-debian-package</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>jdeb</goal>
+                                </goals>
+                                <configuration>
+                                    <skip>${skipNative}</skip>
+                                    <verbose>true</verbose>
+                                    <snapshotExpand>true</snapshotExpand>
+                                    <!-- expand "SNAPSHOT" to what is in the "USER" env variable -->
+                                    <snapshotEnv>USER</snapshotEnv>
+                                    <controlDir>${project.basedir}/src/deb/control-native</controlDir>
+                                    <deb>${project.build.directory}/${project.artifactId}-${project.version}-native.deb</deb>
+                                    <dataSet>
+                                        <data>
+                                            <src>${project.build.directory}/${imageName}</src>
+                                            <type>file</type>
+                                            <mapper>
+                                                <type>perm</type>
+                                                <prefix>/usr/bin</prefix>
+                                                <user>loader</user>
+                                                <group>loader</group>
+                                                <filemode>755</filemode>
+                                            </mapper>
+                                        </data>
+                                        <data>
+                                            <src>${basedir}/src/deb/irc-gpt-bot.native.init.d</src>
+                                            <dst>irc-gpt-bot</dst>
+                                            <type>file</type>
+                                            <mapper>
+                                                <type>perm</type>
+                                                <prefix>/etc/init.d</prefix>
+                                                <user>loader</user>
+                                                <group>loader</group>
+                                                <filemode>755</filemode>
+                                            </mapper>
+                                        </data>
+                                        <data>
+                                            <src>${project.basedir}/src/main/resources/icon-64.png</src>
+                                            <type>file</type>
+                                            <mapper>
+                                                <type>perm</type>
+                                                <prefix>/usr/share/icons/${imageName}</prefix>
+                                                <user>loader</user>
+                                                <group>loader</group>
+                                                <filemode>755</filemode>
+                                            </mapper>
+                                        </data>
+                                        <data>
+                                            <src>${project.basedir}/src/deb/${imageName}.desktop</src>
+                                            <type>file</type>
+                                            <mapper>
+                                                <type>perm</type>
+                                                <prefix>/usr/share/applications</prefix>
+                                                <user>loader</user>
+                                                <group>loader</group>
+                                                <filemode>755</filemode>
+                                            </mapper>
+                                        </data>
+                                    </dataSet>
+                                </configuration>
+                            </execution>
+                            <!-- build java debian package -->
+                            <execution>
+                                <id>debian-package</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>jdeb</goal>
+                                </goals>
+                                <configuration>
+                                    <verbose>true</verbose>
+                                    <snapshotExpand>true</snapshotExpand>
+                                    <!-- expand "SNAPSHOT" to what is in the "USER" env variable -->
+                                    <snapshotEnv>USER</snapshotEnv>
+                                    <controlDir>${project.basedir}/src/deb/control-java</controlDir>
+                                    <deb>${project.build.directory}/${project.artifactId}-${project.version}-java.deb</deb>
+                                    <dataSet>
+                                        <data>
+                                            <src>${project.build.directory}/${project.build.finalName}.jar</src>
+                                            <type>file</type>
+                                            <mapper>
+                                                <type>perm</type>
+                                                <prefix>/usr/share/java</prefix>
+                                                <user>loader</user>
+                                                <group>loader</group>
+                                                <filemode>755</filemode>
+                                            </mapper>
+                                        </data>
+                                        <data>
+                                            <type>link</type>
+                                            <symlink>true</symlink>
+                                            <linkName>/usr/share/java/${imageName}.jar</linkName>
+                                            <linkTarget>/usr/share/java/${project.build.finalName}.jar</linkTarget>
+                                        </data>
+                                        <data>
+                                            <src>${project.basedir}/src/deb/${imageName}</src>
+                                            <type>file</type>
+                                            <mapper>
+                                                <type>perm</type>
+                                                <prefix>/usr/bin</prefix>
+                                                <user>loader</user>
+                                                <group>loader</group>
+                                                <filemode>755</filemode>
+                                            </mapper>
+                                        </data>
+                                        <data>
+                                            <src>${basedir}/src/deb/irc-gpt-bot.init.d</src>
+                                            <dst>irc-gpt-bot</dst>
+                                            <type>file</type>
+                                            <mapper>
+                                                <type>perm</type>
+                                                <prefix>/etc/init.d</prefix>
+                                                <user>loader</user>
+                                                <group>loader</group>
+                                                <filemode>755</filemode>
+                                            </mapper>
+                                        </data>
+                                        <data>
+                                            <src>${project.basedir}/src/main/resources/icon-64.png</src>
+                                            <type>file</type>
+                                            <mapper>
+                                                <type>perm</type>
+                                                <prefix>/usr/share/icons/${imageName}</prefix>
+                                                <user>loader</user>
+                                                <group>loader</group>
+                                                <filemode>755</filemode>
+                                            </mapper>
+                                        </data>
+                                        <data>
+                                            <src>${project.basedir}/src/deb/${imageName}.desktop</src>
+                                            <type>file</type>
+                                            <mapper>
+                                                <type>perm</type>
+                                                <prefix>/usr/share/applications</prefix>
+                                                <user>loader</user>
+                                                <group>loader</group>
+                                                <filemode>755</filemode>
+                                            </mapper>
+                                        </data>
+                                    </dataSet>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>io.github.fvarrui</groupId>
+                        <artifactId>javapackager</artifactId>
+                        <version>1.7.6</version>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>package</goal>
+                                </goals>
+                                <configuration>
+                                    <!-- mandatory -->
+                                    <name>irc-chatgpt-bot</name>
+                                    <mainClass>${mainClass}</mainClass>
+                                    <!-- optional -->
+                                    <copyDependencies>false</copyDependencies>
+                                    <generateInstaller>true</generateInstaller>
+                                    <administratorRequired>false</administratorRequired>
+                                    <platform>linux</platform>
+                                    <runnableJar>${project.basedir}/target/${project.artifactId}-${project.version}.jar</runnableJar>
+                                    <bundleJre>true</bundleJre>
+                                    <additionalModules>
+                                        <additionalModule>jdk.crypto.ec</additionalModule>
+                                        <additionalModule>java.base</additionalModule>
+                                        <additionalModule>java.desktop</additionalModule>
+                                        <additionalModule>java.logging</additionalModule>
+                                        <additionalModule>java.management</additionalModule>
+                                        <additionalModule>java.naming</additionalModule>
+                                        <additionalModule>java.security.jgss</additionalModule>
+                                        <additionalModule>java.sql</additionalModule>
+                                        <additionalModule>java.xml</additionalModule>
+                                    </additionalModules>
+                                    <linuxConfig>
+                                        <pngFile>${project.basedir}/src/main/resources/irc-chatgpt-bot.png</pngFile>
+                                        <generateAppImage>true</generateAppImage>
+                                        <generateDeb>false</generateDeb>
+                                        <generateRpm>false</generateRpm>
+                                        <wrapJar>false</wrapJar>
+                                        <categories>
+                                            <category>Network</category>
+                                        </categories>
+                                    </linuxConfig>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>windows</id>
+            <activation>
+                <os>
+                    <family>windows</family>
+                </os>
+            </activation>
+            <properties>
+                <windows.makeNSIS>makensis.exe</windows.makeNSIS>
+                <windows.vcRuntimeDir></windows.vcRuntimeDir>
+                <windows.res>${project.build.directory}/${imageName}.res</windows.res>
+                <skipWindowsInstaller>${skipNative}</skipWindowsInstaller>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>3.7.0</version>
+                        <executions>
+                            <execution>
+                                <id>parse-version</id>
+                                <goals>
+                                    <goal>parse-version</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.2.0</version>
+                        <executions>
+                            <execution>
+                                <id>generate-windows-rc</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <skip>${skipNative}</skip>
+                                    <target>
+                                        <pathconvert property="windows.icon" targetos="unix">
+                                            <path location="${project.basedir}/src/main/resources/win.ico"/>
+                                        </pathconvert>
+                                        <copy file="${project.basedir}/src/windows/irc-gpt-bot.rc" tofile="${project.build.directory}/${imageName}.rc" overwrite="true">
+                                            <filterchain>
+                                                <replacetokens>
+                                                    <token key="ICON" value="${windows.icon}"/>
+                                                    <token key="VERSION" value="${project.version}"/>
+                                                    <token key="VERSION_MAJOR" value="${parsedVersion.majorVersion}"/>
+                                                    <token key="VERSION_MINOR" value="${parsedVersion.minorVersion}"/>
+                                                    <token key="VERSION_PATCH" value="${parsedVersion.incrementalVersion}"/>
+                                                </replacetokens>
+                                            </filterchain>
+                                        </copy>
+                                    </target>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>copy-jdk-fontconfig</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <skip>${skipNative}</skip>
+                                    <target>
+                                        <!-- AWT (used by GUI mode) loads font configuration from ${java.home}/lib,
+                                             which for a native image resolves to the executable's own directory. -->
+                                        <property environment="env"/>
+                                        <condition property="jdk.home" value="${env.GRAALVM_HOME}" else="${java.home}">
+                                            <isset property="env.GRAALVM_HOME"/>
+                                        </condition>
+                                        <copy todir="${project.build.directory}/lib" failonerror="true">
+                                            <fileset dir="${jdk.home}/lib">
+                                                <include name="fontconfig.bfc"/>
+                                                <include name="fontconfig.properties.src"/>
+                                                <include name="fonts/**"/>
+                                            </fileset>
+                                        </copy>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.6.4</version>
+                        <executions>
+                            <execution>
+                                <id>compile-windows-resources</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <skip>${skipNative}</skip>
+                                    <executable>rc.exe</executable>
+                                    <arguments>
+                                        <argument>/nologo</argument>
+                                        <argument>/fo</argument>
+                                        <argument>${windows.res}</argument>
+                                        <argument>${project.build.directory}/${imageName}.rc</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>build-windows-installer</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <skip>${skipWindowsInstaller}</skip>
+                                    <executable>powershell.exe</executable>
+                                    <arguments>
+                                        <argument>-NoProfile</argument>
+                                        <argument>-NonInteractive</argument>
+                                        <argument>-ExecutionPolicy</argument>
+                                        <argument>Bypass</argument>
+                                        <argument>-File</argument>
+                                        <argument>${project.basedir}/src/windows/Build-Installer.ps1</argument>
+                                        <argument>-Version</argument>
+                                        <argument>${project.version}</argument>
+                                        <argument>-ImageName</argument>
+                                        <argument>${imageName}</argument>
+                                        <argument>-MakeNSIS</argument>
+                                        <argument>${windows.makeNSIS}</argument>
+                                        <argument>-VCRuntimeDirectory</argument>
+                                        <argument>${windows.vcRuntimeDir}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <configuration>
+                            <buildArgs combine.children="append">
+                                <buildArg>--initialize-at-run-time=sun.java2d,sun.awt,java.awt,javax.swing,sun.font,com.sun.imageio,sun.swing</buildArg>
+                                <buildArg>-H:NativeLinkerOption=${windows.res}</buildArg>
+                                <!-- GUI subsystem: no console window. Without -h the app opens its Swing terminal (see IRCGPTBotMain). -->
+                                <buildArg>-H:NativeLinkerOption=/SUBSYSTEM:WINDOWS</buildArg>
+                                <buildArg>-H:NativeLinkerOption=/ENTRY:mainCRTStartup</buildArg>
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

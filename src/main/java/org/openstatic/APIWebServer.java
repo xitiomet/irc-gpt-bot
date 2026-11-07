@@ -13,39 +13,41 @@ import java.util.HashMap;
 import java.util.Set;
 import java.util.StringTokenizer;
 
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.eclipse.jetty.server.Server;
 
-import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
-import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
-import org.eclipse.jetty.websocket.common.WebSocketSession;
+import org.eclipse.jetty.ee11.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee11.websocket.server.JettyWebSocketServlet;
+import org.eclipse.jetty.ee11.websocket.server.JettyWebSocketServletFactory;
+import org.eclipse.jetty.ee11.websocket.server.config.JettyWebSocketServletContainerInitializer;
+import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
-import org.eclipse.jetty.servlet.ServletContextHandler;
 
 public class APIWebServer implements IRCGPTBotListener
 {
     private Server httpServer;
-    protected ArrayList<WebSocketSession> wsSessions;
-    protected HashMap<WebSocketSession, JSONObject> sessionProps;
+    protected ArrayList<Session> wsSessions;
+    protected HashMap<Session, JSONObject> sessionProps;
 
     protected static APIWebServer instance;
 
     public APIWebServer()
     {
         APIWebServer.instance = this;
-        this.wsSessions = new ArrayList<WebSocketSession>();
-        this.sessionProps = new HashMap<WebSocketSession, JSONObject>();
+        this.wsSessions = new ArrayList<Session>();
+        this.sessionProps = new HashMap<Session, JSONObject>();
         httpServer = new Server(IRCGPTBotMain.settings.optInt("apiPort", 6553));
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
         context.setContextPath("/");
+        JettyWebSocketServletContainerInitializer.configure(context, null);
         context.addServlet(ApiServlet.class, "/ircgptbot/api/*");
         context.addServlet(EventsWebSocketServlet.class, "/ircgptbot/*");
         try {
@@ -56,7 +58,7 @@ public class APIWebServer implements IRCGPTBotListener
         httpServer.setHandler(context);
     }
 
-    public void shareBots(WebSocketSession session)
+    public void shareBots(Session session)
     {
         IRCGPTBotMain.instance.getBots().forEach((bot) -> {
             JSONObject msg = new JSONObject();
@@ -64,11 +66,11 @@ public class APIWebServer implements IRCGPTBotListener
             msg.put("id", bot.getBotId());
             msg.put("stats", bot.toJSONObject());
             msg.put("preamble", bot.getPreamble());
-            session.getRemote().sendStringByFuture(msg.toString());
+            session.sendText(msg.toString(), Callback.NOOP);
         });
     }
 
-    public void handleWebSocketEvent(JSONObject j, WebSocketSession session) 
+    public void handleWebSocketEvent(JSONObject j, Session session) 
     {
         JSONObject sessionProperties = this.sessionProps.get(session);
         if (j.has("command"))
@@ -113,7 +115,7 @@ public class APIWebServer implements IRCGPTBotListener
                         authObj.put("action", "subscribed");
                         authObj.put("id", bot.getBotId());
                         authObj.put("subscriptions", subscriptions);
-                        session.getRemote().sendStringByFuture(authObj.toString());
+                        session.sendText(authObj.toString(), Callback.NOOP);
                     }
                 }
                 if (command.equals("reconnect"))
@@ -208,25 +210,25 @@ public class APIWebServer implements IRCGPTBotListener
                             JSONObject authObj = new JSONObject();
                             authObj.put("action", "authFail");
                             authObj.put("error", "Invalid Password!");
-                            session.getRemote().sendStringByFuture(authObj.toString());
+                            session.sendText(authObj.toString(), Callback.NOOP);
                         } else {
                             sessionProperties.put("auth", true);
                             JSONObject authObj = new JSONObject();
                             authObj.put("action", "authOk");
-                            session.getRemote().sendStringByFuture(authObj.toString());
+                            session.sendText(authObj.toString(), Callback.NOOP);
                             shareBots(session);
                         }
                     } catch (Exception e) {
                         JSONObject authObj = new JSONObject();
                         authObj.put("action", "authFail");
                         authObj.put("error", e.getLocalizedMessage());
-                        session.getRemote().sendStringByFuture(authObj.toString());
+                        session.sendText(authObj.toString(), Callback.NOOP);
                     }
                 } else {
                     JSONObject authObj = new JSONObject();
                     authObj.put("action", command);
                     authObj.put("error", "You must first authenticate before issuing commands");
-                    session.getRemote().sendStringByFuture(authObj.toString());
+                    session.sendText(authObj.toString(), Callback.NOOP);
                 }
             }
         }
@@ -260,7 +262,7 @@ public class APIWebServer implements IRCGPTBotListener
                     JSONArray subscriptions = sessionProps.optJSONArray("subscriptions");
                     if (IRCGPTBotMain.inJSONArray(subscriptions, subId))
                     {
-                        s.getRemote().sendStringByFuture(message);
+                        s.sendText(message, Callback.NOOP);
                     }
                 }
             } catch (Exception e) {
@@ -277,7 +279,7 @@ public class APIWebServer implements IRCGPTBotListener
                 JSONObject sessionProps = this.sessionProps.get(s);
                 if (sessionProps.optBoolean("auth", false))
                 {
-                    s.getRemote().sendStringByFuture(message);
+                    s.sendText(message, Callback.NOOP);
                 }
             } catch (Exception e) {
 
@@ -285,9 +287,9 @@ public class APIWebServer implements IRCGPTBotListener
         }
     }
 
-    public static class EventsWebSocketServlet extends WebSocketServlet {
+    public static class EventsWebSocketServlet extends JettyWebSocketServlet {
         @Override
-        public void configure(WebSocketServletFactory factory) {
+        public void configure(JettyWebSocketServletFactory factory) {
             // factory.getPolicy().setIdleTimeout(10000);
             factory.register(EventsWebSocket.class);
         }
@@ -300,37 +302,22 @@ public class APIWebServer implements IRCGPTBotListener
         public void onText(Session session, String message) throws IOException {
             try {
                 JSONObject jo = new JSONObject(message);
-                if (session instanceof WebSocketSession) {
-                    WebSocketSession wssession = (WebSocketSession) session;
-                    APIWebServer.instance.handleWebSocketEvent(jo, wssession);
-                } else {
-                    //System.err.println("not instance of WebSocketSession");
-                }
+                APIWebServer.instance.handleWebSocketEvent(jo, session);
             } catch (Exception e) {
                 //e.printStackTrace(System.err);
             }
         }
 
-        @OnWebSocketConnect
+        @OnWebSocketOpen
         public void onConnect(Session session) throws IOException {
-            //System.err.println("@OnWebSocketConnect");
-            if (session instanceof WebSocketSession) {
-                WebSocketSession wssession = (WebSocketSession) session;
-                //System.out.println(wssession.getRemoteAddress().getHostString() + " connected!");
-                APIWebServer.instance.wsSessions.add(wssession);
-                APIWebServer.instance.sessionProps.put(wssession, new JSONObject());
-            } else {
-                //System.err.println("Not an instance of WebSocketSession");
-            }
+            APIWebServer.instance.wsSessions.add(session);
+            APIWebServer.instance.sessionProps.put(session, new JSONObject());
         }
 
         @OnWebSocketClose
         public void onClose(Session session, int status, String reason) {
-            if (session instanceof WebSocketSession) {
-                WebSocketSession wssession = (WebSocketSession) session;
-                APIWebServer.instance.wsSessions.remove(wssession);
-                APIWebServer.instance.sessionProps.remove(wssession);
-            }
+            APIWebServer.instance.wsSessions.remove(session);
+            APIWebServer.instance.sessionProps.remove(session);
         }
 
     }

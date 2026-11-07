@@ -33,7 +33,12 @@ To compile this project from source please run:
 ```bash
 $ mvn package
 ```
-from a terminal.
+from a terminal. The build uses a GraalVM JDK (25+) and picks an operating system profile automatically:
+
+- **linux**: native executable, native and Java `.deb` packages, and an AppImage
+- **windows**: native `irc-gpt-bot.exe` and an NSIS installer (`target/IrcGPTBotSetup-<version>.exe`); see [NSIS.md](NSIS.md)
+
+Add `-DskipNative=true` to build only the Java jar and skip the native executable and its packages.
 
 copy "default-config.json" to "~/.irc-gpt-bot.json" and fill in the blanks with your information. You can also create a config file anywhere and use the -f option.
 DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid JSON.

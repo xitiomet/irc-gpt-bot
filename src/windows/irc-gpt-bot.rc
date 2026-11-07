@@ -1,0 +1,28 @@
+#include <winver.h>
+
+1 ICON "@ICON@"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION @VERSION_MAJOR@,@VERSION_MINOR@,@VERSION_PATCH@,0
+ PRODUCTVERSION @VERSION_MAJOR@,@VERSION_MINOR@,@VERSION_PATCH@,0
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_APP
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName", "openstatic.org\0"
+            VALUE "FileDescription", "IRC GPT Bot\0"
+            VALUE "FileVersion", "@VERSION@\0"
+            VALUE "InternalName", "irc-gpt-bot\0"
+            VALUE "OriginalFilename", "irc-gpt-bot.exe\0"
+            VALUE "ProductName", "IRC GPT Bot\0"
+            VALUE "ProductVersion", "@VERSION@\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

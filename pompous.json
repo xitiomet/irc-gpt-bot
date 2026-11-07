@@ -12,7 +12,7 @@
     "nativeImage": "on",
     "debianPackage": "on",
     "appImage": "on",
-    "launch4j": "on",
+    "launch4j": "off",
     "nsisPackage": "on",
     "generate": "Build my Maven Project STUB"
 }

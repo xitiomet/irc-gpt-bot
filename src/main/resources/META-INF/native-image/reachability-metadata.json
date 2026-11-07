@@ -1,7 +1,13 @@
 {
   "reflection": [
     {
+      "type": "boolean[]"
+    },
+    {
       "type": "byte[]"
+    },
+    {
+      "type": "char[]"
     },
     {
       "type": "com.googlecode.lanterna.gui2.AbstractBasePane",
@@ -214,6 +220,161 @@
           "parameterTypes": []
         }
       ]
+    },
+    {
+      "type": "com.sun.management.GarbageCollectorMXBean"
+    },
+    {
+      "type": "com.sun.management.GcInfo"
+    },
+    {
+      "type": "com.sun.management.HotSpotDiagnosticMXBean",
+      "methods": [
+        {
+          "name": "getVMOption",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.management.ThreadMXBean"
+    },
+    {
+      "type": "com.sun.management.UnixOperatingSystemMXBean"
+    },
+    {
+      "type": "com.sun.management.VMOption",
+      "methods": [
+        {
+          "name": "getName",
+          "parameterTypes": []
+        },
+        {
+          "name": "getOrigin",
+          "parameterTypes": []
+        },
+        {
+          "name": "getValue",
+          "parameterTypes": []
+        },
+        {
+          "name": "isWriteable",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.management.VMOption$Origin",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "ATTACH_ON_DEMAND"
+        },
+        {
+          "name": "CONFIG_FILE"
+        },
+        {
+          "name": "DEFAULT"
+        },
+        {
+          "name": "ENVIRON_VAR"
+        },
+        {
+          "name": "ERGONOMIC"
+        },
+        {
+          "name": "MANAGEMENT"
+        },
+        {
+          "name": "OTHER"
+        },
+        {
+          "name": "VM_CREATION"
+        }
+      ]
+    },
+    {
+      "type": "com.sun.management.internal.DiagnosticCommandArgumentInfo",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "boolean",
+            "boolean",
+            "boolean",
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.management.internal.DiagnosticCommandArgumentInfo[]"
+    },
+    {
+      "type": "com.sun.management.internal.DiagnosticCommandInfo",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String",
+            "java.lang.String",
+            "boolean",
+            "java.util.List"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.management.internal.DiagnosticCommandInfo[]"
+    },
+    {
+      "type": "com.sun.management.internal.Flag",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.Object",
+            "boolean",
+            "boolean",
+            "com.sun.management.VMOption$Origin"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.management.internal.GarbageCollectorExtImpl"
+    },
+    {
+      "type": "com.sun.management.internal.HotSpotDiagnostic"
+    },
+    {
+      "type": "com.sun.management.internal.HotSpotThreadImpl"
+    },
+    {
+      "type": "com.sun.management.internal.OperatingSystemImpl"
+    },
+    {
+      "type": "com.sun.management.internal.VirtualThreadSchedulerImpls$VirtualThreadSchedulerImpl"
+    },
+    {
+      "type": "double[]"
+    },
+    {
+      "type": "float[]"
+    },
+    {
+      "type": "int[]"
     },
     {
       "type": "io.netty.buffer.AbstractByteBufAllocator",
@@ -864,6 +1025,9 @@
       "type": "io.netty.util.DefaultAttributeMap"
     },
     {
+      "type": "io.netty.util.Recycler$DefaultHandle"
+    },
+    {
       "type": "io.netty.util.ReferenceCountUtil",
       "allDeclaredMethods": true
     },
@@ -936,7 +1100,18 @@
     {
       "type": "java.lang.Boolean",
       "jniAccessible": true,
+      "fields": [
+        {
+          "name": "TYPE"
+        }
+      ],
       "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "boolean"
+          ]
+        },
         {
           "name": "getBoolean",
           "parameterTypes": [
@@ -953,12 +1128,25 @@
     },
     {
       "type": "java.lang.Byte",
+      "fields": [
+        {
+          "name": "TYPE"
+        }
+      ],
       "methods": [
         {
           "name": "valueOf",
           "parameterTypes": [
             "java.lang.String"
           ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Character",
+      "fields": [
+        {
+          "name": "TYPE"
         }
       ]
     },
@@ -988,7 +1176,15 @@
       ]
     },
     {
+      "type": "java.lang.Deprecated"
+    },
+    {
       "type": "java.lang.Double",
+      "fields": [
+        {
+          "name": "TYPE"
+        }
+      ],
       "methods": [
         {
           "name": "valueOf",
@@ -1000,6 +1196,11 @@
     },
     {
       "type": "java.lang.Float",
+      "fields": [
+        {
+          "name": "TYPE"
+        }
+      ],
       "methods": [
         {
           "name": "valueOf",
@@ -1011,6 +1212,11 @@
     },
     {
       "type": "java.lang.Integer",
+      "fields": [
+        {
+          "name": "TYPE"
+        }
+      ],
       "methods": [
         {
           "name": "valueOf",
@@ -1022,6 +1228,11 @@
     },
     {
       "type": "java.lang.Long",
+      "fields": [
+        {
+          "name": "TYPE"
+        }
+      ],
       "methods": [
         {
           "name": "valueOf",
@@ -1058,7 +1269,36 @@
       "allDeclaredMethods": true
     },
     {
+      "type": "java.lang.ProcessHandle",
+      "methods": [
+        {
+          "name": "current",
+          "parameterTypes": []
+        },
+        {
+          "name": "pid",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.SecurityManager",
+      "methods": [
+        {
+          "name": "checkPermission",
+          "parameterTypes": [
+            "java.security.Permission"
+          ]
+        }
+      ]
+    },
+    {
       "type": "java.lang.Short",
+      "fields": [
+        {
+          "name": "TYPE"
+        }
+      ],
       "methods": [
         {
           "name": "valueOf",
@@ -1069,10 +1309,22 @@
       ]
     },
     {
+      "type": "java.lang.StackTraceElement"
+    },
+    {
       "type": "java.lang.String"
     },
     {
       "type": "java.lang.String[]"
+    },
+    {
+      "type": "java.lang.System",
+      "methods": [
+        {
+          "name": "getSecurityManager",
+          "parameterTypes": []
+        }
+      ]
     },
     {
       "type": "java.lang.Thread",
@@ -1080,8 +1332,41 @@
         {
           "name": "isVirtual",
           "parameterTypes": []
+        },
+        {
+          "name": "ofVirtual",
+          "parameterTypes": []
         }
       ]
+    },
+    {
+      "type": "java.lang.Thread$Builder",
+      "methods": [
+        {
+          "name": "factory",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Void",
+      "fields": [
+        {
+          "name": "TYPE"
+        }
+      ]
+    },
+    {
+      "type": "java.lang.management.BufferPoolMXBean"
+    },
+    {
+      "type": "java.lang.management.ClassLoadingMXBean"
+    },
+    {
+      "type": "java.lang.management.CompilationMXBean"
+    },
+    {
+      "type": "java.lang.management.LockInfo"
     },
     {
       "type": "java.lang.management.ManagementFactory",
@@ -1091,6 +1376,24 @@
           "parameterTypes": []
         }
       ]
+    },
+    {
+      "type": "java.lang.management.MemoryMXBean"
+    },
+    {
+      "type": "java.lang.management.MemoryManagerMXBean"
+    },
+    {
+      "type": "java.lang.management.MemoryPoolMXBean"
+    },
+    {
+      "type": "java.lang.management.MemoryUsage"
+    },
+    {
+      "type": "java.lang.management.MonitorInfo"
+    },
+    {
+      "type": "java.lang.management.PlatformLoggingMXBean"
     },
     {
       "type": "java.lang.management.RuntimeMXBean",
@@ -1147,6 +1450,12 @@
       ]
     },
     {
+      "type": "java.math.BigDecimal"
+    },
+    {
+      "type": "java.math.BigInteger"
+    },
+    {
       "type": "java.nio.Bits",
       "fields": [
         {
@@ -1163,6 +1472,9 @@
       ]
     },
     {
+      "type": "java.nio.ByteBuffer"
+    },
+    {
       "type": "java.nio.DirectByteBuffer",
       "methods": [
         {
@@ -1170,6 +1482,20 @@
           "parameterTypes": [
             "long",
             "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.nio.channels.spi.SelectorProvider"
+    },
+    {
+      "type": "java.security.AccessController",
+      "methods": [
+        {
+          "name": "doPrivileged",
+          "parameterTypes": [
+            "java.security.PrivilegedAction"
           ]
         }
       ]
@@ -1199,7 +1525,72 @@
       "type": "java.security.interfaces.RSAPublicKey"
     },
     {
+      "type": "java.util.Arrays",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "asList",
+          "parameterTypes": [
+            "java.lang.Object[]"
+          ]
+        }
+      ]
+    },
+    {
       "type": "java.util.Date"
+    },
+    {
+      "type": "java.util.concurrent.Executors",
+      "methods": [
+        {
+          "name": "newThreadPerTaskExecutor",
+          "parameterTypes": [
+            "java.util.concurrent.ThreadFactory"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "javax.management.MBeanOperationInfo"
+    },
+    {
+      "type": "javax.management.MBeanServerBuilder",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "javax.management.ObjectName"
+    },
+    {
+      "type": "javax.management.StandardEmitterMBean"
+    },
+    {
+      "type": "javax.management.openmbean.CompositeData"
+    },
+    {
+      "type": "javax.management.openmbean.CompositeData[]"
+    },
+    {
+      "type": "javax.management.openmbean.OpenMBeanOperationInfoSupport"
+    },
+    {
+      "type": "javax.management.openmbean.TabularData"
+    },
+    {
+      "type": "javax.security.auth.Subject",
+      "methods": [
+        {
+          "name": "callAs",
+          "parameterTypes": [
+            "javax.security.auth.Subject",
+            "java.util.concurrent.Callable"
+          ]
+        }
+      ]
     },
     {
       "type": "javax.security.auth.x500.X500Principal",
@@ -1231,6 +1622,30 @@
       ]
     },
     {
+      "type": "jdk.management.VirtualThreadSchedulerMXBean"
+    },
+    {
+      "type": "jdk.management.jfr.ConfigurationInfo"
+    },
+    {
+      "type": "jdk.management.jfr.EventTypeInfo"
+    },
+    {
+      "type": "jdk.management.jfr.FlightRecorderMXBean"
+    },
+    {
+      "type": "jdk.management.jfr.FlightRecorderMXBeanImpl"
+    },
+    {
+      "type": "jdk.management.jfr.RecordingInfo"
+    },
+    {
+      "type": "jdk.management.jfr.SettingDescriptorInfo"
+    },
+    {
+      "type": "long[]"
+    },
+    {
       "type": "net.engio.mbassy.dispatch.ReflectiveHandlerInvocation",
       "methods": [
         {
@@ -1240,6 +1655,12 @@
           ]
         }
       ]
+    },
+    {
+      "type": "org.eclipse.jetty.http.Http10FieldPreEncoder"
+    },
+    {
+      "type": "org.eclipse.jetty.http.Http11FieldPreEncoder"
     },
     {
       "type": "org.eclipse.jetty.http.Http1FieldPreEncoder"
@@ -1261,6 +1682,52 @@
       "methods": [
         {
           "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.jetty.util.TypeUtil",
+      "methods": [
+        {
+          "name": "getClassLoaderLocation",
+          "parameterTypes": [
+            "java.lang.Class"
+          ]
+        },
+        {
+          "name": "getCodeSourceLocation",
+          "parameterTypes": [
+            "java.lang.Class"
+          ]
+        },
+        {
+          "name": "getModuleLocation",
+          "parameterTypes": [
+            "java.lang.Class"
+          ]
+        },
+        {
+          "name": "getSystemClassLoaderLocation",
+          "parameterTypes": [
+            "java.lang.Class"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.jetty.util.Utf8StringBuilder",
+      "methods": [
+        {
+          "name": "errorActionIgnore",
+          "parameterTypes": []
+        },
+        {
+          "name": "errorActionReplace",
+          "parameterTypes": []
+        },
+        {
+          "name": "errorActionReport",
           "parameterTypes": []
         }
       ]
@@ -1297,6 +1764,34 @@
     },
     {
       "type": "org.eclipse.jetty.websocket.common.extensions.identity.IdentityExtension"
+    },
+    {
+      "type": "org.eclipse.jetty.websocket.core.internal.FragmentExtension"
+    },
+    {
+      "type": "org.eclipse.jetty.websocket.core.internal.FrameCaptureExtension"
+    },
+    {
+      "type": "org.eclipse.jetty.websocket.core.internal.IdentityExtension"
+    },
+    {
+      "type": "org.eclipse.jetty.websocket.core.internal.PerMessageDeflateExtension"
+    },
+    {
+      "type": "org.eclipse.jetty.websocket.core.internal.ValidationExtension"
+    },
+    {
+      "type": "org.eclipse.jetty.websocket.core.messages.StringMessageSink",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "org.eclipse.jetty.websocket.core.CoreSession",
+            "org.eclipse.jetty.websocket.core.util.MethodHolder",
+            "boolean"
+          ]
+        }
+      ]
     },
     {
       "type": "org.eclipse.jetty.websocket.server.WebSocketServerFactory",
@@ -1585,6 +2080,17 @@
       ]
     },
     {
+      "type": "org.openstatic.GPTTools$ListCollector",
+      "methods": [
+        {
+          "name": "onNumeric",
+          "parameterTypes": [
+            "org.kitteh.irc.client.library.event.client.ClientReceiveNumericEvent"
+          ]
+        }
+      ]
+    },
+    {
       "type": "org.openstatic.IRCGPTBot",
       "methods": [
         {
@@ -1655,6 +2161,33 @@
           "parameterTypes": []
         }
       ]
+    },
+    {
+      "type": "short[]"
+    },
+    {
+      "type": "sun.management.ClassLoadingImpl"
+    },
+    {
+      "type": "sun.management.CompilationImpl"
+    },
+    {
+      "type": "sun.management.ManagementFactoryHelper$1"
+    },
+    {
+      "type": "sun.management.ManagementFactoryHelper$PlatformLoggingImpl"
+    },
+    {
+      "type": "sun.management.MemoryImpl"
+    },
+    {
+      "type": "sun.management.MemoryManagerImpl"
+    },
+    {
+      "type": "sun.management.MemoryPoolImpl"
+    },
+    {
+      "type": "sun.management.RuntimeImpl"
     },
     {
       "type": "sun.management.VMManagementImpl",
@@ -1754,6 +2287,19 @@
         },
         {
           "name": "selectedKeys"
+        }
+      ]
+    },
+    {
+      "type": "sun.reflect.misc.Trampoline",
+      "methods": [
+        {
+          "name": "invoke",
+          "parameterTypes": [
+            "java.lang.reflect.Method",
+            "java.lang.Object",
+            "java.lang.Object[]"
+          ]
         }
       ]
     },
