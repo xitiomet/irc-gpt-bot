@@ -40,16 +40,6 @@ function sendEvent(wsEvent)
     }
 }
 
-function notice(objectId)
-{
-    var channelName = prompt("Enter Channel Name or Nickname (ex: #lobby)");
-    var notice = prompt("Enter Notice Message");
-    if (channelName != undefined && channelName != '' && notice != undefined)
-    {
-        sendEvent({"command":"notice", "id": objectId, "to": channelName, "message": notice});
-    }
-}
-
 function channelsWindow(botId)
 {
     window.open('channels.html?apiPassword=' + encodeURIComponent(document.getElementById('password').value) + '&id=' + encodeURIComponent(botId), "Channels", "width=455,height=560");
@@ -132,7 +122,7 @@ function addBot(json)
         avatarImgTag.style.height = '64px';
         avatarImgTag.style.width = '64px';
         nicknameTag.innerHTML = "<b style=\"font-size: 18px;\">" + json.stats.nickname + "</b><br />" + json.stats.model;
-        actionsTag.innerHTML = "<table><tr><td style=\"vertical-align: top;\"><button style=\"width: 128px;\" onClick=\"editModelPromptWindow('" + objectId + "')\">Edit Model/Prompt</button><br /><button style=\"width: 128px;\" onClick=\"reconnectBot('" + objectId + "')\">Reconnect</button><br /><button style=\"width: 128px;\" onClick=\"channelsWindow('" + objectId + "')\">Channels</button><br /><button style=\"width: 128px;\" onClick=\"toolsWindow('" + objectId + "')\">Tools</button></td><td style=\"vertical-align: top;\"><button style=\"width: 128px;\" onClick=\"notice('" + objectId + "')\">Notice</button><br /><button style=\"width: 128px;\" onClick=\"shutdownBot('" + objectId + "')\">Shutdown</button><br /><button style=\"width: 128px;\" onClick=\"deleteBot('" + objectId + "')\">Delete</button></td></tr></table>";
+        actionsTag.innerHTML = "<table><tr><td><button style=\"width: 128px;\" onClick=\"editModelPromptWindow('" + objectId + "')\">Edit Model/Prompt</button><br /><button style=\"width: 128px;\" onClick=\"reconnectBot('" + objectId + "')\">Reconnect</button><br /><button style=\"width: 128px;\" onClick=\"channelsWindow('" + objectId + "')\">Channels</button></td><td><button style=\"width: 128px;\" onClick=\"toolsWindow('" + objectId + "')\">Tools</button><br /><button style=\"width: 128px;\" onClick=\"shutdownBot('" + objectId + "')\">Shutdown</button><br /><button style=\"width: 128px;\" onClick=\"deleteBot('" + objectId + "')\">Delete</button></td></tr></table>";
         document.getElementById("botTable").appendChild(botTag);
     } else {
         avatarTag = document.getElementById(avatarTagId);
