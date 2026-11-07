@@ -160,6 +160,17 @@
       ]
     },
     {
+      "type": "com.sun.crypto.provider.HKDFKeyDerivation$HKDFSHA384",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "javax.crypto.KDFParameters"
+          ]
+        }
+      ]
+    },
+    {
       "type": "com.sun.crypto.provider.HmacCore$HmacSHA256",
       "methods": [
         {
@@ -857,6 +868,9 @@
       "allDeclaredMethods": true
     },
     {
+      "type": "io.netty.util.ResourceLeakDetector$DefaultResourceLeak"
+    },
+    {
       "type": "io.netty.util.concurrent.DefaultPromise"
     },
     {
@@ -1264,6 +1278,9 @@
       ]
     },
     {
+      "type": "org.eclipse.jetty.websocket.common.extensions.compress.DeflateFrameExtension"
+    },
+    {
       "type": "org.eclipse.jetty.websocket.common.extensions.compress.PerMessageDeflateExtension",
       "methods": [
         {
@@ -1271,6 +1288,15 @@
           "parameterTypes": []
         }
       ]
+    },
+    {
+      "type": "org.eclipse.jetty.websocket.common.extensions.compress.XWebkitDeflateFrameExtension"
+    },
+    {
+      "type": "org.eclipse.jetty.websocket.common.extensions.fragment.FragmentExtension"
+    },
+    {
+      "type": "org.eclipse.jetty.websocket.common.extensions.identity.IdentityExtension"
     },
     {
       "type": "org.eclipse.jetty.websocket.server.WebSocketServerFactory",
