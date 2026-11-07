@@ -13,6 +13,7 @@ import org.kitteh.irc.client.library.element.mode.ModeStatus.Action;
 import org.kitteh.irc.client.library.event.channel.ChannelInviteEvent;
 import org.kitteh.irc.client.library.event.channel.ChannelJoinEvent;
 import org.kitteh.irc.client.library.event.channel.ChannelMessageEvent;
+import org.kitteh.irc.client.library.event.client.ClientNegotiationCompleteEvent;
 import org.kitteh.irc.client.library.event.connection.ClientConnectionClosedEvent;
 import org.kitteh.irc.client.library.event.connection.ClientConnectionEndedEvent;
 import org.kitteh.irc.client.library.event.connection.ClientConnectionEstablishedEvent;
@@ -791,6 +792,20 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
             ChatLog cl = new ChatLog(this);
             this.logs.put(target,cl);
             return cl;
+        }
+    }
+
+    // Fired after IRC registration completes, on initial connect and every reconnect
+    @Handler
+    public void onNegotiationCompleteEvent(ClientNegotiationCompleteEvent negotiationCompleteEvent)
+    {
+        String operatorPassword = botOptions.optString("operatorPassword", "").trim();
+        if (!operatorPassword.isEmpty())
+        {
+            String operatorName = botOptions.optString("operatorName", "").trim();
+            if (operatorName.isEmpty())
+                operatorName = this.botNickname;
+            this.client.sendRawLine("OPER " + operatorName + " " + operatorPassword);
         }
     }
 

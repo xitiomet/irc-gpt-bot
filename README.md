@@ -55,6 +55,8 @@ DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid J
             "user": null,            // IRC User field (for bot)
             "realName": null,        // IRC Real Name field (for bot)
             "password": null,        // IRC Password (for bot)
+            "operatorName": null,    // IRC operator name used with OPER (defaults to nickname)
+            "operatorPassword": null, // If set, bot sends OPER on connect/reconnect to gain IRC operator privileges
             "server": "127.0.0.1",   // Server to connect to
             "contextDepth": 5,       // How much history to provide chatGPT for context
             "systemPreamble": "Only respond in l33t speak",  // Some rules for chatGPT to follow
