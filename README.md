@@ -70,6 +70,10 @@ DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid J
             "privateMessages": true,  // Respond to private messages
             "gptTools": ["send_private_message", "send_notice", "send_action", "kick_user", "set_topic", "get_names", "list_channels", "invite_user"], // Optional: IRC tools the AI may use (omit for all, [] for none)
             "maxToolRounds": 5,       // Optional: max tool-calling round trips per reply
+            "toolUrls": [             // Optional: web services the AI can call (also editable with the dashboard "Tools" button)
+                {"purpose": "Find out what song is playing", "url": "https://example.com/now-playing", "params": {}},
+                {"purpose": "Make a blog post", "url": "https://example.com/post", "params": {"subject": "the subject of the post", "body": "the post body"}}
+            ],
         }
     },
     "openAiKey": "",         // Your Open-AI API Key
@@ -112,6 +116,15 @@ The bot uses the OpenAI Responses API with function calling, so the model can ac
 | `invite_user` | Invite a user to a channel the bot is in |
 
 `kick_user` and `set_topic` only apply to the channel the conversation is happening in and are not offered in private messages. `get_names`, `invite_user` and the joined channel list won't expose secret, private, invite-only or keyed channels (`+s`, `+p`, `+i`, `+k`) unless the request comes from inside that channel. Limit the available tools per bot with `"gptTools"`. Legacy `completionsApiUrl` settings are converted automatically by replacing `/chat/completions` with `/responses`.
+
+#### URL Tools (`toolUrls`)
+
+Each `toolUrls` entry becomes an extra tool. The AI sees the `purpose` and calls the tool when it needs that information or action; the bot then requests the `url` and gives the response (truncated to 8000 characters) back to the AI.
+
+- `params` maps parameter names to descriptions; the AI fills in the values. A list of names or of `{"name": ..., "description": ...}` objects is also accepted.
+- Without params the URL is fetched with `GET`. With params they are sent as a JSON `POST` body. Set `"method": "GET"` to send them as a query string instead, or `"method": "POST"` to always POST.
+- URL tools are always available when configured; `gptTools` only limits the built-in IRC tools. Calls are logged to `tools.log`.
+- Manage these from the web dashboard with each bot's **Tools** button.
 
 ### API Server / Web interface
 

@@ -1,5 +1,12 @@
 package org.openstatic;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -38,6 +45,7 @@ public class GPTTools
     private static final int RPL_LIST = 322;
     private static final int RPL_LISTEND = 323;
     private static final int MAX_LIST_ENTRIES = 10000;
+    private static final int MAX_TOOL_URL_RESPONSE = 8000;
 
     private IRCGPTBot bot;
     private String target;
@@ -152,7 +160,145 @@ public class GPTTools
             props.put("channel", stringProperty("Channel to invite the user to (must be one the bot has joined)." + channelDefaultHint()));
             tools.put(functionTool(INVITE_USER, "Invite a user to a channel (INVITE).", props, "nickname"));
         }
+        JSONArray toolUrls = getToolUrls();
+        for (int i = 0; i < toolUrls.length(); i++)
+        {
+            JSONObject toolUrl = toolUrls.getJSONObject(i);
+            JSONObject params = toolUrl.getJSONObject("params");
+            JSONObject props = new JSONObject();
+            for (String param : params.keySet())
+                props.put(param, stringProperty(params.optString(param, param)));
+            String description = toolUrl.getString("purpose") + " (fetches information from a configured web service and returns its response)";
+            tools.put(functionTool(urlToolName(i, toolUrl), description, props, params.keySet().toArray(new String[0])));
+        }
         return tools;
+    }
+
+    /**
+     * Converts "params" in any supported shape into {"name": "description"}:
+     * an object, a list of names, a list of {"name","description"} objects, or a list of single-key objects.
+     */
+    public static JSONObject normalizeParams(Object params)
+    {
+        JSONObject normalized = new JSONObject();
+        if (params instanceof JSONObject)
+        {
+            JSONObject p = (JSONObject) params;
+            for (String key : p.keySet())
+                putParam(normalized, key, p.optString(key, ""));
+        } else if (params instanceof JSONArray) {
+            JSONArray p = (JSONArray) params;
+            for (int i = 0; i < p.length(); i++)
+            {
+                Object item = p.get(i);
+                if (item instanceof String)
+                {
+                    putParam(normalized, (String) item, "");
+                } else if (item instanceof JSONObject) {
+                    JSONObject o = (JSONObject) item;
+                    if (o.has("name"))
+                        putParam(normalized, o.optString("name"), o.optString("description", ""));
+                    else
+                        for (String key : o.keySet())
+                            putParam(normalized, key, o.optString(key, ""));
+                }
+            }
+        }
+        return normalized;
+    }
+
+    private static void putParam(JSONObject params, String name, String description)
+    {
+        name = name == null ? "" : name.trim();
+        if (name.matches("[A-Za-z0-9_\\-]{1,64}"))
+            params.put(name, description == null || description.trim().isEmpty() ? name : description.trim());
+    }
+
+    /** Returns a validated, normalized copy of a toolUrls array; invalid entries are dropped. */
+    public static JSONArray normalizeToolUrls(JSONArray toolUrls)
+    {
+        JSONArray normalized = new JSONArray();
+        if (toolUrls == null)
+            return normalized;
+        for (int i = 0; i < toolUrls.length(); i++)
+        {
+            JSONObject entry = toolUrls.optJSONObject(i);
+            if (entry == null)
+                continue;
+            String purpose = entry.optString("purpose", "").trim();
+            String url = entry.optString("url", "").trim();
+            if (purpose.isEmpty() || !(url.startsWith("http://") || url.startsWith("https://")))
+                continue;
+            JSONObject clean = new JSONObject();
+            clean.put("purpose", purpose);
+            clean.put("url", url);
+            clean.put("params", normalizeParams(entry.opt("params")));
+            String method = entry.optString("method", "").trim().toUpperCase();
+            if ("GET".equals(method) || "POST".equals(method))
+                clean.put("method", method);
+            normalized.put(clean);
+        }
+        return normalized;
+    }
+
+    private JSONArray getToolUrls()
+    {
+        return normalizeToolUrls(this.bot.getBotOptions().optJSONArray("toolUrls"));
+    }
+
+    private static String urlToolName(int index, JSONObject toolUrl)
+    {
+        String slug = toolUrl.getString("purpose").toLowerCase().replaceAll("[^a-z0-9]+", "_").replaceAll("^_+|_+$", "");
+        String name = "url_" + index + (slug.isEmpty() ? "" : "_" + slug);
+        return name.length() > 64 ? name.substring(0, 64) : name;
+    }
+
+    private String executeToolUrl(JSONObject toolUrl, JSONObject args) throws IOException
+    {
+        JSONObject params = toolUrl.getJSONObject("params");
+        String method = toolUrl.optString("method", params.length() > 0 ? "POST" : "GET");
+        String url = toolUrl.getString("url");
+        JSONObject values = new JSONObject();
+        for (String param : params.keySet())
+            values.put(param, args.optString(param, ""));
+        if ("GET".equals(method) && values.length() > 0)
+        {
+            StringBuilder query = new StringBuilder();
+            for (String param : values.keySet())
+            {
+                query.append(query.length() == 0 ? "" : "&");
+                query.append(URLEncoder.encode(param, "UTF-8")).append("=").append(URLEncoder.encode(values.getString(param), "UTF-8"));
+            }
+            url += (url.contains("?") ? "&" : "?") + query;
+        }
+        HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
+        con.setConnectTimeout(10000);
+        con.setReadTimeout(20000);
+        con.setRequestMethod(method);
+        con.setRequestProperty("Accept", "application/json, text/plain, */*");
+        con.setRequestProperty("User-Agent", "irc-gpt-bot");
+        if ("POST".equals(method))
+        {
+            con.setDoOutput(true);
+            con.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            con.getOutputStream().write(values.toString().getBytes(StandardCharsets.UTF_8));
+        }
+        int status = con.getResponseCode();
+        InputStream is = status >= 400 ? con.getErrorStream() : con.getInputStream();
+        StringBuilder body = new StringBuilder();
+        if (is != null)
+        {
+            try (InputStreamReader reader = new InputStreamReader(is, StandardCharsets.UTF_8))
+            {
+                char[] buf = new char[4096];
+                int n;
+                while ((n = reader.read(buf)) > 0 && body.length() < MAX_TOOL_URL_RESPONSE)
+                    body.append(buf, 0, n);
+            }
+        }
+        String text = body.length() > MAX_TOOL_URL_RESPONSE ? body.substring(0, MAX_TOOL_URL_RESPONSE) + "...(truncated)" : body.toString();
+        this.bot.logAppend("tools.log", method + " " + url + " -> HTTP " + status);
+        return "HTTP " + status + "\n" + text;
     }
 
     private String channelDefaultHint()
@@ -381,6 +527,19 @@ public class GPTTools
     {
         try
         {
+            if (name != null && name.startsWith("url_"))
+            {
+                JSONArray toolUrls = getToolUrls();
+                for (int i = 0; i < toolUrls.length(); i++)
+                {
+                    if (urlToolName(i, toolUrls.getJSONObject(i)).equals(name))
+                    {
+                        JSONObject args = (argumentsJson == null || argumentsJson.trim().isEmpty()) ? new JSONObject() : new JSONObject(argumentsJson);
+                        return executeToolUrl(toolUrls.getJSONObject(i), args);
+                    }
+                }
+                return "error: tool '" + name + "' is not available";
+            }
             if (!isToolEnabled(name))
                 return "error: tool '" + name + "' is not available";
             JSONObject args = (argumentsJson == null || argumentsJson.trim().isEmpty()) ? new JSONObject() : new JSONObject(argumentsJson);

@@ -1,0 +1,246 @@
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tools</title>
+    <script src="jquery.min.js"></script>
+    <script type="text/javascript">
+        var parameters = new URLSearchParams(window.location.search);
+        var botUrl = '/ircgptbot/api/bot/' + encodeURIComponent(parameters.get('id')) + '/';
+        var busy = false;
+
+        function setStatus(message)
+        {
+            document.getElementById('status').textContent = message;
+        }
+
+        function setBusy(value)
+        {
+            busy = value;
+            document.querySelectorAll('button, input, select').forEach(function(el) {
+                el.disabled = busy;
+            });
+        }
+
+        function makeInput(className, value, placeholder)
+        {
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.className = className;
+            input.value = value || '';
+            input.placeholder = placeholder;
+            input.autocomplete = 'off';
+            return input;
+        }
+
+        function makeButton(label, onClick)
+        {
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = label;
+            button.onclick = onClick;
+            return button;
+        }
+
+        function addParamRow(paramList, name, description)
+        {
+            var row = document.createElement('div');
+            row.className = 'param';
+            row.appendChild(makeInput('paramName', name, 'name (e.g. subject)'));
+            row.appendChild(makeInput('paramDescription', description, 'description for the AI'));
+            row.appendChild(makeButton('Remove', function() { row.remove(); }));
+            paramList.appendChild(row);
+        }
+
+        function addToolCard(tool)
+        {
+            tool = tool || { purpose: '', url: '', params: {} };
+            var card = document.createElement('fieldset');
+            card.className = 'tool';
+
+            var purposeLabel = document.createElement('label');
+            purposeLabel.textContent = 'Purpose';
+            card.appendChild(purposeLabel);
+            card.appendChild(makeInput('purpose', tool.purpose, 'e.g. Find out what song is playing'));
+
+            var urlLabel = document.createElement('label');
+            urlLabel.textContent = 'URL';
+            card.appendChild(urlLabel);
+            card.appendChild(makeInput('url', tool.url, 'https://...'));
+
+            var methodLabel = document.createElement('label');
+            methodLabel.textContent = 'Method';
+            card.appendChild(methodLabel);
+            var method = document.createElement('select');
+            method.className = 'method';
+            [['', 'Auto (GET without params, POST JSON with params)'], ['GET', 'GET (params as query string)'], ['POST', 'POST (params as JSON body)']].forEach(function(opt) {
+                var option = document.createElement('option');
+                option.value = opt[0];
+                option.textContent = opt[1];
+                method.appendChild(option);
+            });
+            method.value = tool.method || '';
+            card.appendChild(method);
+
+            var paramsLabel = document.createElement('label');
+            paramsLabel.textContent = 'Parameters (filled in by the AI)';
+            card.appendChild(paramsLabel);
+            var paramList = document.createElement('div');
+            paramList.className = 'params';
+            card.appendChild(paramList);
+            var params = tool.params || {};
+            Object.keys(params).forEach(function(name) {
+                addParamRow(paramList, name, params[name]);
+            });
+
+            var actions = document.createElement('div');
+            actions.className = 'actions';
+            actions.appendChild(makeButton('Add Parameter', function() { addParamRow(paramList, '', ''); }));
+            actions.appendChild(makeButton('Remove Tool', function() {
+                if (confirm('Remove this tool?'))
+                    card.remove();
+            }));
+            card.appendChild(actions);
+            document.getElementById('tools').appendChild(card);
+        }
+
+        function collectTools()
+        {
+            var tools = [];
+            var errors = [];
+            document.querySelectorAll('#tools .tool').forEach(function(card, index) {
+                var purpose = card.querySelector('.purpose').value.trim();
+                var url = card.querySelector('.url').value.trim();
+                var label = 'Tool ' + (index + 1);
+                if (purpose == '')
+                    errors.push(label + ' needs a purpose.');
+                if (!/^https?:\/\/\S+$/i.test(url))
+                    errors.push(label + ' needs an http(s) URL.');
+                var params = {};
+                card.querySelectorAll('.param').forEach(function(row) {
+                    var name = row.querySelector('.paramName').value.trim();
+                    var description = row.querySelector('.paramDescription').value.trim();
+                    if (name == '' && description == '')
+                        return;
+                    if (!/^[A-Za-z0-9_\-]{1,64}$/.test(name))
+                        errors.push(label + ': parameter names may only use letters, numbers, _ and -.');
+                    else if (params.hasOwnProperty(name))
+                        errors.push(label + ': duplicate parameter "' + name + '".');
+                    else
+                        params[name] = description;
+                });
+                var tool = { purpose: purpose, url: url, params: params };
+                var method = card.querySelector('.method').value;
+                if (method != '')
+                    tool.method = method;
+                tools.push(tool);
+            });
+            return { tools: tools, errors: errors };
+        }
+
+        function renderTools(toolUrls)
+        {
+            document.getElementById('tools').textContent = '';
+            toolUrls.forEach(function(tool) { addToolCard(tool); });
+            document.getElementById('empty').style.display = toolUrls.length ? 'none' : 'block';
+        }
+
+        function loadTools()
+        {
+            setBusy(true);
+            setStatus('Loading tools...');
+            $.ajax({
+                url: botUrl + 'tools/',
+                data: { apiPassword: parameters.get('apiPassword') },
+                dataType: 'json',
+                cache: false,
+                timeout: 10000
+            }).done(function(json) {
+                if (json.error || !json.bot || !Array.isArray(json.toolUrls))
+                {
+                    setStatus(json.error || 'Bot unavailable.');
+                    return;
+                }
+                document.getElementById('botTitle').textContent = json.bot.id + ' - Tools';
+                renderTools(json.toolUrls);
+                setStatus('');
+            }).fail(function() {
+                setStatus('Unable to load tools.');
+            }).always(function() {
+                setBusy(false);
+            });
+        }
+
+        function saveTools()
+        {
+            if (busy)
+                return;
+            var collected = collectTools();
+            if (collected.errors.length > 0)
+            {
+                setStatus(collected.errors.join(' '));
+                return;
+            }
+            setBusy(true);
+            setStatus('Saving...');
+            $.ajax({
+                url: botUrl + 'tools/',
+                type: 'POST',
+                data: JSON.stringify({
+                    apiPassword: parameters.get('apiPassword'),
+                    toolUrls: collected.tools
+                }),
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                timeout: 10000
+            }).done(function(json) {
+                if (json.error || !Array.isArray(json.toolUrls))
+                {
+                    setStatus(json.error || 'Unable to save tools.');
+                    return;
+                }
+                renderTools(json.toolUrls);
+                setStatus(json.warning || 'Saved. The bot will use these tools on its next reply.');
+            }).fail(function() {
+                setStatus('Unable to save tools.');
+            }).always(function() {
+                setBusy(false);
+            });
+        }
+
+        function loaded()
+        {
+            document.getElementById('addTool').onclick = function() {
+                document.getElementById('empty').style.display = 'none';
+                addToolCard();
+            };
+            document.getElementById('saveTools').onclick = saveTools;
+            loadTools();
+        }
+    </script>
+    <style>
+        body { font-family: Sans Serif; margin: 20px; }
+        h2 { text-align: center; }
+        p.help { font-size: 13px; color: #444; }
+        fieldset.tool { border: 1px solid #aaa; border-radius: 4px; margin: 0 0 14px 0; padding: 10px; }
+        fieldset.tool label { display: block; font-size: 13px; font-weight: bold; margin: 8px 0 3px 0; }
+        fieldset.tool input, fieldset.tool select { width: 100%; padding: 6px; box-sizing: border-box; }
+        .param { display: flex; gap: 6px; margin: 4px 0; }
+        .param input.paramName { width: 35%; }
+        .param input.paramDescription { flex: 1; }
+        .actions { display: flex; justify-content: space-between; margin-top: 10px; }
+        .toolbar { display: flex; justify-content: space-between; margin-top: 10px; }
+        button { padding: 6px 12px; }
+    </style>
+</head>
+<body onload="loaded()">
+    <h2 id="botTitle">Tools</h2>
+    <p class="help">Each tool lets the AI fetch a URL for the stated purpose and read the response. Parameters are filled in by the AI and sent as a JSON body (or as a query string when the method is GET).</p>
+    <p id="empty" style="display: none;">No tools configured.</p>
+    <div id="tools"></div>
+    <div class="toolbar">
+        <button type="button" id="addTool">Add Tool</button>
+        <button type="button" id="saveTools">Save</button>
+    </div>
+    <p id="status" role="status"></p>
+</body>
+</html>

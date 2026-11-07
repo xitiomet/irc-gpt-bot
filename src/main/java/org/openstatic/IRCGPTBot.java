@@ -666,6 +666,17 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         }
     }
 
+    public JSONArray getToolUrls()
+    {
+        return GPTTools.normalizeToolUrls(this.botOptions.optJSONArray("toolUrls"));
+    }
+
+    public void setToolUrls(JSONArray toolUrls)
+    {
+        this.botOptions.put("toolUrls", GPTTools.normalizeToolUrls(toolUrls));
+        IRCGPTBotMain.instance.saveSettings();
+    }
+
     public JSONArray getAvailableModels()
     {
         return IRCGPTBotMain.chatGPT.listModels(this.botOptions);

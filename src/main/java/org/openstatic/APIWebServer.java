@@ -425,6 +425,21 @@ public class APIWebServer implements IRCGPTBotListener
                                                 bot.setModel(requestPost.optString("model"));
                                                 response.put("model", bot.getModel());
                                             }
+                                            else if ("tools".equals(command))
+                                            {
+                                                JSONArray toolUrls = requestPost.optJSONArray("toolUrls");
+                                                if (toolUrls == null)
+                                                {
+                                                    response.put("error", "Missing toolUrls.");
+                                                }
+                                                else
+                                                {
+                                                    bot.setToolUrls(toolUrls);
+                                                    response.put("toolUrls", bot.getToolUrls());
+                                                    if (bot.getToolUrls().length() != toolUrls.length())
+                                                        response.put("warning", "Entries without a purpose or an http(s) URL were not saved.");
+                                                }
+                                            }
                                             else if ("channels".equals(command))
                                             {
                                                 String action = requestPost.optString("action");
@@ -530,6 +545,8 @@ public class APIWebServer implements IRCGPTBotListener
                                         response.put("model", bot.getModel());
                                         response.put("preamble", bot.getPreamble());
                                         response.put("models", bot.getAvailableModels());
+                                    } else if ("tools".equals(command)) {
+                                        response.put("toolUrls", bot.getToolUrls());
                                     }
                                 }
                             }
