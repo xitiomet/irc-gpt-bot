@@ -610,6 +610,11 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         return this.botNickname;
     }
 
+    public Client getClient()
+    {
+        return this.client;
+    }
+
     private boolean bodyMentionsBot(String body)
     {
         if (body == null)
@@ -972,6 +977,8 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                     Future<ChatMessage> gptResponse = IRCGPTBotMain.chatGPT.callChatGPT(this.botOptions, messages);
                     ChatMessage outMsg = gptResponse.get();
                     String outText = outMsg.getBody();
+                    if (outText.trim().isEmpty())
+                        return;
                     cl.add(outMsg);
                     if (this.botOptions.optBoolean("greetPublic", false))
                     {
@@ -1054,13 +1061,16 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                 {
                     try
                     {
-                        Future<ChatMessage> gptResponse = IRCGPTBotMain.chatGPT.callChatGPT(this.botOptions, cl);
+                        Future<ChatMessage> gptResponse = IRCGPTBotMain.chatGPT.callChatGPT(this.botOptions, cl, new GPTTools(this, target));
                         ChatMessage outMsg = gptResponse.get();
                         outMsg.setRecipient(target);
-                        logAppend(target + ".log", outMsg.toSimpleLine());
                         String outText = outMsg.getBody().replace("\n", " ").replace("\r", "");
-                        cl.add(outMsg);
-                        channel.sendMultiLineMessage(outText);
+                        if (!outText.trim().isEmpty())
+                        {
+                            logAppend(target + ".log", outMsg.toSimpleLine());
+                            cl.add(outMsg);
+                            channel.sendMultiLineMessage(outText);
+                        }
                         this.messagesHandled++;
                         this.fireStats();
                     } catch (Exception e) {
@@ -1100,13 +1110,16 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                 {
                     if (this.botOptions.optBoolean("gptEnabled", true))
                     {
-                        Future<ChatMessage> gptResponse = IRCGPTBotMain.chatGPT.callChatGPT(this.botOptions, cl);
+                        Future<ChatMessage> gptResponse = IRCGPTBotMain.chatGPT.callChatGPT(this.botOptions, cl, new GPTTools(this, target));
                         ChatMessage outMsg = gptResponse.get();
                         String outText = outMsg.getBody();
                         outMsg.setRecipient(target);
-                        cl.add(outMsg);
-                        logAppend(target + ".log", outMsg.toSimpleLine());
-                        sender.sendMultiLineMessage(outText);
+                        if (!outText.trim().isEmpty())
+                        {
+                            cl.add(outMsg);
+                            logAppend(target + ".log", outMsg.toSimpleLine());
+                            sender.sendMultiLineMessage(outText);
+                        }
                         this.messagesHandled++;
                         this.fireStats();
                     }
