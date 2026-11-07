@@ -25,34 +25,35 @@ public class ChatLog
         this.bot = bot;
     }
 
-    public void add(ChatMessage cm)
+    public synchronized void add(ChatMessage cm)
     {
         this.messages.add(cm);
         if (this.messages.size() > 255)
             this.messages.remove(0);
     }
 
-    public ChatMessage getLastMessage()
+    public synchronized ChatMessage getLastMessage()
     {
-        List<ChatMessage> sortedMessages = this.getMessages();
-        if (sortedMessages.size() > 0)
+        if (this.messages.size() > 0)
         {
-            return sortedMessages.get(sortedMessages.size() - 1);
+            return this.messages.get(this.messages.size() - 1);
         } else {
             return null;
         }
     }
 
-    public ArrayList<ChatMessage> getMessages()
+    // Returns a snapshot so callers on other threads can iterate safely
+    public synchronized ArrayList<ChatMessage> getMessages()
     {
-        return this.messages;
+        return new ArrayList<ChatMessage>(this.messages);
     }
 
     public String getConversationalContext()
     {
-        int skipAmt = this.messages.size() - bot.getBotOptions().optInt("contextDepth", 5);
+        ArrayList<ChatMessage> snapshot = this.getMessages();
+        int skipAmt = snapshot.size() - bot.getBotOptions().optInt("contextDepth", 5);
         if (skipAmt < 0) skipAmt = 0;
-        Stream<ChatMessage> rMessages = this.messages.stream().skip(skipAmt);
+        Stream<ChatMessage> rMessages = snapshot.stream().skip(skipAmt);
         return rMessages.map((msg) -> {
             return msg.getSender() + " said \"" + msg.getBody() + "\"";
         }).collect(Collectors.joining("\n"));
@@ -94,11 +95,12 @@ public class ChatLog
     public JSONArray getGPTMessages()
     {
         JSONObject botOptions = this.bot.getBotOptions();
+        ArrayList<ChatMessage> snapshot = this.getMessages();
         JSONArray ra = new JSONArray();
         String systemPreamble = botOptions.optString("systemPreamble", "");
         if (botOptions.has("definitionServer"))
         {
-            String logBody = this.getMessages().stream().map((msg) -> msg.getBody()).collect(Collectors.joining(" ")).toLowerCase();
+            String logBody = snapshot.stream().map((msg) -> msg.getBody()).collect(Collectors.joining(" ")).toLowerCase();
             systemPreamble += getPreambleFromContextServer(logBody);
         }
         if (!systemPreamble.equals(""))
@@ -108,9 +110,9 @@ public class ChatLog
             msgS.put("content", systemPreamble);
             ra.put(msgS);
         }
-        int skipAmt = (this.messages.size() - botOptions.optInt("contextDepth", 5));
+        int skipAmt = (snapshot.size() - botOptions.optInt("contextDepth", 5));
         if (skipAmt < 0) skipAmt = 0;
-        Stream<ChatMessage> rMessages = this.messages.stream().skip(skipAmt);
+        Stream<ChatMessage> rMessages = snapshot.stream().skip(skipAmt);
         rMessages.forEach((msg) -> {
             String role = "user";
             if (msg.getSender().equals(botOptions.optString("nickname")))

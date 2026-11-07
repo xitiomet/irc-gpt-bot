@@ -68,7 +68,7 @@ DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid J
             "gptEnabled": true,       // Is this bot connected to chatGPT (set to false for api only bot)
             "model": "gpt-3.5-turbo", // ChatGPT model to use
             "privateMessages": true,  // Respond to private messages
-            "gptTools": ["send_private_message", "send_notice", "send_action", "kick_user", "set_topic"], // Optional: IRC tools the AI may use (omit for all, [] for none)
+            "gptTools": ["send_private_message", "send_notice", "send_action", "kick_user", "set_topic", "get_names", "list_channels", "invite_user"], // Optional: IRC tools the AI may use (omit for all, [] for none)
             "maxToolRounds": 5,       // Optional: max tool-calling round trips per reply
         }
     },
@@ -107,8 +107,11 @@ The bot uses the OpenAI Responses API with function calling, so the model can ac
 | `send_action` | Perform a `/me` action |
 | `kick_user` | Kick a user from the current channel (requires op; never kicks the bot itself or anyone in `botOps`) |
 | `set_topic` | Change the current channel's topic |
+| `get_names` | Get the names list (with `@`/`+` prefixes) of a channel the bot is in |
+| `list_channels` | List the channels the bot is in, or the server's public channel list (`LIST`) |
+| `invite_user` | Invite a user to a channel the bot is in |
 
-`kick_user` and `set_topic` only apply to the channel the conversation is happening in and are not offered in private messages. Limit the available tools per bot with `"gptTools"`. Legacy `completionsApiUrl` settings are converted automatically by replacing `/chat/completions` with `/responses`.
+`kick_user` and `set_topic` only apply to the channel the conversation is happening in and are not offered in private messages. `get_names`, `invite_user` and the joined channel list won't expose secret, private, invite-only or keyed channels (`+s`, `+p`, `+i`, `+k`) unless the request comes from inside that channel. Limit the available tools per bot with `"gptTools"`. Legacy `completionsApiUrl` settings are converted automatically by replacing `/chat/completions` with `/responses`.
 
 ### API Server / Web interface
 

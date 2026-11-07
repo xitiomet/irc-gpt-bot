@@ -35,6 +35,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.SortedSet;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -73,6 +75,12 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     private String botId;
     private HashMap<String, ChatLog> logs;
     private ArrayList<String> privateChats;
+    // AI replies run here so the IRC event thread is never blocked (tools may need server responses)
+    private final ExecutorService replyExecutor = Executors.newSingleThreadExecutor((r) -> {
+        Thread t = new Thread(r, "IRCGPTBot Reply");
+        t.setDaemon(true);
+        return t;
+    });
     private Panel mainPanel;
     private Label joinedChannelsLabel;
     private Label messagesHandledLabel;
@@ -788,7 +796,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         this.connect();
     }
 
-    public ChatLog getChatLog(String target)
+    public synchronized ChatLog getChatLog(String target)
     {
         if (this.logs.containsKey(target))
         {
@@ -974,20 +982,27 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                     greetCommand.put("role", "user");
                     greetCommand.put("content", "Here is a conversation\n" + cl.getConversationalContext() + "\n\nProvide a Greeting for " + joiner.getNick() + ", who just joined the conversation. As part of the greeting summarize what has been said so far, do not use more then 512 characters.");
                     messages.put(greetCommand);
-                    Future<ChatMessage> gptResponse = IRCGPTBotMain.chatGPT.callChatGPT(this.botOptions, messages);
-                    ChatMessage outMsg = gptResponse.get();
-                    String outText = outMsg.getBody();
-                    if (outText.trim().isEmpty())
-                        return;
-                    cl.add(outMsg);
-                    if (this.botOptions.optBoolean("greetPublic", false))
-                    {
-                        logAppend(channel.getName() + ".log", outMsg.toSimpleLine());
-                        channel.sendMultiLineMessage(outText);
-                    } else {
-                        logAppend(joiner.getNick() + ".log", outMsg.toSimpleLine());
-                        joiner.sendMultiLineNotice(outText);
-                    }
+                    final ChatLog greetLog = cl;
+                    this.replyExecutor.submit(() -> {
+                        try
+                        {
+                            ChatMessage outMsg = IRCGPTBotMain.chatGPT.callChatGPT(this.botOptions, messages).get();
+                            String outText = outMsg.getBody();
+                            if (outText.trim().isEmpty())
+                                return;
+                            greetLog.add(outMsg);
+                            if (this.botOptions.optBoolean("greetPublic", false))
+                            {
+                                logAppend(channel.getName() + ".log", outMsg.toSimpleLine());
+                                channel.sendMultiLineMessage(outText);
+                            } else {
+                                logAppend(joiner.getNick() + ".log", outMsg.toSimpleLine());
+                                joiner.sendMultiLineNotice(outText);
+                            }
+                        } catch (Exception e) {
+                            log(e);
+                        }
+                    });
                 }
             }
         } catch (Exception e) {
@@ -1059,23 +1074,24 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
             {
                 if (this.botOptions.optBoolean("gptEnabled", true))
                 {
-                    try
-                    {
-                        Future<ChatMessage> gptResponse = IRCGPTBotMain.chatGPT.callChatGPT(this.botOptions, cl, new GPTTools(this, target));
-                        ChatMessage outMsg = gptResponse.get();
-                        outMsg.setRecipient(target);
-                        String outText = outMsg.getBody().replace("\n", " ").replace("\r", "");
-                        if (!outText.trim().isEmpty())
+                    this.replyExecutor.submit(() -> {
+                        try
                         {
-                            logAppend(target + ".log", outMsg.toSimpleLine());
-                            cl.add(outMsg);
-                            channel.sendMultiLineMessage(outText);
+                            ChatMessage outMsg = IRCGPTBotMain.chatGPT.callChatGPT(this.botOptions, cl, new GPTTools(this, target)).get();
+                            outMsg.setRecipient(target);
+                            String outText = outMsg.getBody().replace("\n", " ").replace("\r", "");
+                            if (!outText.trim().isEmpty())
+                            {
+                                logAppend(target + ".log", outMsg.toSimpleLine());
+                                cl.add(outMsg);
+                                channel.sendMultiLineMessage(outText);
+                            }
+                            this.messagesHandled++;
+                            this.fireStats();
+                        } catch (Exception e) {
+                            log(e);
                         }
-                        this.messagesHandled++;
-                        this.fireStats();
-                    } catch (Exception e) {
-                        log(e);
-                    }
+                    });
                 }
             }
         } else {
@@ -1110,18 +1126,24 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                 {
                     if (this.botOptions.optBoolean("gptEnabled", true))
                     {
-                        Future<ChatMessage> gptResponse = IRCGPTBotMain.chatGPT.callChatGPT(this.botOptions, cl, new GPTTools(this, target));
-                        ChatMessage outMsg = gptResponse.get();
-                        String outText = outMsg.getBody();
-                        outMsg.setRecipient(target);
-                        if (!outText.trim().isEmpty())
-                        {
-                            cl.add(outMsg);
-                            logAppend(target + ".log", outMsg.toSimpleLine());
-                            sender.sendMultiLineMessage(outText);
-                        }
-                        this.messagesHandled++;
-                        this.fireStats();
+                        this.replyExecutor.submit(() -> {
+                            try
+                            {
+                                ChatMessage outMsg = IRCGPTBotMain.chatGPT.callChatGPT(this.botOptions, cl, new GPTTools(this, target)).get();
+                                String outText = outMsg.getBody();
+                                outMsg.setRecipient(target);
+                                if (!outText.trim().isEmpty())
+                                {
+                                    cl.add(outMsg);
+                                    logAppend(target + ".log", outMsg.toSimpleLine());
+                                    sender.sendMultiLineMessage(outText);
+                                }
+                                this.messagesHandled++;
+                                this.fireStats();
+                            } catch (Exception e) {
+                                log(e);
+                            }
+                        });
                     }
                 } else {
                     ChatMessage outMsg = new ChatMessage(sender.getNick(), this.botNickname, "I'm sorry, my private message features have been disabled.", new Date(System.currentTimeMillis()));

@@ -1,13 +1,23 @@
 package org.openstatic;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
+import java.util.SortedSet;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.kitteh.irc.client.library.Client;
 import org.kitteh.irc.client.library.element.Channel;
 import org.kitteh.irc.client.library.element.User;
+import org.kitteh.irc.client.library.element.mode.ChannelUserMode;
+import org.kitteh.irc.client.library.event.client.ClientReceiveNumericEvent;
+
+import net.engio.mbassy.listener.Handler;
 
 /**
  * IRC actions exposed to the model as Responses API function tools, bound to
@@ -20,7 +30,14 @@ public class GPTTools
     public static final String SEND_ACTION = "send_action";
     public static final String KICK_USER = "kick_user";
     public static final String SET_TOPIC = "set_topic";
-    public static final String[] ALL_TOOLS = { SEND_PRIVATE_MESSAGE, SEND_NOTICE, SEND_ACTION, KICK_USER, SET_TOPIC };
+    public static final String GET_NAMES = "get_names";
+    public static final String LIST_CHANNELS = "list_channels";
+    public static final String INVITE_USER = "invite_user";
+    public static final String[] ALL_TOOLS = { SEND_PRIVATE_MESSAGE, SEND_NOTICE, SEND_ACTION, KICK_USER, SET_TOPIC, GET_NAMES, LIST_CHANNELS, INVITE_USER };
+
+    private static final int RPL_LIST = 322;
+    private static final int RPL_LISTEND = 323;
+    private static final int MAX_LIST_ENTRIES = 10000;
 
     private IRCGPTBot bot;
     private String target;
@@ -109,7 +126,38 @@ public class GPTTools
             props.put("topic", stringProperty("The new channel topic"));
             tools.put(functionTool(SET_TOPIC, "Change the topic of the current channel (" + this.target + ").", props, "topic"));
         }
+        if (isToolEnabled(GET_NAMES))
+        {
+            JSONObject props = new JSONObject();
+            props.put("channel", stringProperty("Channel to list users for (must be one the bot has joined)." + channelDefaultHint()));
+            tools.put(functionTool(GET_NAMES, "Get the names list (NAMES) of a channel: the nicknames present, with status prefixes like @ for operators and + for voiced users.", props));
+        }
+        if (isToolEnabled(LIST_CHANNELS))
+        {
+            JSONObject props = new JSONObject();
+            JSONObject scope = stringProperty("'joined' for channels the bot is in (default), or 'server' for the public channel list from the IRC server (LIST).");
+            scope.put("enum", new JSONArray().put("joined").put("server"));
+            props.put("scope", scope);
+            props.put("match", stringProperty("Optional case-insensitive text that the channel name or topic must contain"));
+            JSONObject limit = new JSONObject();
+            limit.put("type", "integer");
+            limit.put("description", "Maximum number of server channels to return, largest first (default 25, max 100)");
+            props.put("limit", limit);
+            tools.put(functionTool(LIST_CHANNELS, "Get a list of IRC channels with their user counts and topics.", props));
+        }
+        if (isToolEnabled(INVITE_USER))
+        {
+            JSONObject props = new JSONObject();
+            props.put("nickname", stringProperty("Nickname of the user to invite"));
+            props.put("channel", stringProperty("Channel to invite the user to (must be one the bot has joined)." + channelDefaultHint()));
+            tools.put(functionTool(INVITE_USER, "Invite a user to a channel (INVITE).", props, "nickname"));
+        }
         return tools;
+    }
+
+    private String channelDefaultHint()
+    {
+        return this.targetIsChannel ? " Defaults to the current channel (" + this.target + ")." : "";
     }
 
     public String getInstructions()
@@ -151,6 +199,161 @@ public class GPTTools
         return channel.get();
     }
 
+    private Channel resolveJoinedChannel(JSONObject args)
+    {
+        String name = args.optString("channel", "").trim();
+        if (name.isEmpty())
+        {
+            if (!this.targetIsChannel)
+                throw new IllegalArgumentException("missing required argument 'channel'");
+            name = this.target;
+        }
+        Optional<Channel> channel = client().getChannel(name);
+        if (!channel.isPresent())
+            throw new IllegalStateException("bot is not in channel " + name);
+        return channel.get();
+    }
+
+    // Secret/private/invite-only/keyed channels may only be inspected or invited to from inside that channel
+    private boolean isRestricted(Channel channel)
+    {
+        if (this.targetIsChannel && channel.getName().equalsIgnoreCase(this.target))
+            return false;
+        for (char mode : new char[] { 's', 'p', 'i', 'k' })
+        {
+            if (channel.getModes().containsMode(mode))
+                return true;
+        }
+        return false;
+    }
+
+    private static String prefixedNick(Channel channel, String nick)
+    {
+        Optional<SortedSet<ChannelUserMode>> modes = channel.getUserModes(nick);
+        if (modes.isPresent() && !modes.get().isEmpty())
+            return modes.get().first().getNickPrefix() + nick;
+        return nick;
+    }
+
+    private String getNames(JSONObject args)
+    {
+        Channel channel = resolveJoinedChannel(args);
+        if (isRestricted(channel))
+            return "error: the names list of " + channel.getName() + " cannot be shared outside that channel";
+        JSONArray users = new JSONArray();
+        for (String nick : channel.getNicknames())
+            users.put(prefixedNick(channel, nick));
+        JSONObject result = new JSONObject();
+        result.put("channel", channel.getName());
+        result.put("count", users.length());
+        result.put("users", users);
+        return result.toString();
+    }
+
+    private static JSONObject channelEntry(String name, int users, String topic)
+    {
+        JSONObject entry = new JSONObject();
+        entry.put("channel", name);
+        entry.put("users", users);
+        entry.put("topic", topic);
+        return entry;
+    }
+
+    private static boolean matches(JSONObject entry, String match)
+    {
+        if (match.isEmpty())
+            return true;
+        String m = match.toLowerCase();
+        return entry.optString("channel").toLowerCase().contains(m) || entry.optString("topic").toLowerCase().contains(m);
+    }
+
+    /** Collects RPL_LIST replies until RPL_LISTEND. */
+    public static class ListCollector
+    {
+        private final List<JSONObject> entries = Collections.synchronizedList(new ArrayList<JSONObject>());
+        private final CountDownLatch done = new CountDownLatch(1);
+
+        @Handler
+        public void onNumeric(ClientReceiveNumericEvent event)
+        {
+            List<String> params = event.getParameters();
+            if (event.getNumeric() == RPL_LIST && params.size() >= 3 && this.entries.size() < MAX_LIST_ENTRIES)
+            {
+                int users = 0;
+                try { users = Integer.parseInt(params.get(2).trim()); } catch (NumberFormatException e) {}
+                this.entries.add(channelEntry(params.get(1), users, params.size() > 3 ? params.get(3) : ""));
+            } else if (event.getNumeric() == RPL_LISTEND) {
+                this.done.countDown();
+            }
+        }
+    }
+
+    private String listChannels(JSONObject args) throws InterruptedException
+    {
+        String scope = args.optString("scope", "joined").trim().toLowerCase();
+        String match = args.optString("match", "").trim();
+        JSONArray channels = new JSONArray();
+        JSONObject result = new JSONObject();
+        if ("server".equals(scope))
+        {
+            int limit = Math.max(1, Math.min(100, args.optInt("limit", 25)));
+            Client client = client();
+            ListCollector collector = new ListCollector();
+            boolean complete;
+            synchronized (this.bot)
+            {
+                client.getEventManager().registerEventListener(collector);
+                try
+                {
+                    client.sendRawLine("LIST");
+                    complete = collector.done.await(15, TimeUnit.SECONDS);
+                } finally {
+                    client.getEventManager().unregisterEventListener(collector);
+                }
+            }
+            List<JSONObject> found = new ArrayList<JSONObject>();
+            synchronized (collector.entries)
+            {
+                for (JSONObject entry : collector.entries)
+                    if (matches(entry, match))
+                        found.add(entry);
+            }
+            found.sort((a, b) -> Integer.compare(b.optInt("users"), a.optInt("users")));
+            for (int i = 0; i < found.size() && i < limit; i++)
+                channels.put(found.get(i));
+            result.put("totalMatching", found.size());
+            if (!complete)
+                result.put("note", "the server did not finish the channel list in time; results may be partial");
+        } else {
+            for (Channel channel : client().getChannels())
+            {
+                if (isRestricted(channel))
+                    continue;
+                JSONObject entry = channelEntry(channel.getName(), channel.getNicknames().size(), channel.getTopic().getValue().orElse(""));
+                if (matches(entry, match))
+                    channels.put(entry);
+            }
+        }
+        result.put("scope", "server".equals(scope) ? "server" : "joined");
+        result.put("channels", channels);
+        return result.toString();
+    }
+
+    private String inviteUser(JSONObject args)
+    {
+        String nickname = requireArg(args, "nickname");
+        if (isChannelName(nickname) || nickname.contains(" "))
+            return "error: invalid nickname '" + nickname + "'";
+        Channel channel = resolveJoinedChannel(args);
+        if (isRestricted(channel))
+            return "error: invites to " + channel.getName() + " can only be sent from inside that channel";
+        if (channel.getNicknames().stream().anyMatch((n) -> n.equalsIgnoreCase(nickname)))
+            return "error: " + nickname + " is already in " + channel.getName();
+        client().sendRawLine("INVITE " + nickname + " " + channel.getName());
+        record(channel.getName(), "(INVITE) " + nickname, "/invite " + nickname + " " + channel.getName());
+        return "invite sent to " + nickname + " for " + channel.getName();
+    }
+
     private boolean isBotOp(String nickname)
     {
         JSONArray botOps = this.bot.getBotOptions().optJSONArray("botOps");
@@ -168,7 +371,7 @@ public class GPTTools
     private void record(String to, String logLine, String chatLogBody)
     {
         this.bot.logAppend(to + ".log", "(TOOL) " + this.bot.getNickname() + ": " + logLine);
-        // Only the active conversation's log is touched; its handler is blocked waiting on this response
+        // Only the active conversation's history is updated so the model sees what it did there
         if (to.equalsIgnoreCase(this.target))
             this.bot.getChatLog(this.target).add(new ChatMessage(this.bot.getNickname(), to, chatLogBody, new Date(System.currentTimeMillis())));
     }
@@ -235,6 +438,12 @@ public class GPTTools
                     record(this.target, "(TOPIC) " + topic, "/topic " + topic);
                     return "topic change requested for " + this.target;
                 }
+                case GET_NAMES:
+                    return getNames(args);
+                case LIST_CHANNELS:
+                    return listChannels(args);
+                case INVITE_USER:
+                    return inviteUser(args);
                 default:
                     return "error: unknown tool '" + name + "'";
             }
