@@ -416,6 +416,20 @@
                             </execution>
                         </executions>
                     </plugin>
+                    <!-- Listed first so the native image is built before the installer step in the same (package) phase -->
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <configuration>
+                            <buildArgs combine.children="append">
+                                <buildArg>--initialize-at-run-time=sun.java2d,sun.awt,java.awt,javax.swing,sun.font,com.sun.imageio,sun.swing</buildArg>
+                                <buildArg>-H:NativeLinkerOption=${windows.res}</buildArg>
+                                <!-- GUI subsystem: no console window. Without -h the app opens its Swing terminal (see IRCGPTBotMain). -->
+                                <buildArg>-H:NativeLinkerOption=/SUBSYSTEM:WINDOWS</buildArg>
+                                <buildArg>-H:NativeLinkerOption=/ENTRY:mainCRTStartup</buildArg>
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-antrun-plugin</artifactId>
@@ -524,19 +538,6 @@
                                 </configuration>
                             </execution>
                         </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.graalvm.buildtools</groupId>
-                        <artifactId>native-maven-plugin</artifactId>
-                        <configuration>
-                            <buildArgs combine.children="append">
-                                <buildArg>--initialize-at-run-time=sun.java2d,sun.awt,java.awt,javax.swing,sun.font,com.sun.imageio,sun.swing</buildArg>
-                                <buildArg>-H:NativeLinkerOption=${windows.res}</buildArg>
-                                <!-- GUI subsystem: no console window. Without -h the app opens its Swing terminal (see IRCGPTBotMain). -->
-                                <buildArg>-H:NativeLinkerOption=/SUBSYSTEM:WINDOWS</buildArg>
-                                <buildArg>-H:NativeLinkerOption=/ENTRY:mainCRTStartup</buildArg>
-                            </buildArgs>
-                        </configuration>
                     </plugin>
                 </plugins>
             </build>
