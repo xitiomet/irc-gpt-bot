@@ -224,15 +224,16 @@ public class GPTTools
             JSONObject params = toolUrl.getJSONObject("params");
             JSONObject props = new JSONObject();
             for (String param : params.keySet())
-                props.put(param, stringProperty(params.optString(param, param)));
+                if (!(params.get(param) instanceof JSONObject))
+                    props.put(param, stringProperty(params.getString(param)));
             String description = toolUrl.getString("purpose") + " (fetches information from a configured web service and returns its response)";
-            tools.put(functionTool(urlToolName(i, toolUrl), description, props, params.keySet().toArray(new String[0])));
+            tools.put(functionTool(urlToolName(i, toolUrl), description, props, props.keySet().toArray(new String[0])));
         }
         return tools;
     }
 
     /**
-     * Converts "params" in any supported shape into {"name": "description"}:
+     * Normalizes interpreted descriptions and exact-value descriptors:
      * an object, a list of names, a list of {"name","description"} objects, or a list of single-key objects.
      */
     public static JSONObject normalizeParams(Object params)
@@ -242,7 +243,7 @@ public class GPTTools
         {
             JSONObject p = (JSONObject) params;
             for (String key : p.keySet())
-                putParam(normalized, key, p.optString(key, ""));
+                putParam(normalized, key, p.opt(key));
         } else if (params instanceof JSONArray) {
             JSONArray p = (JSONArray) params;
             for (int i = 0; i < p.length(); i++)
@@ -254,21 +255,38 @@ public class GPTTools
                 } else if (item instanceof JSONObject) {
                     JSONObject o = (JSONObject) item;
                     if (o.has("name"))
-                        putParam(normalized, o.optString("name"), o.optString("description", ""));
+                        putParam(normalized, o.optString("name"), o.has("mode") ? o : o.optString("description", ""));
                     else
                         for (String key : o.keySet())
-                            putParam(normalized, key, o.optString(key, ""));
+                            putParam(normalized, key, o.opt(key));
                 }
             }
         }
         return normalized;
     }
 
-    private static void putParam(JSONObject params, String name, String description)
+    private static void putParam(JSONObject params, String name, Object definition)
     {
         name = name == null ? "" : name.trim();
-        if (name.matches("[A-Za-z0-9_\\-]{1,64}"))
-            params.put(name, description == null || description.trim().isEmpty() ? name : description.trim());
+        if (!name.matches("[A-Za-z0-9_\\-]{1,64}"))
+            return;
+        if (definition instanceof JSONObject)
+        {
+            JSONObject descriptor = (JSONObject) definition;
+            String mode = descriptor.optString("mode", "");
+            if ("exactly".equals(mode))
+            {
+                if (!(descriptor.opt("value") instanceof String))
+                    throw new IllegalArgumentException("Exact parameter '" + name + "' needs a string value.");
+                params.put(name, new JSONObject().put("mode", "exactly").put("value", descriptor.getString("value")));
+                return;
+            }
+            if (!"interpret".equals(mode))
+                throw new IllegalArgumentException("Parameter '" + name + "' mode must be interpret or exactly.");
+            definition = descriptor.optString("description", "");
+        }
+        String description = definition == null || JSONObject.NULL.equals(definition) ? "" : definition.toString();
+        params.put(name, description.trim().isEmpty() ? name : description.trim());
     }
 
     /** Returns a validated, normalized copy of a toolUrls array; invalid entries are dropped. */
@@ -317,7 +335,11 @@ public class GPTTools
         String url = toolUrl.getString("url");
         JSONObject values = new JSONObject();
         for (String param : params.keySet())
-            values.put(param, args.optString(param, ""));
+        {
+            Object definition = params.get(param);
+            values.put(param, definition instanceof JSONObject ? ((JSONObject) definition).getString("value")
+                : args.optString(param, ""));
+        }
         if ("GET".equals(method) && values.length() > 0)
         {
             StringBuilder query = new StringBuilder();

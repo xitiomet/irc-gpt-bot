@@ -41,12 +41,30 @@
             return button;
         }
 
-        function addParamRow(paramList, name, description)
+        function addParamRow(paramList, name, definition)
         {
             var row = document.createElement('div');
             row.className = 'param';
             row.appendChild(makeInput('paramName', name, 'name (e.g. subject)'));
-            row.appendChild(makeInput('paramDescription', description, 'description for the AI'));
+            var exact = definition && typeof definition === 'object' && definition.mode === 'exactly';
+            var value = makeInput('paramDescription', exact ? definition.value : definition, 'description for the AI');
+            row.appendChild(value);
+            var mode = document.createElement('select');
+            mode.className = 'paramMode';
+            mode.setAttribute('aria-label', 'Parameter mode');
+            [['interpret', 'Interpret'], ['exactly', 'Exactly']].forEach(function(opt) {
+                var option = document.createElement('option');
+                option.value = opt[0];
+                option.textContent = opt[1];
+                mode.appendChild(option);
+            });
+            mode.value = exact ? 'exactly' : 'interpret';
+            mode.onchange = function() {
+                value.placeholder = mode.value === 'exactly' ? 'exact value to send' : 'description for the AI';
+                value.setAttribute('aria-label', mode.value === 'exactly' ? 'Exact parameter value' : 'Parameter description for the AI');
+            };
+            mode.onchange();
+            row.appendChild(mode);
             row.appendChild(makeButton('Remove', function() { row.remove(); }));
             paramList.appendChild(row);
         }
@@ -82,7 +100,7 @@
             card.appendChild(method);
 
             var paramsLabel = document.createElement('label');
-            paramsLabel.textContent = 'Parameters (filled in by the AI)';
+            paramsLabel.textContent = 'Parameters (interpret descriptions or send exact values)';
             card.appendChild(paramsLabel);
             var paramList = document.createElement('div');
             paramList.className = 'params';
@@ -115,18 +133,21 @@
                     errors.push(label + ' needs a purpose.');
                 if (!/^https?:\/\/\S+$/i.test(url))
                     errors.push(label + ' needs an http(s) URL.');
-                var params = {};
+                var params = Object.create(null);
                 card.querySelectorAll('.param').forEach(function(row) {
                     var name = row.querySelector('.paramName').value.trim();
-                    var description = row.querySelector('.paramDescription').value.trim();
+                    var mode = row.querySelector('.paramMode').value;
+                    var description = row.querySelector('.paramDescription').value;
+                    if (mode === 'interpret')
+                        description = description.trim();
                     if (name == '' && description == '')
                         return;
                     if (!/^[A-Za-z0-9_\-]{1,64}$/.test(name))
                         errors.push(label + ': parameter names may only use letters, numbers, _ and -.');
-                    else if (params.hasOwnProperty(name))
+                    else if (Object.prototype.hasOwnProperty.call(params, name))
                         errors.push(label + ': duplicate parameter "' + name + '".');
                     else
-                        params[name] = description;
+                        params[name] = mode === 'exactly' ? { mode: 'exactly', value: description } : description;
                 });
                 var tool = { purpose: purpose, url: url, params: params };
                 var method = card.querySelector('.method').value;
@@ -225,8 +246,9 @@
         fieldset.tool label { display: block; font-size: 13px; font-weight: bold; margin: 8px 0 3px 0; }
         fieldset.tool input, fieldset.tool select { width: 100%; padding: 6px; box-sizing: border-box; }
         .param { display: flex; gap: 6px; margin: 4px 0; }
-        .param input.paramName { width: 35%; }
-        .param input.paramDescription { flex: 1; }
+        .param input.paramName { width: 25%; min-width: 0; }
+        .param input.paramDescription { flex: 1; min-width: 0; }
+        .param select.paramMode { width: 100px; flex-shrink: 0; }
         .actions { display: flex; justify-content: space-between; margin-top: 10px; }
         .toolbar { display: flex; justify-content: space-between; margin-top: 10px; }
         button { padding: 6px 12px; }
@@ -234,7 +256,7 @@
 </head>
 <body onload="loaded()">
     <h2 id="botTitle">Tools</h2>
-    <p class="help">Each tool lets the AI fetch a URL for the stated purpose and read the response. Parameters are filled in by the AI and sent as a JSON body (or as a query string when the method is GET).</p>
+    <p class="help">Each tool lets the AI fetch a URL for the stated purpose and read the response. Choose Interpret to let the AI fill a parameter from its description, or Exactly to always send the entered value unchanged. Parameters are sent as a JSON body (or as a query string when the method is GET).</p>
     <p id="empty" style="display: none;">No tools configured.</p>
     <div id="tools"></div>
     <div class="toolbar">
