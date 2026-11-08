@@ -361,6 +361,11 @@ and optional AI endpoint overrides. Aliases split only on commas or new lines;
 spaces stay inside an alias. Changes remain in the editor until **Save/Launch**;
 **Cancel** asks before discarding unsaved changes.
 
+**Load available models** fetches in the background, leaving the editor
+responsive. Select a result with **Use selected model**. HTTP errors (including
+401 for an invalid API key) appear inline and can be retried; the current model
+is preserved. Closing the section while loading discards its pending result.
+
 Server and operator password fields are masked and never prefilled. Blank keeps
 the saved password; explicit clear checkboxes remove it. **Reconnect after saving**
 applies connection changes immediately; otherwise they wait for the next reconnect.

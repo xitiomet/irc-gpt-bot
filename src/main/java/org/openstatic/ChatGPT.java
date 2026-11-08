@@ -116,11 +116,22 @@ public class ChatGPT
 
     public JSONArray listModels(JSONObject botOptions)
     {
-        JSONArray models = new JSONArray();
         try
         {
-            String url = resolveApiUrl(botOptions, "modelsApiUrl", "https://api.openai.com/v1/models");
-            HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
+            return fetchModels(botOptions);
+        } catch (Exception e) {
+            IRCGPTBotMain.log(e);
+            return new JSONArray();
+        }
+    }
+
+    JSONArray fetchModels(JSONObject botOptions) throws java.io.IOException
+    {
+        JSONArray models = new JSONArray();
+        String url = resolveApiUrl(botOptions, "modelsApiUrl", "https://api.openai.com/v1/models");
+        HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
+        try
+        {
             con.setConnectTimeout(10000);
             con.setReadTimeout(15000);
             con.setRequestMethod("GET");
@@ -147,8 +158,8 @@ public class ChatGPT
                 for (String id : ids)
                     models.put(id);
             }
-        } catch (Exception e) {
-            IRCGPTBotMain.log(e);
+        } finally {
+            con.disconnect();
         }
         return models;
     }

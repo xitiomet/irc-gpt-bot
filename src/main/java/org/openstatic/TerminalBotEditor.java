@@ -13,6 +13,7 @@ import com.googlecode.lanterna.gui2.BasicWindow;
 import com.googlecode.lanterna.gui2.Button;
 import com.googlecode.lanterna.gui2.CheckBox;
 import com.googlecode.lanterna.gui2.Component;
+import com.googlecode.lanterna.gui2.ComboBox;
 import com.googlecode.lanterna.gui2.Direction;
 import com.googlecode.lanterna.gui2.GridLayout;
 import com.googlecode.lanterna.gui2.Label;
@@ -21,7 +22,6 @@ import com.googlecode.lanterna.gui2.MultiWindowTextGUI;
 import com.googlecode.lanterna.gui2.Panel;
 import com.googlecode.lanterna.gui2.TextBox;
 import com.googlecode.lanterna.gui2.Window;
-import com.googlecode.lanterna.gui2.dialogs.ListSelectDialogBuilder;
 import com.googlecode.lanterna.gui2.dialogs.MessageDialog;
 import com.googlecode.lanterna.gui2.dialogs.MessageDialogButton;
 import com.googlecode.lanterna.gui2.dialogs.TextInputDialogBuilder;
@@ -127,24 +127,56 @@ final class TerminalBotEditor
             Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
             panel.addComponent(new Label("Model ID (select below or enter explicitly)"));
             panel.addComponent(text.get("model"));
-            panel.addComponent(new Button("Load available models", () -> {
+            Label modelStatus = new Label("");
+            Button loadModels = new Button("Load available models");
+            loadModels.addListener(button -> {
                 JSONObject modelOptions = new JSONObject();
                 for (String field : new String[] {"modelsApiUrl", "responsesApiUrl"})
                     if (!text.get(field).getText().isBlank()) modelOptions.put(field, text.get(field).getText().trim());
-                JSONArray available = IRCGPTBotMain.chatGPT.listModels(modelOptions);
                 String current = text.get("model").getText();
-                if (available.isEmpty())
-                {
-                    MessageDialog.showMessageDialog(gui, "Models", "No models returned. Check the API key and endpoint.\nYou can enter an explicit model ID.", MessageDialogButton.OK);
-                    return;
-                }
-                if (!current.isBlank() && !IRCGPTBotMain.inJSONArray(available, current)) available.put(current);
-                ListSelectDialogBuilder<String> builder = new ListSelectDialogBuilder<String>()
-                    .setTitle("Select Model").setListBoxSize(new TerminalSize(45, 12));
-                for (Object model : available) builder.addListItem(model.toString());
-                String selected = builder.build().showDialog(gui);
-                if (selected != null) text.get("model").setText(selected);
-            }));
+                loadModels.setEnabled(false);
+                modelStatus.setText("Loading models... You can keep editing or close this section.");
+                Thread loader = new Thread(() -> {
+                    try
+                    {
+                        JSONArray available = IRCGPTBotMain.chatGPT.fetchModels(modelOptions);
+                        synchronized (gui)
+                        {
+                            if (panel.getTextGUI() == null) return;
+                            if (available.isEmpty())
+                            {
+                                modelStatus.setText("No models returned. Check the key / endpoint or enter a model ID.");
+                                return;
+                            }
+                            if (!current.isBlank() && !IRCGPTBotMain.inJSONArray(available, current)) available.put(current);
+                            BasicWindow picker = new BasicWindow("Select Model");
+                            picker.setHints(Arrays.asList(Window.Hint.CENTERED));
+                            Panel choices = new Panel(new LinearLayout(Direction.VERTICAL));
+                            ComboBox<String> models = new ComboBox<>();
+                            for (Object model : available) models.addItem(model.toString());
+                            if (!current.isBlank()) models.setSelectedItem(current);
+                            choices.addComponent(models);
+                            choices.addComponent(new Button("Use selected model", () -> {
+                                text.get("model").setText(models.getSelectedItem());
+                                picker.close();
+                            }));
+                            choices.addComponent(new Button("Cancel", picker::close));
+                            picker.setComponent(choices);
+                            modelStatus.setText("Models loaded.");
+                            gui.addWindow(picker);
+                        }
+                    } catch (java.io.IOException | RuntimeException e) {
+                        IRCGPTBotMain.log(e);
+                        if (panel.getTextGUI() != null) modelStatus.setText("Unable to load models: " + e.getMessage());
+                    } finally {
+                        loadModels.setEnabled(true);
+                    }
+                }, "Terminal model loader");
+                loader.setDaemon(true);
+                loader.start();
+            });
+            panel.addComponent(loadModels);
+            panel.addComponent(modelStatus);
             panel.addComponent(new Label("System prompt"));
             panel.addComponent(text.get("preamble"));
             section(gui, "Model / Prompt", panel);

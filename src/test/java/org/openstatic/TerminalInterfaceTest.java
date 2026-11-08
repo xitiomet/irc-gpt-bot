@@ -3,18 +3,28 @@ package org.openstatic;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 
+import com.sun.net.httpserver.HttpServer;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.TerminalPosition;
 import com.googlecode.lanterna.gui2.AsynchronousTextGUIThread;
 import com.googlecode.lanterna.gui2.Button;
 import com.googlecode.lanterna.gui2.Component;
+import com.googlecode.lanterna.gui2.ComboBox;
+import com.googlecode.lanterna.gui2.Label;
 import com.googlecode.lanterna.gui2.Container;
 import com.googlecode.lanterna.gui2.MultiWindowTextGUI;
 import com.googlecode.lanterna.gui2.SeparateTextGUIThread;
@@ -26,6 +36,8 @@ import com.googlecode.lanterna.terminal.virtual.DefaultVirtualTerminal;
 
 class TerminalInterfaceTest
 {
+    @TempDir Path temporary;
+
     private TerminalBotEditor editor()
     {
         JSONObject options = BotEditorOptions.defaults("terminal-bot", true).put("server", "irc.example.net");
@@ -189,6 +201,106 @@ class TerminalInterfaceTest
                 if (found != null) return found;
             }
         return null;
+    }
+
+    @Test
+    @Timeout(20)
+    void modelLoadingRemainsResponsiveAndHandlesUnauthorizedEmptyAndClosedSections() throws Exception
+    {
+        JSONObject previousSettings = IRCGPTBotMain.settings;
+        ChatGPT previousChat = IRCGPTBotMain.chatGPT;
+        java.io.File previousLogs = IRCGPTBotMain.logsFolder;
+        IRCGPTBotMain.settings = new JSONObject().put("openAiKey", "test-only");
+        IRCGPTBotMain.logsFolder = temporary.toFile();
+        IRCGPTBotMain.chatGPT = new ChatGPT();
+        CountDownLatch requested = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicInteger requests = new AtomicInteger();
+        AtomicInteger status = new AtomicInteger(200);
+        AtomicReference<String> response = new AtomicReference<>("{\"data\":[{\"id\":\"gpt-test\"}]}");
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/models", exchange -> {
+            if (requests.incrementAndGet() == 1)
+            {
+                requested.countDown();
+                try { release.await(5, TimeUnit.SECONDS); }
+                catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            }
+            byte[] body = response.get().getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(status.get(), body.length);
+            try (var output = exchange.getResponseBody()) { output.write(body); }
+        });
+        server.start();
+        DefaultVirtualTerminal terminal = new DefaultVirtualTerminal(new TerminalSize(80, 24));
+        TerminalScreen screen = new TerminalScreen(terminal);
+        screen.startScreen();
+        MultiWindowTextGUI gui = new MultiWindowTextGUI(new SeparateTextGUIThread.Factory(), screen);
+        AsynchronousTextGUIThread guiThread = (AsynchronousTextGUIThread) gui.getGUIThread();
+        guiThread.start();
+        TerminalBotEditor editor = editor();
+        editor.text.get("modelsApiUrl").setText("http://127.0.0.1:" + server.getAddress().getPort() + "/models");
+        Thread worker = new Thread(() -> editor.show(gui, "terminal-bot", value -> {}));
+        worker.start();
+        try
+        {
+            waitFor(() -> gui.getActiveWindow() != null);
+            click(gui, terminal, "Model / Prompt");
+            waitFor(() -> gui.getWindows().size() == 2);
+            Button firstLoad = button(gui.getActiveWindow().getComponent(), "Load available models");
+            click(gui, terminal, "Load available models");
+            assertTrue(requested.await(3, TimeUnit.SECONDS));
+            assertFalse(firstLoad.isEnabled());
+            click(gui, terminal, "Done");
+            waitFor(() -> gui.getWindows().size() == 1);
+            release.countDown();
+            waitFor(firstLoad::isEnabled);
+            assertEquals(1, gui.getWindows().size(), "Closed section must not open a stale model picker");
+            click(gui, terminal, "Model / Prompt");
+            waitFor(() -> gui.getWindows().size() == 2);
+            click(gui, terminal, "Load available models");
+            waitFor(() -> gui.getWindows().size() == 3);
+            ComboBox<?> models = (ComboBox<?>) ((Container) gui.getActiveWindow().getComponent()).getChildren().iterator().next();
+            assertEquals("gpt-4o-mini", models.getSelectedItem());
+            models.setSelectedIndex(0);
+            assertEquals("gpt-test", models.getSelectedItem());
+            click(gui, terminal, "Use selected model");
+            waitFor(() -> gui.getWindows().size() == 2);
+            assertEquals("gpt-test", editor.text.get("model").getText());
+            status.set(401);
+            Button load = button(gui.getActiveWindow().getComponent(), "Load available models");
+            click(gui, terminal, "Load available models");
+            waitFor(() -> labels(gui.getActiveWindow().getComponent()).contains("401"));
+            waitFor(load::isEnabled);
+            assertEquals(2, gui.getWindows().size(), "HTTP errors must not open blocking dialogs");
+            status.set(200);
+            response.set("{\"data\":[]}");
+            click(gui, terminal, "Load available models");
+            waitFor(() -> labels(gui.getActiveWindow().getComponent()).contains("No models returned"));
+            waitFor(load::isEnabled);
+            assertEquals("gpt-test", editor.text.get("model").getText());
+            click(gui, terminal, "Done");
+            waitFor(() -> gui.getWindows().size() == 1);
+        } finally {
+            release.countDown();
+            for (Window window : gui.getWindows().toArray(Window[]::new)) window.close();
+            worker.join(1000);
+            guiThread.stop();
+            screen.stopScreen();
+            terminal.close();
+            server.stop(0);
+            IRCGPTBotMain.chatGPT.shutdown();
+            IRCGPTBotMain.chatGPT = previousChat;
+            IRCGPTBotMain.settings = previousSettings;
+            IRCGPTBotMain.logsFolder = previousLogs;
+        }
+    }
+
+    private static String labels(Component component)
+    {
+        StringBuilder text = new StringBuilder(component instanceof Label ? ((Label) component).getText() : "");
+        if (component instanceof Container)
+            for (Component child : ((Container) component).getChildren()) text.append(labels(child));
+        return text.toString();
     }
 
     private static void click(MultiWindowTextGUI gui, DefaultVirtualTerminal terminal, String label)
