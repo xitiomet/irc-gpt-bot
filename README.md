@@ -57,6 +57,9 @@ DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid J
             },  
             "ignore": ["AnnoyingUser"], // Bot should completely ignore these nicknames (can be used for other bots or abusive users)
             "aliases": ["chat", "gpt"], // Extra names (besides the nickname) the bot should respond to when mentioned
+            "followUpSeconds": 120,  // How long after the bot speaks follow-ups (questions, replies) still get an answer
+            "replyCooldownSeconds": 15, // Minimum gap between unprompted replies (U?, RE, OQ); 0 disables
+            "openQuestionSeconds": 60,  // Answer "anyone know...?" questions nobody else answered within this time; 0 disables
             "user": null,            // IRC User field (for bot)
             "realName": null,        // IRC Real Name field (for bot)
             "password": null,        // IRC Password (for bot)
@@ -103,7 +106,20 @@ IRC GPT Bot: An IRC Bot for chatGPT
  -l,--log-output <arg>   Specify log output path
 ```
 
-When directly messaging this bot it will respond to all messages, however in a channel a user needs to use the bots name or be responding to a question the bot asked.
+When directly messaging this bot it will respond to all messages. In a channel it responds when any of these apply (the flag is shown in the channel log):
+
+| Flag | Rule |
+|------|------|
+| `@B` | The message contains the bot's nickname or one of its `aliases` as a whole word |
+| `U2` | The bot and the sender are the only (non-ignored) users in the channel |
+| `B?` | The bot's last message was a question |
+| `U?` | The bot spoke last and the message is a question (ends in `?` or starts with a question word) |
+| `RE` | The bot spoke last and the sender is who it was answering, or was named in its reply |
+| `OQ` | A question to the whole channel ("anyone know...", "does anybody...", "can someone...") that nobody else answers within `openQuestionSeconds` (default 60) |
+
+`B?`, `U?` and `RE` only apply within `followUpSeconds` (default 120) of the bot's last message.
+
+`@B`, `U2` and `B?` are always answered. The unprompted rules (`U?`, `RE`, `OQ`) are limited to one reply per `replyCooldownSeconds` (default 15) per channel, so the bot can't dominate a busy channel; a suppressed reply is logged as `CD`.
 
 ### AI Tools
 

@@ -35,10 +35,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.SortedSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.json.*;
@@ -75,6 +79,15 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     private String botId;
     private HashMap<String, ChatLog> logs;
     private ArrayList<String> privateChats;
+    // Channel (lowercase) -> nickname the bot most recently replied to, for conversation continuation
+    private final ConcurrentHashMap<String, String> lastReplyTo = new ConcurrentHashMap<String, String>();
+    // Channel (lowercase) -> time of the last unprompted reply, for replyCooldownSeconds
+    private final ConcurrentHashMap<String, Long> lastUnpromptedReply = new ConcurrentHashMap<String, Long>();
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor((r) -> {
+        Thread t = new Thread(r, "IRCGPTBot Scheduler");
+        t.setDaemon(true);
+        return t;
+    });
     // AI replies run here so the IRC event thread is never blocked (tools may need server responses)
     private final ExecutorService replyExecutor = Executors.newSingleThreadExecutor((r) -> {
         Thread t = new Thread(r, "IRCGPTBot Reply");
@@ -627,23 +640,39 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     {
         if (body == null)
             return false;
-        String lcBody = body.toLowerCase();
-        if (lcBody.contains(this.botNickname.toLowerCase()))
+        if (mentionsName(body, this.botNickname))
             return true;
         JSONArray aliases = this.botOptions.optJSONArray("aliases");
         if (aliases != null)
         {
             for (Object alias : aliases)
             {
-                if (alias != null)
-                {
-                    String lcAlias = alias.toString().toLowerCase().trim();
-                    if (!lcAlias.isEmpty() && lcBody.contains(lcAlias))
-                        return true;
-                }
+                if (alias != null && mentionsName(body, alias.toString().trim()))
+                    return true;
             }
         }
         return false;
+    }
+
+    // Whole-word, case-insensitive match, so an alias like "chat" does not fire on "chatting"
+    private static boolean mentionsName(String body, String name)
+    {
+        if (body == null || name == null || name.isEmpty())
+            return false;
+        Pattern p = Pattern.compile("(?<![\\p{L}\\p{N}_])" + Pattern.quote(name) + "(?![\\p{L}\\p{N}_])", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+        return p.matcher(body).find();
+    }
+
+    private static final Pattern QUESTION_MARK = Pattern.compile("\\?(\\s|[\"')\\]]|$)");
+    private static final Pattern QUESTION_START = Pattern.compile("^(who|what|when|where|why|how|which|whose|can|could|would|will|should|is|are|am|was|were|do|does|did|have|has|any|anyone)\\b", Pattern.CASE_INSENSITIVE);
+
+    // A "?" that ends a word (not inside a URL query string), or a message opening with a question word
+    private static boolean isQuestion(String body)
+    {
+        if (body == null)
+            return false;
+        String trimmed = body.trim();
+        return QUESTION_MARK.matcher(trimmed).find() || QUESTION_START.matcher(trimmed).find();
     }
 
     public String getNicknameAtServer()
@@ -1062,15 +1091,22 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
             cl.add(msg);
             
             boolean botAskedQuestion = false;
+            boolean userAskedFollowUp = false;
+            boolean continuesConversation = false;
             boolean containsBotName = this.bodyMentionsBot(body);
-            boolean lastMessageWasBot = false;
             boolean userCountIsTwo = (userCount == 2);
-            if (previosMsg != null)
+            if (previosMsg != null && previosMsg.getSender().equals(this.botNickname))
             {
-                lastMessageWasBot = previosMsg.getSender().equals(this.botNickname);
-                if (lastMessageWasBot)
+                // Follow-up rules only apply when the bot spoke last, and recently
+                long followUpMillis = this.botOptions.optLong("followUpSeconds", 120) * 1000L;
+                boolean recent = (msg.getTimestamp().getTime() - previosMsg.getTimestamp().getTime()) <= followUpMillis;
+                if (recent)
                 {
-                    botAskedQuestion = previosMsg.getBody().contains("?");
+                    botAskedQuestion = isQuestion(previosMsg.getBody());
+                    userAskedFollowUp = isQuestion(body);
+                    // The person the bot just answered (or named in its reply) is most likely talking back to it
+                    continuesConversation = senderNick.equalsIgnoreCase(this.lastReplyTo.get(target.toLowerCase()))
+                                         || (senderNick.length() >= 3 && mentionsName(previosMsg.getBody(), senderNick));
                 }
             }
             String rReason = "U=" + String.valueOf(userCount);
@@ -1078,36 +1114,117 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                 rReason += " U2";
             if (botAskedQuestion)
                 rReason += " B?";
+            if (userAskedFollowUp)
+                rReason += " U?";
+            if (continuesConversation)
+                rReason += " RE";
             if (containsBotName)
                 rReason += " @B";
+            // Prompted replies (the bot was addressed, or asked the question) are always answered;
+            // unprompted ones are rate limited so the bot cannot dominate a busy channel
+            boolean prompted = containsBotName || userCountIsTwo || botAskedQuestion;
+            boolean unprompted = userAskedFollowUp || continuesConversation;
+            boolean coolingDown = !prompted && unprompted && isCoolingDown(target);
+            if (coolingDown)
+                rReason += " CD";
+            boolean replyNow = prompted || (unprompted && !coolingDown);
+            int openQuestionSeconds = this.botOptions.optInt("openQuestionSeconds", 60);
+            boolean openQuestion = !replyNow && openQuestionSeconds > 0 && isOpenQuestion(body);
+            if (openQuestion)
+                rReason += " OQ";
             logAppend(target + ".log", "("+ rReason +") "+ msg.toSimpleLine());
-            if (botAskedQuestion || containsBotName || userCountIsTwo)
+            if (this.botOptions.optBoolean("gptEnabled", true))
             {
-                if (this.botOptions.optBoolean("gptEnabled", true))
+                if (replyNow)
                 {
-                    this.replyExecutor.submit(() -> {
-                        try
-                        {
-                            ChatMessage outMsg = IRCGPTBotMain.chatGPT.callChatGPT(this.botOptions, cl, new GPTTools(this, target)).get();
-                            outMsg.setRecipient(target);
-                            String outText = outMsg.getBody().replace("\n", " ").replace("\r", "");
-                            if (!outText.trim().isEmpty())
-                            {
-                                logAppend(target + ".log", outMsg.toSimpleLine());
-                                cl.add(outMsg);
-                                channel.sendMultiLineMessage(outText);
-                            }
-                            this.messagesHandled++;
-                            this.fireStats();
-                        } catch (Exception e) {
-                            log(e);
-                        }
-                    });
+                    replyToChannel(channel, cl, target, senderNick, !prompted);
+                }
+                else if (openQuestion)
+                {
+                    this.scheduler.schedule(() -> answerOpenQuestion(target, cl, msg), openQuestionSeconds, TimeUnit.SECONDS);
                 }
             }
         } else {
             ChatMessage msg = new ChatMessage(senderNick, channel.getName(), body, new Date(System.currentTimeMillis()));
             logAppend(target + ".log", "(IGNORED) " + msg.toSimpleLine());
+        }
+    }
+
+    private void replyToChannel(Channel channel, ChatLog cl, String target, String senderNick, boolean unprompted)
+    {
+        this.lastReplyTo.put(target.toLowerCase(), senderNick);
+        if (unprompted)
+            this.lastUnpromptedReply.put(target.toLowerCase(), System.currentTimeMillis());
+        this.replyExecutor.submit(() -> {
+            try
+            {
+                ChatMessage outMsg = IRCGPTBotMain.chatGPT.callChatGPT(this.botOptions, cl, new GPTTools(this, target)).get();
+                outMsg.setRecipient(target);
+                String outText = outMsg.getBody().replace("\n", " ").replace("\r", "");
+                if (!outText.trim().isEmpty())
+                {
+                    logAppend(target + ".log", outMsg.toSimpleLine());
+                    cl.add(outMsg);
+                    channel.sendMultiLineMessage(outText);
+                }
+                this.messagesHandled++;
+                this.fireStats();
+            } catch (Exception e) {
+                log(e);
+            }
+        });
+    }
+
+    private boolean isCoolingDown(String target)
+    {
+        long cooldownMillis = this.botOptions.optLong("replyCooldownSeconds", 15) * 1000L;
+        Long last = this.lastUnpromptedReply.get(target.toLowerCase());
+        return last != null && (System.currentTimeMillis() - last) < cooldownMillis;
+    }
+
+    private static final Pattern OPEN_QUESTION = Pattern.compile("^(?:(?:does|do|did|can|could|would|will|is|has)\\s+)?(?:there\\s+)?(?:any|some)\\s?(?:one|body)\\b", Pattern.CASE_INSENSITIVE);
+
+    // Questions put to the whole channel, e.g. "anyone know...", "does anybody...", "can someone..."
+    private static boolean isOpenQuestion(String body)
+    {
+        return body != null && OPEN_QUESTION.matcher(body.trim()).find();
+    }
+
+    // Runs openQuestionSeconds after an open question; answers only if nobody else has replied since
+    private void answerOpenQuestion(String target, ChatLog cl, ChatMessage question)
+    {
+        try
+        {
+            List<ChatMessage> messages = cl.getMessages();
+            int index = -1;
+            for (int i = 0; i < messages.size(); i++)
+            {
+                if (messages.get(i) == question)
+                    index = i;
+            }
+            if (index < 0)
+                return;
+            for (int i = index + 1; i < messages.size(); i++)
+            {
+                String sender = messages.get(i).getSender();
+                if (!sender.equalsIgnoreCase(question.getSender()))
+                {
+                    logAppend(target + ".log", "(OQ) not answering " + question.getSender() + ", " + sender + " replied");
+                    return;
+                }
+            }
+            if (isCoolingDown(target))
+            {
+                logAppend(target + ".log", "(OQ CD) not answering " + question.getSender() + ", cooling down");
+                return;
+            }
+            Optional<Channel> channel = this.client == null ? Optional.empty() : this.client.getChannel(target);
+            if (!channel.isPresent() || !this.botOptions.optBoolean("gptEnabled", true))
+                return;
+            logAppend(target + ".log", "(OQ) answering open question from " + question.getSender());
+            replyToChannel(channel.get(), cl, target, question.getSender(), true);
+        } catch (Exception e) {
+            log(e);
         }
     }
 
