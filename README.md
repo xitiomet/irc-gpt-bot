@@ -287,6 +287,12 @@ from the authenticated dashboard in memory and send it in the `X-API-Password`
 request header, including for reads; no password is saved in browser storage.
 Close an editor with **Close** or **Escape**. Notes retain their unsaved-change
 confirmation. Editor pages opened directly ask you to use the dashboard instead.
+The dashboard uses responsive bot cards with connection badges, grouped controls,
+and primary activity/token/cost statistics. Expand **Activity & usage details**
+for errors, cached input, and request counts; incomplete-cost and tracking warnings
+remain visible without expanding. Editors share the same theme and stack their
+fields on smaller screens. Styles are bundled locally; no external fonts or
+UI framework are required.
 
 API clients may also use `X-API-Password` for GET and POST requests. Existing
 `apiPassword` query parameters and JSON body fields remain accepted for backwards

@@ -113,6 +113,65 @@ test('editor authenticates only same-origin API requests through headers', () =>
     for (const name of ['channels', 'tools', 'notes', 'preamble', 'model', 'launch'])
     {
         assert(source(name + '.html').includes('src="editor.js"'));
+        assert(source(name + '.html').includes('href="theme.css"'));
         assert(!source(name + '.html').includes('apiPassword'));
     }
+});
+
+test('cards retain identity, actions, live statistics, details, and empty state', () => {
+    const nodes = {};
+    function element(tag)
+    {
+        const node = {
+            tag, children: [], dataset: {}, textContent: '', details: null,
+            append(...items) { this.children.push(...items); },
+            appendChild(item) { this.children.push(item); },
+            removeChild(item) { this.children.splice(this.children.indexOf(item), 1); delete nodes[item.id]; },
+            setAttribute() {},
+            querySelector(selector) { return selector === 'details' ? this.details : null; }
+        };
+        Object.defineProperty(node, 'id', { set(value) { this.identifier = value; nodes[value] = this; }, get() { return this.identifier; } });
+        Object.defineProperty(node, 'innerHTML', { set(value) { this.html = value; this.details = { open: false }; }, get() { return this.html; } });
+        return node;
+    }
+    nodes.botTable = element('div');
+    nodes.botCount = element('span');
+    nodes.emptyBots = element('div');
+    const context = {
+        location: { hostname: 'localhost', protocol: 'http:', port: '6553' }, window: {},
+        document: { getElementById: id => nodes[id] || null, createElement: element }
+    };
+    vm.createContext(context);
+    vm.runInContext(source('index.js'), context);
+    const data = { id: 'bot_[test]', stats: {
+        nickname: '<test>', model: 'gpt-4o-mini', ircServer: 'irc.example.com', enabled: true, status: 'CONNECTED',
+        messagesHandled: 12, messagesSeen: 40, errorCount: 2,
+        usage: { tokensSpent: 1100, inputTokensSpent: 1000, outputTokensSpent: 100, cachedTokensSpent: 200,
+            costEstimate: 0.000195, requests: 1, unpricedTokensSpent: 1, untrackedRequests: 1, trackingError: 'error' }
+    } };
+    context.addBot(data);
+    assert.equal(nodes.botTable.children[0].tag, 'article');
+    assert.equal(nodes['nickname_bot_[test]'].textContent, '<test>');
+    assert.equal(nodes['status_bot_[test]'].textContent, 'Connected');
+    assert.equal(nodes['server_bot_[test]'].textContent, 'irc.example.com');
+    assert.equal(nodes.botCount.textContent, '1 bot');
+    assert.equal(nodes.emptyBots.hidden, true);
+    const stats = nodes['stats_bot_[test]'];
+    for (const expected of ['Messages Handled', 'Messages Seen', 'Errors', 'AI Tokens', 'Input / Output', 'Cached Input',
+        '$0.000195', 'AI Requests', 'Unpriced Tokens', 'Missing Usage', 'Usage save failed'])
+        assert(stats.innerHTML.includes(expected), expected);
+    stats.details.open = true;
+    data.stats.enabled = false;
+    context.updateBot(data);
+    assert.equal(stats.details.open, true);
+    assert.equal(nodes['status_bot_[test]'].textContent, 'Disabled');
+    assert.equal(nodes['toggle_bot_[test]'].textContent, 'Enable');
+    context.addBot(data);
+    assert.equal(nodes.botTable.children.length, 1);
+    const actions = nodes['bot_bot_[test]'].children[2].children;
+    assert.deepEqual(Array.from(actions, item => item.textContent), ['Edit Model/Prompt', 'Notes', 'Channels', 'Tools']);
+    context.notesWindow = () => {};
+    context.removeBot(data.id);
+    assert.equal(nodes.botCount.textContent, '0 bots');
+    assert.equal(nodes.emptyBots.hidden, false);
 });

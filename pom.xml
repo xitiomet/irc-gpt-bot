@@ -96,6 +96,7 @@
                     <include>*.ico</include>
                     <include>*.html</include>
                     <include>*.js</include>
+                    <include>*.css</include>
                     <include>*.svg</include>
                     <include>*.json</include>
                 </includes>

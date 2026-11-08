@@ -1,5 +1,8 @@
 <html>
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Launch Bot</title>
+    <link rel="stylesheet" href="theme.css">
     <script src="jquery.min.js"></script>
     <script src="editor.js"></script>
     <script type="text/javascript">
@@ -15,7 +18,7 @@
                     botOptions[element.id] = element.checked;
                 } else if (element.type == 'number') {
                     botOptions[element.id] = parseInt(element.value);
-                } else if (element.type == 'text') {
+                } else if (element.type == 'text' || element.type == 'password') {
                     if (element.id != 'botId')
                     {
                         if (element.value != "")
@@ -49,77 +52,35 @@
     </script>
 </head>
 
-<body>
+<body class="editor-page">
     <h2>Launch Bot</h2>
-    <table>
-        <tr>
-            <td>Bot Identifier</td>
-            <td><input type="text" id="botId" placeholder="MyGPTBot" /></td>
-        </tr>
-        <tr>
-            <td>Bot IRC Nickname</td>
-            <td><input type="text" id="nickname" placeholder="chatGPT" /></td>
-        </tr>
-        <tr>
-            <td>Bot IRC Username</td>
-            <td><input type="text" id="user" placeholder="chatGPT" value="chatGPT" /></td>
-        </tr>
-        <tr>
-            <td>Bot IRC Password</td>
-            <td><input type="text" id="password" placeholder="" value="" /></td>
-        </tr>
-        <tr>
-            <td>Bot IRC Real Name</td>
-            <td><input type="text" id="realName" placeholder="chatGPT" value="chatGPT" /></td>
-        </tr>
-        <tr>
-            <td>IRC Server</td>
-            <td><input type="text" id="server" placeholder="irc.yourserver.net" /></td>
-        </tr>
-        <tr>
-            <td>IRC Port</td>
-            <td><input type="text" id="port" placeholder="6667" value="6667" /></td>
-        </tr>
-        <tr>
-            <td>SSL</td>
-            <td><input type="checkbox" id="secure" /></td>
-        </tr>
-        <tr>
-            <td>Preamble</td>
-            <td><textarea id="systemPreamble" /></textarea></td>
-        </tr>
-        <tr>
-            <td>Private Messages</td>
-            <td><input type="checkbox" id="privateMessages" checked="true" /></td>
-        </tr>
-        <tr>
-            <td>Accept Channel Invites</td>
-            <td><input type="checkbox" id="acceptInvites" checked="true" /></td>
-        </tr>
-        <tr>
-            <td>Greet users on channel join</td>
-            <td><input type="checkbox" id="greet" checked="true" /></td>
-        </tr>
-        <tr>
-            <td>Greet users publicly (in the channel)</td>
-            <td><input type="checkbox" id="greetPublic" checked="true" /></td>
-        </tr>
-        <tr>
-            <td>chatGPT enabled for this bot</td>
-            <td><input type="checkbox" id="gptEnabled" checked="true" /></td>
-        </tr>
-        <tr>
-            <td>OpenAI Model</td>
-            <td><input type="text" id="model" value="gpt-3.5-turbo" /></td>
-        </tr>
-        <tr>
-            <td>Context Depth (how many messages should chatGPT see for context?)</td>
-            <td><input type="number" id="contextDepth" value="15" /></td>
-        </tr>
-        <tr>
-            <td></td>
-            <td><button onclick="launch()">Launch!</button></td>
-        </tr>
-    </table>
+    <p class="help">Connect a new bot to your IRC server. You can adjust its model, tools, and channels afterwards.</p>
+    <div class="form-panel">
+        <h3>Identity &amp; connection</h3>
+        <div class="launch-grid">
+            <div><label for="botId">Bot identifier</label><input type="text" id="botId" placeholder="MyGPTBot"></div>
+            <div><label for="nickname">IRC nickname</label><input type="text" id="nickname" placeholder="chatGPT"></div>
+            <div><label for="server">IRC server</label><input type="text" id="server" placeholder="irc.yourserver.net"></div>
+            <div><label for="port">IRC port</label><input type="text" id="port" value="6667"></div>
+            <div><label for="user">IRC username</label><input type="text" id="user" value="chatGPT"></div>
+            <div><label for="password">IRC password</label><input type="password" id="password" autocomplete="new-password"></div>
+            <div><label for="realName">Real name</label><input type="text" id="realName" value="chatGPT"></div>
+            <label class="check-field"><input type="checkbox" id="secure">Use SSL</label>
+        </div>
+    </div>
+    <div class="form-panel">
+        <h3>AI &amp; behavior</h3>
+        <div class="launch-grid">
+            <div><label for="model">OpenAI model</label><input type="text" id="model" value="gpt-3.5-turbo"></div>
+            <div><label for="contextDepth">Context depth (messages)</label><input type="number" id="contextDepth" value="15"></div>
+            <div class="wide-field"><label for="systemPreamble">System preamble</label><textarea id="systemPreamble" rows="5"></textarea></div>
+            <label class="check-field"><input type="checkbox" id="privateMessages" checked>Respond to private messages</label>
+            <label class="check-field"><input type="checkbox" id="acceptInvites" checked>Accept channel invites</label>
+            <label class="check-field"><input type="checkbox" id="greet" checked>Greet users on join</label>
+            <label class="check-field"><input type="checkbox" id="greetPublic" checked>Greet publicly in the channel</label>
+            <label class="check-field"><input type="checkbox" id="gptEnabled" checked>Enable ChatGPT</label>
+        </div>
+    </div>
+    <div class="toolbar save-toolbar"><button onclick="launch()" class="primary">Launch Bot</button></div>
 </body>
 </html>

@@ -1,5 +1,8 @@
 <html>
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Model</title>
+    <link rel="stylesheet" href="theme.css">
     <script src="jquery.min.js"></script>
     <script src="editor.js"></script>
     <script type="text/javascript">
@@ -73,10 +76,11 @@
     </script>
 </head>
 
-<body onload="loaded()" style="text-align: center; font-family: Sans Serif;">
+<body onload="loaded()" class="editor-page">
     <h2 id="botTitle">Model</h2>
-    <select id="model" size="20" style="width: 320px; font-size: 16px;"></select><br />
+    <label for="model">Available models</label>
+    <select id="model" size="12"></select>
     <p id="status"></p>
-    <button onclick="save()" style="width: 128px; height: 48px;">Save</button>
+    <button onclick="save()" class="primary">Save</button>
 </body>
 </html>

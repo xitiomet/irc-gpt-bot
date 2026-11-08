@@ -134,24 +134,18 @@
             refreshChannels();
         }
     </script>
-    <style>
-        body { font-family: Sans Serif; margin: 20px; }
-        h2 { text-align: center; }
-        ul { list-style: none; padding: 0; }
-        li { display: flex; align-items: center; justify-content: space-between; margin: 8px 0; gap: 12px; }
-        li span { overflow-wrap: anywhere; }
-        button { padding: 6px 12px; }
-        input { padding: 6px; max-width: 65%; }
-    </style>
+    <link rel="stylesheet" href="theme.css">
 </head>
-<body onload="loaded()">
+<body onload="loaded()" class="editor-page">
     <h2 id="botTitle">Channels</h2>
     <p id="connectionStatus" role="status">Loading channels...</p>
     <ul id="channels"></ul>
-    <form id="joinForm">
-        <label for="channelName">Join a channel</label><br>
-        <input id="channelName" type="text" placeholder="#lobby" required autocomplete="off">
-        <button type="submit" disabled>Join</button>
+    <form id="joinForm" class="form-panel">
+        <label for="channelName">Join a channel</label>
+        <div class="join-controls">
+            <input id="channelName" type="text" placeholder="#lobby" required autocomplete="off">
+            <button type="submit" class="primary" disabled>Join</button>
+        </div>
     </form>
     <p id="status" role="status"></p>
 </body>

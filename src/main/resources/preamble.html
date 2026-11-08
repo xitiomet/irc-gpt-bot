@@ -2,6 +2,7 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Edit Model/Prompt</title>
+    <link rel="stylesheet" href="theme.css">
     <script src="jquery.min.js"></script>
     <script src="editor.js"></script>
     <script type="text/javascript">
@@ -78,13 +79,18 @@
     </script>
 </head>
 
-<body onload="loaded()" style="font-family: Sans Serif; margin: 20px;">
-    <h2 id="botTitle" style="text-align: center;">Edit Model/Prompt</h2>
-    <label for="model">Model</label><br>
-    <select id="model" disabled style="width: 100%; margin-bottom: 16px;"></select><br>
-    <label for="systemPreamble">System preamble</label><br>
-    <textarea id="systemPreamble" rows="24" disabled style="width: 100%; box-sizing: border-box;"></textarea>
+<body onload="loaded()" class="editor-page">
+    <h2 id="botTitle">Edit Model/Prompt</h2>
+    <p class="help">Choose the model and shape how your bot responds.</p>
+    <div class="form-panel">
+        <label for="model">Model</label>
+        <select id="model" disabled></select>
+    </div>
+    <label for="systemPreamble">System preamble</label>
+    <textarea id="systemPreamble" rows="14" class="prompt-field" disabled></textarea>
     <p id="status" role="status"></p>
-    <button id="saveButton" onclick="save()" disabled style="width: 128px; height: 48px;">Save</button>
+    <div class="toolbar save-toolbar">
+        <button id="saveButton" onclick="save()" disabled class="primary">Save</button>
+    </div>
 </body>
 </html>

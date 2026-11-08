@@ -133,115 +133,158 @@ function removeBot(botId)
     {
         document.getElementById("botTable").removeChild(botTag);
     }
+    updateBotCount();
+}
 
+function escapeHtml(value)
+{
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function(character) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character];
+    });
+}
+
+function formatCount(value)
+{
+    return Number(value || 0).toLocaleString();
+}
+
+function stat(label, value, className)
+{
+    return '<div class="stat ' + (className || '') + '"><dt>' + label + '</dt><dd>' + escapeHtml(value) + '</dd></div>';
 }
 
 function renderBotStats(stats)
 {
-    var text = "<b>Messages Handled</b> " + stats.messagesHandled + "<br /><b>Messages Seen</b> " + stats.messagesSeen + "<br /><b>Errors</b> " + stats.errorCount;
+    var text = '<dl class="stats-grid">' + stat('Messages Handled', formatCount(stats.messagesHandled));
+    text += stat('Messages Seen', formatCount(stats.messagesSeen));
     if (stats.usage)
     {
         var usage = stats.usage;
-        text += "<br /><b>AI Tokens</b> " + usage.tokensSpent.toLocaleString()
-            + "<br /><b>Input / Output</b> " + usage.inputTokensSpent.toLocaleString() + " / " + usage.outputTokensSpent.toLocaleString()
-            + "<br /><b>Cached Input</b> " + usage.cachedTokensSpent.toLocaleString()
-            + "<br /><b>Est. Cost (USD)</b> $" + Number(usage.costEstimate).toFixed(6)
-            + "<br /><b>AI Requests</b> " + usage.requests.toLocaleString();
+        text += stat('AI Tokens', formatCount(usage.tokensSpent))
+            + stat('Est. Cost (USD)', '$' + Number(usage.costEstimate || 0).toFixed(6), 'cost');
+    }
+    text += '</dl><details class="usage-details"><summary>Activity &amp; usage details'
+        + (stats.errorCount > 0 ? ' <span class="error-message">(' + formatCount(stats.errorCount) + ' errors)</span>' : '')
+        + '</summary><dl class="detail-list">'
+        + '<dt>Errors</dt><dd>' + formatCount(stats.errorCount) + '</dd>';
+    if (stats.usage)
+    {
+        text += '<dt>Input / Output</dt><dd>' + formatCount(usage.inputTokensSpent) + ' / ' + formatCount(usage.outputTokensSpent)
+            + '</dd><dt>Cached Input</dt><dd>' + formatCount(usage.cachedTokensSpent)
+            + '</dd><dt>AI Requests</dt><dd>' + formatCount(usage.requests) + '</dd>';
+    }
+    text += '</dl></details>';
+    if (stats.usage)
+    {
         if (usage.unpricedTokensSpent > 0)
-            text += "<br /><b>Unpriced Tokens</b> " + usage.unpricedTokensSpent.toLocaleString();
+            text += '<p class="usage-warning">Unpriced Tokens: ' + formatCount(usage.unpricedTokensSpent) + '. Cost estimate is incomplete.</p>';
         if (usage.untrackedRequests > 0)
-            text += "<br /><b>Missing Usage</b> " + usage.untrackedRequests.toLocaleString() + " request(s)";
+            text += '<p class="usage-warning">Missing Usage: ' + formatCount(usage.untrackedRequests) + ' request(s).</p>';
         if (usage.trackingError)
-            text += "<br /><b>Usage save failed; check server logs</b>";
+            text += '<p class="usage-warning">Usage save failed; check server logs.</p>';
     }
     return text;
+}
+
+function updateBotCount()
+{
+    var count = document.getElementById('botTable').children.length;
+    document.getElementById('botCount').textContent = count + (count === 1 ? ' bot' : ' bots');
+    document.getElementById('emptyBots').hidden = count > 0;
+}
+
+function botButton(label, action, objectId, className)
+{
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = label;
+    button.className = className || '';
+    button.onclick = function() { action(objectId); };
+    return button;
 }
 
 function addBot(json)
 {
     var objectId = json.id;
-    var tag = "bot_" + objectId;
-    var avatarTagId = "avatar_" + objectId;
-    var avatarImgTagId = "avatar_img_" + objectId;
-    var nicknameTagId = "nickname_" + objectId;
-    var statsTagId = "stats_" + objectId;
-    var actionsTagId  = "actions_" + objectId;
-
-    var avatarTag, botTag, nicknameTag, statsTag, actionsTag;
-    botTag = document.getElementById(tag);
+    var botTag = document.getElementById('bot_' + objectId);
     if (botTag == null)
     {
-        botTag = document.createElement("tr");
-        botTag.id = tag;
-        avatarTag = document.createElement("td");
-        avatarTag.id = avatarTagId;
-        avatarImgTag = document.createElement("img")
-        avatarImgTag.id = avatarImgTagId;
-        nicknameTag = document.createElement("td");
-        nicknameTag.style.minWidth = '138px';
-        nicknameTag.id = nicknameTagId;
-        statsTag = document.createElement("td");
-        statsTag.id = statsTagId;
-        statsTag.style.minWidth = '160px';
-        actionsTag = document.createElement("td");
-        actionsTag.id = actionsTagId;
-        botTag.appendChild(avatarTag);
-        botTag.appendChild(nicknameTag);
+        botTag = document.createElement('article');
+        botTag.id = 'bot_' + objectId;
+        botTag.className = 'bot-card';
+        botTag.setAttribute('aria-labelledby', 'nickname_' + objectId);
+        var header = document.createElement('div');
+        header.className = 'bot-header';
+        var avatar = document.createElement('img');
+        avatar.id = 'avatar_img_' + objectId;
+        avatar.className = 'bot-avatar';
+        avatar.alt = '';
+        var identity = document.createElement('div');
+        identity.className = 'bot-identity';
+        var nickname = document.createElement('h2');
+        nickname.id = 'nickname_' + objectId;
+        var model = document.createElement('p');
+        model.id = 'model_' + objectId;
+        model.className = 'bot-meta';
+        var server = document.createElement('p');
+        server.id = 'server_' + objectId;
+        server.className = 'bot-meta';
+        var status = document.createElement('span');
+        status.id = 'status_' + objectId;
+        status.className = 'bot-status';
+        identity.append(nickname, model, server, status);
+        header.append(avatar, identity);
+        botTag.appendChild(header);
+        var statsTag = document.createElement('div');
+        statsTag.id = 'stats_' + objectId;
         botTag.appendChild(statsTag);
+        var actionsTag = document.createElement('div');
+        actionsTag.className = 'bot-actions';
+        actionsTag.append(
+            botButton('Edit Model/Prompt', editModelPromptWindow, objectId),
+            botButton('Notes', notesWindow, objectId),
+            botButton('Channels', channelsWindow, objectId),
+            botButton('Tools', toolsWindow, objectId));
         botTag.appendChild(actionsTag);
-        avatarTag.appendChild(avatarImgTag);
-        avatarImgTag.src = json.stats.status + ".svg";
-        avatarImgTag.style.height = '64px';
-        avatarImgTag.style.width = '64px';
-        nicknameTag.innerHTML = "<b style=\"font-size: 18px;\">" + json.stats.nickname + "</b><br />" + json.stats.model;
-        actionsTag.innerHTML = "<table><tr><td><button style=\"width: 128px;\" onClick=\"editModelPromptWindow('" + objectId + "')\">Edit Model/Prompt</button><br /><button style=\"width: 128px;\" onClick=\"notesWindow('" + objectId + "')\">Notes</button><br /><button style=\"width: 128px;\" onClick=\"channelsWindow('" + objectId + "')\">Channels</button></td><td><button style=\"width: 128px;\" onClick=\"toolsWindow('" + objectId + "')\">Tools</button><br /><button style=\"width: 128px;\" id=\"toggle_" + objectId + "\" onClick=\"toggleBot('" + objectId + "')\">Disable</button><br /><button style=\"width: 128px;\" onClick=\"deleteBot('" + objectId + "')\">Delete</button></td></tr></table>";
-        document.getElementById("botTable").appendChild(botTag);
-    } else {
-        avatarTag = document.getElementById(avatarTagId);
-        avatarImgTag = document.getElementById(avatarImgTagId);
-        nicknameTag = document.getElementById(nicknameTagId);
-        statsTag = document.getElementById(statsTagId);
-        actionsTag = document.getElementById(actionsTagId);
+        var lifecycle = document.createElement('div');
+        lifecycle.className = 'bot-lifecycle';
+        var toggle = botButton('Disable', toggleBot, objectId);
+        toggle.id = 'toggle_' + objectId;
+        lifecycle.append(toggle, botButton('Delete', deleteBot, objectId, 'danger'));
+        botTag.appendChild(lifecycle);
+        document.getElementById('botTable').appendChild(botTag);
     }
-    statsTag.innerHTML = renderBotStats(json.stats);
-    updateToggleButton(objectId, json.stats.enabled);
-    var targetStatusIcon = json.stats.status + ".svg";
-    if (avatarImgTag.src != targetStatusIcon)
-        avatarImgTag.src = targetStatusIcon;
+    updateBot(json);
+    updateBotCount();
 }
-
 
 function updateBot(json)
 {
     var objectId = json.id;
-    var tag = "bot_" + objectId;
-    var avatarTagId = "avatar_" + objectId;
-    var avatarImgTagId = "avatar_img_" + objectId;
-    var nicknameTagId = "nickname_" + objectId;
-    var statsTagId = "stats_" + objectId;
-    var actionsTagId  = "actions_" + objectId;
-
-    var avatarTag, botTag, nicknameTag, statsTag, actionsTag;
-    botTag = document.getElementById(tag);
-    if (botTag == null)
-    {
+    if (document.getElementById('bot_' + objectId) == null)
         return;
-    } else {
-        avatarTag = document.getElementById(avatarTagId);
-        avatarImgTag = document.getElementById(avatarImgTagId);
-        nicknameTag = document.getElementById(nicknameTagId);
-        statsTag = document.getElementById(statsTagId);
-        actionsTag = document.getElementById(actionsTagId);
-    }
-    if (nicknameTag != null)
-        nicknameTag.innerHTML = "<b style=\"font-size: 18px;\">" + json.stats.nickname + "</b><br />" + json.stats.model;
+    document.getElementById('nickname_' + objectId).textContent = json.stats.nickname;
+    document.getElementById('model_' + objectId).textContent = json.stats.model;
+    document.getElementById('server_' + objectId).textContent = json.stats.ircServer || objectId;
+    var connected = json.stats.enabled !== false && json.stats.status === 'CONNECTED';
+    var status = document.getElementById('status_' + objectId);
+    status.textContent = json.stats.enabled === false ? 'Disabled' : connected ? 'Connected' : json.stats.status === 'ERROR' ? 'Connection error' : 'Disconnected';
+    status.dataset.state = connected ? 'connected' : json.stats.status === 'ERROR' && json.stats.enabled !== false ? 'error' : 'disconnected';
+    var statsTag = document.getElementById('stats_' + objectId);
+    var details = statsTag.querySelector('details');
+    var detailsOpen = details && details.open;
     statsTag.innerHTML = renderBotStats(json.stats);
+    statsTag.querySelector('details').open = detailsOpen;
     updateToggleButton(objectId, json.stats.enabled);
-    var targetStatusIcon = json.stats.status + ".svg";
-    if (avatarImgTag.src != targetStatusIcon)
-        avatarImgTag.src = targetStatusIcon;
+    document.getElementById('avatar_img_' + objectId).src = (connected ? 'CONNECTED' : json.stats.status === 'ERROR' ? 'ERROR' : 'DISCONNECTED') + '.svg';
 }
 
+function setConnectionState(text, state)
+{
+    var indicator = document.getElementById('connectionState');
+    indicator.textContent = text;
+    indicator.dataset.state = state;
+}
 
 function setupWebsocket()
 {
@@ -262,6 +305,7 @@ function setupWebsocket()
         connection = new WebSocket(wsProtocol + '://' + hostname + ':' + port + '/ircgptbot/');
         
         connection.onopen = function () {
+            setConnectionState('Ready to sign in', 'connected');
             if (document.getElementById('login').style.display == 'none')
             {
                 doAuth();
@@ -269,7 +313,7 @@ function setupWebsocket()
         };
         
         connection.onerror = function (error) {
-
+            setConnectionState('Connection unavailable', 'disconnected');
         };
 
         //Code for handling incoming Websocket messages from the server
@@ -291,6 +335,10 @@ function setupWebsocket()
                     updateBot(jsonObject);
                 } else if (action == 'authOk') {
                     authenticated = true;
+                    document.getElementById('botTable').textContent = '';
+                    updateBotCount();
+                    setConnectionState('Live updates', 'connected');
+                    document.getElementById('errorMsg').textContent = '';
                     document.getElementById('login').style.display = 'none';
                     document.getElementById('console').style.display = 'block';
                     document.getElementById('launchBotButton').style.display = 'inline-block';
@@ -301,6 +349,7 @@ function setupWebsocket()
                     document.getElementById('console').style.display = 'none';
                     document.getElementById('launchBotButton').style.display = 'none';
                     document.getElementById('errorMsg').textContent = jsonObject.error;
+                    setConnectionState('Sign in required', 'connected');
                 } else if (action == 'launch' && jsonObject.error) {
                     alert("Unable to launch bot: " + jsonObject.error);
                 }
@@ -308,6 +357,7 @@ function setupWebsocket()
         };
         
         connection.onclose = function () {
+          setConnectionState('Reconnecting...', 'disconnected');
           console.log('WebSocket connection closed');
           reconnectTimeout = setTimeout(setupWebsocket, 10000);
         };

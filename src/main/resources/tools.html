@@ -237,30 +237,16 @@
             loadTools();
         }
     </script>
-    <style>
-        body { font-family: Sans Serif; margin: 20px; }
-        h2 { text-align: center; }
-        p.help { font-size: 13px; color: #444; }
-        fieldset.tool { border: 1px solid #aaa; border-radius: 4px; margin: 0 0 14px 0; padding: 10px; }
-        fieldset.tool label { display: block; font-size: 13px; font-weight: bold; margin: 8px 0 3px 0; }
-        fieldset.tool input, fieldset.tool select { width: 100%; padding: 6px; box-sizing: border-box; }
-        .param { display: flex; gap: 6px; margin: 4px 0; }
-        .param input.paramName { width: 25%; min-width: 0; }
-        .param input.paramDescription { flex: 1; min-width: 0; }
-        .param select.paramMode { width: 100px; flex-shrink: 0; }
-        .actions { display: flex; justify-content: space-between; margin-top: 10px; }
-        .toolbar { display: flex; justify-content: space-between; margin-top: 10px; }
-        button { padding: 6px 12px; }
-    </style>
+    <link rel="stylesheet" href="theme.css">
 </head>
-<body onload="loaded()">
+<body onload="loaded()" class="editor-page">
     <h2 id="botTitle">Tools</h2>
     <p class="help">Each tool lets the AI fetch a URL for the stated purpose and read the response. Choose Interpret to let the AI fill a parameter from its description, or Exactly to always send the entered value unchanged. Parameters are sent as a JSON body (or as a query string when the method is GET).</p>
     <p id="empty" style="display: none;">No tools configured.</p>
     <div id="tools"></div>
-    <div class="toolbar">
+    <div class="toolbar save-toolbar">
         <button type="button" id="addTool">Add Tool</button>
-        <button type="button" id="saveTools">Save</button>
+        <button type="button" id="saveTools" class="primary">Save</button>
     </div>
     <p id="status" role="status"></p>
 </body>
