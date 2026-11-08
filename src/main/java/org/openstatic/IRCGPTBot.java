@@ -217,6 +217,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                                 {
                                     Channel channel = channelOptional.get();
                                     ListSelectDialogBuilder<String> lsdb2 = new ListSelectDialogBuilder<String>();
+                                    lsdb2.addListItem("Live Channel View");
                                     lsdb2.addListItem("View Messages");
                                     lsdb2.addListItem("Show Members");
                                     if (IRCGPTBot.this.botIsOp(channel))
@@ -229,7 +230,10 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                                     lsdb2.setTitle(channelSelected);
                                     ListSelectDialog<String> lsd2 = (ListSelectDialog<String>) lsdb2.build();
                                     String optionSelected = lsd2.showDialog(IRCGPTBotMain.instance.gui);
-                                    if ("Leave Channel".equals(optionSelected))
+                                    if ("Live Channel View".equals(optionSelected))
+                                    {
+                                        TerminalChannelView.show(IRCGPTBot.this, channelSelected);
+                                    } else if ("Leave Channel".equals(optionSelected))
                                     {
                                         channel.part();
                                         IRCGPTBot.this.removeChannelFromSettings(channelSelected);
@@ -279,151 +283,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                     z.start();
                 }
             });
-            this.optionsButton = new Button("Options", new Runnable() {
-                @Override
-                public void run() {
-                    Thread t = new Thread(() -> {
-                        final BasicWindow optionsWindow = new BasicWindow("Options");
-                        Panel optionsPanel = new Panel(new LinearLayout(Direction.VERTICAL));
-                        
-                        CheckBox greetingOption = new CheckBox("Greet users that join a channel");
-                        greetingOption.setChecked(IRCGPTBot.this.botOptions.optBoolean("greet"));
-
-                        CheckBox greetPublicOption = new CheckBox("Greetings should be visible to channel");
-                        greetPublicOption.setChecked(IRCGPTBot.this.botOptions.optBoolean("greetPublic"));
-
-                        CheckBox acceptInvitesOption = new CheckBox("Accept all Channel Invites");
-                        acceptInvitesOption.setChecked(IRCGPTBot.this.botOptions.optBoolean("acceptInvites"));
-
-                        CheckBox gptEnabledOption = new CheckBox("ChatGPT Enabled");
-                        gptEnabledOption.setChecked(IRCGPTBot.this.botOptions.optBoolean("gptEnabled", true));
-
-                        CheckBox respondToPrivateMessagesOption = new CheckBox("Respond to private messages");
-                        respondToPrivateMessagesOption.setChecked(IRCGPTBot.this.botOptions.optBoolean("privateMessages"));
-
-                        optionsPanel.addComponent(greetingOption);
-                        optionsPanel.addComponent(greetPublicOption);
-                        optionsPanel.addComponent(acceptInvitesOption);
-                        optionsPanel.addComponent(respondToPrivateMessagesOption);
-                        optionsPanel.addComponent(gptEnabledOption);
-
-                        Button saveButton = new Button("Save", new Runnable() {
-                            @Override
-                            public void run() {
-                                optionsWindow.close();
-                            }
-                        });
-                        Button changeNickButton = new Button("Change Nickname", new Runnable() {
-                            @Override
-                            public void run() {
-                                Thread z = new Thread(() -> {
-                                    try
-                                    {
-                                        TextInputDialogBuilder mdb = new TextInputDialogBuilder();
-                                        mdb.setTitle("Enter new nickname");
-                                        mdb.setInitialContent(IRCGPTBot.this.botNickname);
-                                        mdb.setTextBoxSize(new TerminalSize(30, 1));
-                                        TextInputDialog md = mdb.build();
-                                        String newNickname = md.showDialog(IRCGPTBotMain.instance.gui);
-                                        if (newNickname != null && !"".equals(newNickname))
-                                            IRCGPTBot.this.changeNickname(newNickname);
-                                    } catch (Exception e2) {
-
-                                    }
-                                });
-                                z.start();
-                            }
-                        });
-                        Button changeContextDepth = new Button("Change Context Depth", new Runnable() {
-                            @Override
-                            public void run() {
-                                Thread z = new Thread(() -> {
-                                    try
-                                    {
-                                        TextInputDialogBuilder mdb = new TextInputDialogBuilder();
-                                        mdb.setTitle("Enter new value for context depth (0-255)");
-                                        mdb.setInitialContent(String.valueOf(IRCGPTBot.this.botOptions.optInt("contextDepth", 15)));
-                                        mdb.setTextBoxSize(new TerminalSize(30, 1));
-                                        TextInputDialog md = mdb.build();
-                                        String newDepth = md.showDialog(IRCGPTBotMain.instance.gui);
-                                        if (newDepth != null && !"".equals(newDepth))
-                                            IRCGPTBot.this.botOptions.put("contextDepth", Integer.valueOf(newDepth).intValue());
-                                    } catch (Exception e2) {
-                                        log(e2);
-                                    }
-                                });
-                                z.start();
-                            }
-                        });
-                        Button editPreamble = new Button("Edit Preamble", new Runnable() {
-                            @Override
-                            public void run() {
-                                Thread z = new Thread(() -> {
-                                    try
-                                    {
-                                        TextInputDialogBuilder mdb = new TextInputDialogBuilder();
-                                        mdb.setTitle("System Preamble");
-                                        mdb.setInitialContent(IRCGPTBot.this.botOptions.optString("systemPreamble",""));
-                                        mdb.setTextBoxSize(new TerminalSize(60, 15));
-                                        TextInputDialog md = mdb.build();
-                                        String preamble = md.showDialog(IRCGPTBotMain.instance.gui);
-                                        IRCGPTBot.this.botOptions.put("systemPreamble", preamble);
-                                    } catch (Exception e2) {
-                                        log(e2);
-                                    }
-                                });
-                                z.start();
-                            }
-                        });
-                        Button changeModel = new Button("Change Model", new Runnable() {
-                            @Override
-                            public void run() {
-                                Thread z = new Thread(() -> {
-                                    try
-                                    {
-                                        MessageDialog.showMessageDialog(IRCGPTBotMain.instance.gui, "Change Model", "Fetching available models...", MessageDialogButton.OK);
-                                        JSONArray models = IRCGPTBot.this.getAvailableModels();
-                                        if (models.length() == 0)
-                                        {
-                                            MessageDialog.showMessageDialog(IRCGPTBotMain.instance.gui, "Change Model", "No models returned. Check your API key and modelsApiUrl.", MessageDialogButton.OK);
-                                            return;
-                                        }
-                                        ListSelectDialogBuilder<String> lsdb = new ListSelectDialogBuilder<String>();
-                                        for (int i = 0; i < models.length(); i++)
-                                        {
-                                            lsdb.addListItem(models.getString(i));
-                                        }
-                                        lsdb.setListBoxSize(new TerminalSize(40, 15));
-                                        lsdb.setTitle("Select Model");
-                                        lsdb.setDescription("Current: " + IRCGPTBot.this.getModel());
-                                        ListSelectDialog<String> lsd = (ListSelectDialog<String>) lsdb.build();
-                                        String modelSelected = lsd.showDialog(IRCGPTBotMain.instance.gui);
-                                        if (modelSelected != null)
-                                            IRCGPTBot.this.setModel(modelSelected);
-                                    } catch (Exception e2) {
-                                        log(e2);
-                                    }
-                                });
-                                z.start();
-                            }
-                        });
-                        optionsPanel.addComponent(changeNickButton);
-                        optionsPanel.addComponent(changeContextDepth);
-                        optionsPanel.addComponent(editPreamble);
-                        optionsPanel.addComponent(changeModel);
-                        optionsPanel.addComponent(saveButton);
-                        optionsWindow.setComponent(optionsPanel);
-                        IRCGPTBotMain.instance.gui.addWindowAndWait(optionsWindow);
-                        IRCGPTBot.this.botOptions.put("greet", greetingOption.isChecked());
-                        IRCGPTBot.this.botOptions.put("greetPublic", greetPublicOption.isChecked());
-                        IRCGPTBot.this.botOptions.put("gptEnabled", gptEnabledOption.isChecked());
-                        IRCGPTBot.this.botOptions.put("acceptInvites", acceptInvitesOption.isChecked());
-                        IRCGPTBot.this.botOptions.put("privateMessages", respondToPrivateMessagesOption.isChecked());
-                        IRCGPTBotMain.instance.saveSettings();
-                    });
-                    t.start();
-                }
-            });
+            this.optionsButton = new Button("Edit Bot", () -> TerminalBotEditor.edit(IRCGPTBot.this));
             this.notesButton = new Button("Notes", new Runnable() {
                 @Override
                 public void run() {
@@ -579,92 +439,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
 
     private void serverOptions()
     {
-        Thread t = new Thread(() -> {
-            final BasicWindow serverWindow = new BasicWindow("Server");
-            GridLayout gl = new GridLayout(2);
-            Panel serverPanel = new Panel(gl);
-            TerminalSize tSize = new TerminalSize(40, 1);
-
-            TextBox serverAddrBox = new TextBox(IRCGPTBot.this.botOptions.optString("server", "127.0.0.1"));
-            TextBox portBox = new TextBox(IRCGPTBot.this.botOptions.optString("port","6667"));
-            TextBox nickBox = new TextBox(IRCGPTBot.this.botOptions.optString("nickname",this.botId));
-            TextBox userBox = new TextBox(IRCGPTBot.this.botOptions.optString("user",this.botId));
-            TextBox realNameBox = new TextBox(IRCGPTBot.this.botOptions.optString("realName",""));
-            TextBox passBox = new TextBox(IRCGPTBot.this.botOptions.optString("password",""));
-
-            serverAddrBox.setSize(tSize);
-            nickBox.setSize(tSize);
-            userBox.setSize(tSize);
-            realNameBox.setSize(tSize);
-            passBox.setSize(tSize);
-            serverAddrBox.setPreferredSize(tSize);
-            nickBox.setPreferredSize(tSize);
-            userBox.setPreferredSize(tSize);
-            realNameBox.setPreferredSize(tSize);
-            passBox.setPreferredSize(tSize);
-
-            CheckBox secureOption = new CheckBox("");
-            secureOption.setChecked(IRCGPTBot.this.botOptions.optBoolean("secure",false));
-
-            serverPanel.addComponent(new Label("Server"));
-            serverPanel.addComponent(serverAddrBox);
-
-            serverPanel.addComponent(new Label("Port"));
-            serverPanel.addComponent(portBox);
-
-            serverPanel.addComponent(new Label("Nickname"));
-            serverPanel.addComponent(nickBox);
-
-            serverPanel.addComponent(new Label("USER"));
-            serverPanel.addComponent(userBox);
-
-            serverPanel.addComponent(new Label("Real Name"));
-            serverPanel.addComponent(realNameBox);
-
-            serverPanel.addComponent(new Label("Password"));
-            serverPanel.addComponent(passBox);
-
-            serverPanel.addComponent(new Label("Secure Connection"));
-            serverPanel.addComponent(secureOption);
-
-            Button saveButton = new Button("Save", new Runnable() {
-                @Override
-                public void run() {
-                    serverWindow.close();
-                }
-            });
-            serverPanel.addComponent(new Label(""));
-            serverPanel.addComponent(saveButton);
-            serverWindow.setComponent(serverPanel);
-            IRCGPTBotMain.instance.gui.addWindowAndWait(serverWindow);
-            IRCGPTBot.this.botOptions.put("server", serverAddrBox.getText());
-            IRCGPTBot.this.botOptions.put("port", Integer.valueOf(portBox.getText()).intValue());
-            IRCGPTBot.this.botOptions.put("nickname", nickBox.getText());
-            if ("".equals(passBox.getText()))
-            {
-                if (IRCGPTBot.this.botOptions.has("password"))
-                    IRCGPTBot.this.botOptions.remove("password");
-            } else {
-                IRCGPTBot.this.botOptions.put("password", passBox.getText());
-            }
-            if ("".equals(userBox.getText()))
-            {
-                if (IRCGPTBot.this.botOptions.has("user"))
-                    IRCGPTBot.this.botOptions.remove("user");
-            } else {
-                IRCGPTBot.this.botOptions.put("user", userBox.getText());
-            }
-            if ("".equals(realNameBox.getText()))
-            {
-                if (IRCGPTBot.this.botOptions.has("realName"))
-                    IRCGPTBot.this.botOptions.remove("realName");
-            } else {
-                IRCGPTBot.this.botOptions.put("realName", realNameBox.getText());
-            }
-            IRCGPTBot.this.botOptions.put("secure", secureOption.isChecked());
-            IRCGPTBotMain.instance.saveSettings();
-        });
-        t.start();
+        TerminalBotEditor.edit(this);
     }
 
     public void connect()
@@ -856,9 +631,12 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
             for (Object value : values)
             {
                 if (!(value instanceof String) || ((String) value).isBlank()
-                    || ((String) value).chars().anyMatch(c -> Character.isWhitespace(c) || Character.isISOControl(c) || c == ','))
-                    throw new IllegalArgumentException(field + " must contain non-empty names without spaces or commas.");
-                String name = (String) value;
+                    || ((String) value).chars().anyMatch(c -> Character.isISOControl(c) || c == ','
+                        || (!"aliases".equals(field) && Character.isWhitespace(c))))
+                    throw new IllegalArgumentException(field + ("aliases".equals(field)
+                        ? " must contain non-empty aliases without commas or control characters."
+                        : " must contain non-empty names without spaces or commas."));
+                String name = "aliases".equals(field) ? ((String) value).trim() : (String) value;
                 if ("gptTools".equals(field) && !Arrays.asList(GPTTools.ALL_TOOLS).contains(name))
                     throw new IllegalArgumentException("Unknown built-in tool: " + name);
                 if (seen.add(name))

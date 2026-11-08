@@ -331,12 +331,12 @@ test('bot settings serialize all tool selections, toggles and nickname lists and
     elements.model.value = 'gpt-4o-mini';
     elements.systemPreamble.value = 'Prompt';
     elements.ignore.value = 'one, two\none';
-    elements.aliases.value = 'helper chat';
+    elements.aliases.value = ' rat catcher , helper chat\r\nrat catcher\n friendly bot ';
     elements.botOps.value = '';
     elements.acceptInvites.checked = true;
     const state = context.editorState();
     assert.deepEqual(Array.from(state.ignore), ['one', 'two']);
-    assert.deepEqual(Array.from(state.aliases), ['helper', 'chat']);
+    assert.deepEqual(Array.from(state.aliases), ['rat catcher', 'helper chat', 'friendly bot']);
     assert.deepEqual(Array.from(state.botOps), []);
     assert.deepEqual(Array.from(state.gptTools), ['write_note']);
     assert.equal(state.acceptInvites, true);

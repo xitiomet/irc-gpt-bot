@@ -9,7 +9,8 @@ var numberFields = ['port', 'contextDepth', 'followUpSeconds', 'replyCooldownSec
 
 function listValues(id)
 {
-    return Array.from(new Set(document.getElementById(id).value.split(/[\s,]+/).filter(Boolean)));
+    var separator = id === 'aliases' ? /[\r\n,]+/ : /[\s,]+/;
+    return Array.from(new Set(document.getElementById(id).value.split(separator).map(function(value) { return value.trim(); }).filter(Boolean)));
 }
 
 function editorState()

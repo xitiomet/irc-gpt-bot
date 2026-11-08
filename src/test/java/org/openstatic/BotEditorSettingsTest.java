@@ -107,9 +107,25 @@ class BotEditorSettingsTest
         assertThrows(IllegalArgumentException.class, () -> IRCGPTBot.validateEditorUpdate(input().put("preamble", 4)));
         assertThrows(IllegalArgumentException.class, () -> IRCGPTBot.validateEditorUpdate(input().put("greet", "false")));
         assertThrows(IllegalArgumentException.class, () -> IRCGPTBot.validateEditorUpdate(input().put("gptTools", new JSONArray().put("bogus"))));
-        for (String field : new String[] {"ignore", "aliases", "botOps"})
+        for (String field : new String[] {"ignore", "botOps"})
             for (Object value : new Object[] {"", "two names", "one,two", "bad\nname", 42})
                 assertThrows(IllegalArgumentException.class, () -> IRCGPTBot.validateEditorUpdate(input().put(field, new JSONArray().put(value))));
         assertFalse(IRCGPTBot.validateEditorUpdate(input().put("apiPassword", "ignored")).has("apiPassword"));
+    }
+
+    @Test
+    void aliasesPreserveWholePhrasesAndTrimOnlyTheirEdges() throws Exception
+    {
+        JSONObject update = IRCGPTBot.validateEditorUpdate(input().put("aliases",
+            new JSONArray().put(" rat catcher ").put("rat catcher").put("friendly bot")));
+        assertEquals("[\"rat catcher\",\"friendly bot\"]", update.getJSONArray("aliases").toString());
+        for (Object invalid : new Object[] {"", " ", "one,two", "bad\nname", "bad\tname", 42})
+            assertThrows(IllegalArgumentException.class, () -> IRCGPTBot.validateEditorUpdate(input().put("aliases", new JSONArray().put(invalid))));
+        IRCGPTBot bot = new IRCGPTBot("test", new JSONObject().put("enabled", false).put("aliases", update.getJSONArray("aliases")));
+        var method = IRCGPTBot.class.getDeclaredMethod("bodyMentionsBot", String.class);
+        method.setAccessible(true);
+        assertEquals(true, method.invoke(bot, "hello rat catcher!"));
+        assertEquals(false, method.invoke(bot, "hello rat"));
+        assertEquals(false, method.invoke(bot, "hello catcher"));
     }
 }

@@ -133,7 +133,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
 
                 Panel bottomLabelPanel = new Panel();
                 bottomLabelPanel.setFillColorOverride(ANSI.RED);
-                this.bottomLabel = new Label("F2: Launch Bot  |  F4: Destroy Selected Bot  |  F10: Set OpenAI Key  |  F12: Shutdown");
+                this.bottomLabel = new Label("F2: Launch Bot | F4: Destroy Bot | F10: Master Config | F12: Shutdown");
                 this.bottomLabel.setBackgroundColor(ANSI.RED);
                 this.bottomLabel.setForegroundColor(ANSI.BLACK);
                 bottomLabelPanel.addComponent(this.bottomLabel);            
@@ -390,6 +390,14 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
             {
                 if (IRCGPTBotMain.this.gui != null)
                 {
+                    if (usageTracker != null)
+                    {
+                        JSONObject totals = usageTracker.totals();
+                        boolean incomplete = totals.optLong("unpricedTokensSpent") > 0 || totals.optLong("untrackedRequests") > 0
+                            || totals.has("trackingError");
+                        this.topLabel.setText("IRC GPT BOT | Total Cost Estimate: $" + totals.get("costEstimate")
+                            + " USD" + (incomplete ? " (incomplete)" : ""));
+                    }
                     IRCGPTBotMain.this.gui.updateScreen();
                     KeyStroke keyStroke = IRCGPTBotMain.this.terminal.pollInput();
                     if (keyStroke != null)
@@ -398,22 +406,9 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
                         {
                             shutdown();
                         } else if (keyStroke.equals(F2)) {
-                            Thread z = new Thread(() -> {
-                                TextInputDialogBuilder mdb = new TextInputDialogBuilder();
-                                mdb.setTitle("Bot Identifier (a name to identify the bot by, no spaces)");
-                                mdb.setInitialContent("");
-                                mdb.setTextBoxSize(new TerminalSize(60, 1));
-                                TextInputDialog md = mdb.build();
-                                String botId = md.showDialog(IRCGPTBotMain.this.gui);
-                                botId = botId.replaceAll(Pattern.quote(" "), "");
-                                if (!"".equals(botId) && botId != null)
-                                {
-                                    IRCGPTBotMain.this.launchBot(botId, new JSONObject());
-                                }
-                            });
-                            z.start();
+                            TerminalBotEditor.launch(this);
                         } else if (keyStroke.equals(F10)) {
-                            editOpenAiKey();
+                            TerminalMasterConfig.show(this);
                         } else if (keyStroke.equals(F4)) {
                             final IRCGPTBot bot = this.getSelectedBot();
                             Thread z = new Thread(() -> {
@@ -458,7 +453,9 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
             Thread z = new Thread(() -> {
                 TextInputDialogBuilder mdb = new TextInputDialogBuilder();
                 mdb.setTitle("Edit OpenAI Key");
-                mdb.setInitialContent(IRCGPTBotMain.settings.optString("openAiKey", ""));
+                mdb.setInitialContent("");
+                mdb.setDescription("Enter a replacement key. Cancel keeps the saved key.");
+                mdb.setPasswordInput(true);
                 mdb.setTextBoxSize(new TerminalSize(60, 1));
                 TextInputDialog md = mdb.build();
                 String openAiKey = md.showDialog(IRCGPTBotMain.this.gui);

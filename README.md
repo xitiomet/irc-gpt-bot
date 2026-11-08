@@ -350,6 +350,35 @@ and body descriptions:
 }
 ```
 
+### Terminal / Lanterna interface
+
+**F2: Launch Bot** opens the same sectioned settings editor used by each bot's
+**Edit Bot** (and **Server**) button. It includes model selection from the
+configured Models API, an explicit model-ID field, the system prompt, all built-in
+tool checkboxes with Enable all/Disable all, behavior/connection toggles, ignore,
+aliases and bot operator lists, all IRC connection fields, reply timing/context,
+and optional AI endpoint overrides. Aliases split only on commas or new lines;
+spaces stay inside an alias. Changes remain in the editor until **Save/Launch**;
+**Cancel** asks before discarding unsaved changes.
+
+Server and operator password fields are masked and never prefilled. Blank keeps
+the saved password; explicit clear checkboxes remove it. **Reconnect after saving**
+applies connection changes immediately; otherwise they wait for the next reconnect.
+Shared validation and configuration persistence are used by both interfaces.
+
+**F10: Master Config** offers masked OpenAI key replacement, current pricing
+status, a fetch/preview/apply pricing update, and historical usage totals.
+Pricing previews use the same stale-file checks and expiration as the web editor;
+canceling a preview does not change pricing. The terminal header shows the total
+historical USD cost estimate (including removed bots), with an incomplete warning
+when tokens are unpriced or tracking failed.
+
+Under **Channels**, select a joined channel and **Live Channel View** to see its
+topic, messages and prefixed roster refreshing every two seconds. The view uses
+the same rolling history as the web interface and preserves the scroll position
+when reading older messages. Existing join/leave, member and note controls remain
+available.
+
 ### API Server / Web interface
 
 irc-gpt-bot also provides a web interface and api server for ease of use. By default this is configured for port 6553 with password "changeme"
@@ -371,8 +400,10 @@ UI framework are required.
 the built-in `gptTools` allowlist, and the `ignore`, `aliases`, and `botOps` lists.
 Tool checkboxes include **Enable all** / **Disable all** actions; absent
 `gptTools` starts with all tools checked, while `[]` means none. URL tools remain
-separate and unaffected. Nickname lists accept commas, whitespace, or one entry
-per line; an empty field clears the list. Behavior toggles reflect the bot's
+separate and unaffected. Aliases accept commas or one entry per line; internal
+spaces are preserved, so `rat catcher` matches that phrase, not `rat` or `catcher`
+alone. Ignore and bot operator lists also accept whitespace separators.
+An empty field clears the list. Behavior toggles reflect the bot's
 existing settings. All edits save together. Unsaved edits
 require confirmation before closing. Changing `botOps` affects future operator
 grants and kick protection; it does not revoke IRC operator modes already granted.
