@@ -93,7 +93,7 @@ DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid J
             "model": "gpt-3.5-turbo", // ChatGPT model to use
             "privateMessages": true,  // Respond to private messages
             "enabled": true,          // Optional: false keeps the bot disconnected (toggled by the dashboard Enable/Disable button)
-            "gptTools": ["send_private_message", "send_notice", "send_action", "kick_user", "set_topic", "get_names", "list_channels", "invite_user", "list_notes", "read_note", "write_note", "delete_note", "list_log_files", "read_log_file"], // Optional: IRC tools the AI may use (omit for all, [] for none)
+            "gptTools": ["send_private_message", "send_notice", "send_action", "kick_user", "set_topic", "set_channel_mode", "set_user_mode", "get_names", "list_channels", "invite_user", "list_notes", "read_note", "write_note", "delete_note", "list_log_files", "read_log_file"], // Optional: IRC tools the AI may use (omit for all, [] for none)
             "maxToolRounds": 5,       // Optional: max tool-calling round trips per reply
             "toolUrls": [             // Optional: web services the AI can call (also editable with the dashboard "Tools" button)
                 {"purpose": "Find out what song is playing", "url": "https://example.com/now-playing", "params": {}},
@@ -255,6 +255,8 @@ The bot uses the OpenAI Responses API with function calling, so the model can ac
 | `send_action` | Perform a `/me` action |
 | `kick_user` | Kick a user from the current channel (requires op; never kicks the bot itself or anyone in `botOps`) |
 | `set_topic` | Change the current channel's topic |
+| `set_channel_mode` | Request current-channel mode changes, e.g. `+m`, `-i`, `+b` or `+kl`, with ordered parameters |
+| `set_user_mode` | Request current-channel user privileges, e.g. operator (`+o`) or voice (`+v`); never removes modes from the bot itself or anyone in `botOps` |
 | `get_names` | Get the names list (with `@`/`+` prefixes) of a channel the bot is in |
 | `list_channels` | List the channels the bot is in, or the server's public channel list (`LIST`) |
 | `invite_user` | Invite a user to a channel the bot is in |
@@ -307,7 +309,20 @@ in automatically delivered notes, especially token notes that anyone can trigger
 
 Private conversation logs (`nickname.log`) are flagged `"private": true` in `list_log_files`, and `read_log_file` puts a confidentiality notice at the top of them. The AI is told it may use what's in private logs to inform its own reasoning, but must not reveal, quote or hint at them to anyone except the user the conversation was with.
 
-`kick_user` and `set_topic` only apply to the channel the conversation is happening in and are not offered in private messages. `get_names`, `invite_user` and the joined channel list won't expose secret, private, invite-only or keyed channels (`+s`, `+p`, `+i`, `+k`) unless the request comes from inside that channel. Limit the available tools per bot with `"gptTools"`. Legacy `completionsApiUrl` settings are converted automatically by replacing `/chat/completions` with `/responses`.
+`kick_user`, `set_topic`, `set_channel_mode` and `set_user_mode` only apply to the channel the conversation is happening in and are not offered in private messages. `get_names`, `invite_user` and the joined channel list won't expose secret, private, invite-only or keyed channels (`+s`, `+p`, `+i`, `+k`) unless the request comes from inside that channel. Limit the available tools per bot with `"gptTools"`. Legacy `completionsApiUrl` settings are converted automatically by replacing `/chat/completions` with `/responses`.
+
+The mode tools use the IRC server's supported mode definitions and require appropriate
+IRC privileges (usually channel operator status). `set_channel_mode` accepts
+`{"modes":"+kl","parameters":["channel-key","25"]}` or
+`{"modes":"+m-i"}`. Parameters must be single IRC arguments in mode order.
+Channel key parameters are redacted from the tool's channel history/log entry.
+`set_user_mode` accepts `{"nickname":"charlie","modes":"+ov"}`; both modes
+apply to Charlie in the current channel, not to server-wide user settings.
+User privileges cannot be changed through `set_channel_mode`.
+Results report that a MODE request was sent, not that the server accepted it.
+Both tools appear automatically in the Launch/Edit tool checkboxes. Existing
+explicit `gptTools` allowlists must include the new names to enable them; omitted
+allowlists continue to enable all built-in tools.
 
 #### URL Tools (`toolUrls`)
 

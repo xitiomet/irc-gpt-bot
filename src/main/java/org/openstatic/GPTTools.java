@@ -22,6 +22,7 @@ import org.json.JSONObject;
 import org.kitteh.irc.client.library.Client;
 import org.kitteh.irc.client.library.element.Channel;
 import org.kitteh.irc.client.library.element.User;
+import org.kitteh.irc.client.library.element.mode.ChannelMode;
 import org.kitteh.irc.client.library.element.mode.ChannelUserMode;
 import org.kitteh.irc.client.library.event.client.ClientReceiveNumericEvent;
 
@@ -38,6 +39,8 @@ public class GPTTools
     public static final String SEND_ACTION = "send_action";
     public static final String KICK_USER = "kick_user";
     public static final String SET_TOPIC = "set_topic";
+    public static final String SET_CHANNEL_MODE = "set_channel_mode";
+    public static final String SET_USER_MODE = "set_user_mode";
     public static final String GET_NAMES = "get_names";
     public static final String LIST_CHANNELS = "list_channels";
     public static final String INVITE_USER = "invite_user";
@@ -47,7 +50,7 @@ public class GPTTools
     public static final String DELETE_NOTE = "delete_note";
     public static final String LIST_LOG_FILES = "list_log_files";
     public static final String READ_LOG_FILE = "read_log_file";
-    public static final String[] ALL_TOOLS = { SEND_PRIVATE_MESSAGE, SEND_NOTICE, SEND_ACTION, KICK_USER, SET_TOPIC, GET_NAMES, LIST_CHANNELS, INVITE_USER,
+    public static final String[] ALL_TOOLS = { SEND_PRIVATE_MESSAGE, SEND_NOTICE, SEND_ACTION, KICK_USER, SET_TOPIC, SET_CHANNEL_MODE, SET_USER_MODE, GET_NAMES, LIST_CHANNELS, INVITE_USER,
                                                LIST_NOTES, READ_NOTE, WRITE_NOTE, DELETE_NOTE, LIST_LOG_FILES, READ_LOG_FILE };
 
     private static final int RPL_LIST = 322;
@@ -76,7 +79,7 @@ public class GPTTools
     public boolean isToolEnabled(String name)
     {
         // Channel moderation tools only make sense (and are only safe) inside the channel being discussed
-        if ((KICK_USER.equals(name) || SET_TOPIC.equals(name)) && !this.targetIsChannel)
+        if ((KICK_USER.equals(name) || SET_TOPIC.equals(name) || SET_CHANNEL_MODE.equals(name) || SET_USER_MODE.equals(name)) && !this.targetIsChannel)
             return false;
         JSONArray enabled = this.bot.getBotOptions().optJSONArray("gptTools");
         if (enabled == null)
@@ -143,6 +146,27 @@ public class GPTTools
             JSONObject props = new JSONObject();
             props.put("topic", stringProperty("The new channel topic"));
             tools.put(functionTool(SET_TOPIC, "Change the topic of the current channel (" + this.target + ").", props, "topic"));
+        }
+        if (isToolEnabled(SET_CHANNEL_MODE))
+        {
+            JSONObject props = new JSONObject();
+            props.put("modes", stringProperty("Signed channel mode changes, e.g. '+m', '-i', '+kl' or '+m-i'. Use set_user_mode for user privileges."));
+            JSONObject parameters = new JSONObject().put("type", "array")
+                .put("items", stringProperty("One IRC mode parameter (no spaces or control characters)"))
+                .put("description", "Parameters in mode order, e.g. ['secret', '25'] for '+kl'. Omit or use [] for modes without parameters.");
+            props.put("parameters", parameters);
+            tools.put(functionTool(SET_CHANNEL_MODE, "Request mode changes in the current channel (" + this.target
+                + "), such as moderated, invite-only, bans, keys or limits. Requires appropriate IRC privileges. Only use for clear abuse or when an operator asks. Server acceptance is not guaranteed.",
+                props, "modes"));
+        }
+        if (isToolEnabled(SET_USER_MODE))
+        {
+            JSONObject props = new JSONObject();
+            props.put("nickname", stringProperty("Nickname of a user in the current channel"));
+            props.put("modes", stringProperty("Signed channel user mode changes, e.g. '+o', '-v' or '+ov'. Each mode applies to this same nickname. These are channel privileges, not server-wide user modes."));
+            tools.put(functionTool(SET_USER_MODE, "Request user privilege changes in the current channel (" + this.target
+                + "), such as operator or voice. Requires appropriate IRC privileges. Cannot remove modes from the bot or protected botOps. Only use for clear abuse or when an operator asks. Server acceptance is not guaranteed.",
+                props, "nickname", "modes"));
         }
         if (isToolEnabled(GET_NAMES))
         {
@@ -625,6 +649,79 @@ public class GPTTools
         return false;
     }
 
+    private static String modeArgument(JSONObject args, String key)
+    {
+        Object value = args.opt(key);
+        if (!(value instanceof String) || ((String) value).isEmpty()
+            || ((String) value).startsWith(":")
+            || ((String) value).codePoints().anyMatch(c -> Character.isWhitespace(c) || Character.isISOControl(c)))
+            throw new IllegalArgumentException("'" + key + "' must be a single nonempty IRC argument");
+        return (String) value;
+    }
+
+    private String setModes(JSONObject args, boolean userModes)
+    {
+        Channel channel = currentChannel();
+        String modes = modeArgument(args, "modes");
+        if (!modes.matches("(?:[+-][A-Za-z]+)+"))
+            throw new IllegalArgumentException("'modes' must contain signed mode letters, such as '+m-i'");
+        String nickname = null;
+        JSONArray parameters = new JSONArray();
+        if (userModes)
+        {
+            nickname = modeArgument(args, "nickname");
+            if (isChannelName(nickname) || nickname.contains(","))
+                throw new IllegalArgumentException("invalid nickname");
+            String requestedNickname = nickname;
+            nickname = channel.getNicknames().stream().filter(n -> n.equalsIgnoreCase(requestedNickname))
+                .findFirst().orElseThrow(() -> new IllegalArgumentException("user is not in the current channel"));
+            if (modes.contains("-") && (nickname.equalsIgnoreCase(this.bot.getNickname()) || isBotOp(nickname)))
+                throw new IllegalArgumentException("cannot remove modes from the bot or a protected bot operator");
+        } else if (args.has("parameters")) {
+            parameters = args.getJSONArray("parameters");
+        }
+        StringBuilder command = new StringBuilder("MODE ").append(channel.getName()).append(" ").append(modes);
+        StringBuilder displayed = new StringBuilder(command);
+        boolean adding = true;
+        int parameterIndex = 0;
+        for (char letter : modes.toCharArray())
+        {
+            if (letter == '+' || letter == '-')
+            {
+                adding = letter == '+';
+                continue;
+            }
+            Optional<ChannelUserMode> userMode = client().getServerInfo().getChannelUserMode(letter);
+            ChannelMode mode = userMode.isPresent() ? userMode.get() : client().getServerInfo().getChannelMode(letter)
+                .orElseThrow(() -> new IllegalArgumentException("unsupported channel mode '" + letter + "'"));
+            if (userModes != (mode instanceof ChannelUserMode))
+                throw new IllegalArgumentException(userModes ? "use set_channel_mode for channel settings" : "use set_user_mode for user privileges");
+            boolean needsParameter = adding ? mode.getType().isParameterRequiredOnSetting()
+                : mode.getType().isParameterRequiredOnRemoval();
+            if (needsParameter)
+            {
+                String parameter;
+                if (userModes)
+                    parameter = nickname;
+                else {
+                    if (parameterIndex >= parameters.length())
+                        throw new IllegalArgumentException("missing parameter for mode '" + letter + "'");
+                    parameter = modeArgument(new JSONObject().put("parameter", parameters.get(parameterIndex++)), "parameter");
+                }
+                command.append(" ").append(parameter);
+                displayed.append(" ").append(letter == 'k' ? "[redacted]" : parameter);
+            }
+        }
+        if (!userModes && parameterIndex != parameters.length())
+            throw new IllegalArgumentException("too many mode parameters");
+        if (command.toString().getBytes(StandardCharsets.UTF_8).length > 510)
+            throw new IllegalArgumentException("MODE request exceeds the IRC line length limit");
+        client().sendRawLine(command.toString());
+        record(channel.getName(), "(" + displayed + ")", "/" + displayed);
+        return "mode change requested for " + channel.getName() + (userModes ? " user " + nickname : "")
+            + "; IRC server acceptance is not confirmed";
+    }
+
     private void record(String to, String logLine, String chatLogBody)
     {
         this.bot.logAppend(to + ".log", "(TOOL) " + this.bot.getNickname() + ": " + logLine);
@@ -847,6 +944,10 @@ public class GPTTools
                     record(this.target, "(TOPIC) " + topic, "/topic " + topic);
                     return "topic change requested for " + this.target;
                 }
+                case SET_CHANNEL_MODE:
+                    return setModes(args, false);
+                case SET_USER_MODE:
+                    return setModes(args, true);
                 case GET_NAMES:
                     return getNames(args);
                 case LIST_CHANNELS:
