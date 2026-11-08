@@ -13,6 +13,7 @@
         var currentName = null;
         var currentModified = null;
         var savedContent = '';
+        var savedPrefix = '';
         var listVersion = 0;
         var refreshing = false;
         var REFRESH_MS = 5000;
@@ -25,7 +26,7 @@
         function setBusy(value)
         {
             busy = value;
-            document.querySelectorAll('button, input, textarea').forEach(function(el) {
+            document.querySelectorAll('button, input, textarea, select').forEach(function(el) {
                 el.disabled = busy;
             });
             if (!busy)
@@ -34,8 +35,32 @@
 
         function isDirty()
         {
-            var nameInput = document.getElementById('noteName');
-            return document.getElementById('noteContent').value != savedContent || (currentName || '') != nameInput.value.trim();
+            return document.getElementById('noteContent').value != savedContent || (currentName || '') != noteFileName();
+        }
+
+        function noteFileName()
+        {
+            var prefix = document.getElementById('notePrefix').value;
+            return (prefix === savedPrefix.toLowerCase() ? savedPrefix : prefix) + document.getElementById('noteName').value.trim();
+        }
+
+        function setNoteName(name)
+        {
+            name = name || '';
+            var prefix = /^nickname\./i.test(name) ? 'nickname.' : /^token\./i.test(name) ? 'token.' : '';
+            savedPrefix = name.substring(0, prefix.length);
+            document.getElementById('notePrefix').value = prefix;
+            document.getElementById('noteName').value = prefix ? name.substring(prefix.length) : name;
+            updatePrefixHelp();
+        }
+
+        function updatePrefixHelp()
+        {
+            var prefix = document.getElementById('notePrefix').value;
+            document.getElementById('prefixHelp').textContent = prefix === 'nickname.'
+                ? 'Automatically included when this nickname speaks. Example: charlie.txt matches charlie.'
+                : prefix === 'token.' ? 'Automatically included when this whole word appears in the message. Example: flumbar.txt matches flumbar.'
+                : 'Ordinary note: read by the AI only when requested through its tools.';
         }
 
         function confirmDiscard()
@@ -101,7 +126,7 @@
             var note = name == null ? null : findNote(name);
             currentModified = note ? note.modified : null;
             savedContent = content;
-            document.getElementById('noteName').value = name || '';
+            setNoteName(name);
             document.getElementById('noteContent').value = content;
             document.getElementById('editor').style.display = 'flex';
             renderList();
@@ -241,9 +266,10 @@
         {
             if (busy)
                 return;
-            var name = document.getElementById('noteName').value.trim();
+            var enteredName = document.getElementById('noteName').value.trim();
+            var name = noteFileName();
             var content = document.getElementById('noteContent').value;
-            if (name == '' || /[\/\\]/.test(name) || name == '.' || name == '..')
+            if (enteredName == '' || /[\/\\]/.test(name) || name == '.' || name == '..' || name.length > 128)
             {
                 setStatus('Enter a file name without slashes, e.g. todo.txt');
                 return;
@@ -285,6 +311,7 @@
                 if (!busy)
                     loadNotes();
             };
+            document.getElementById('notePrefix').onchange = updatePrefixHelp;
             document.addEventListener('keydown', function(e) {
                 if ((e.ctrlKey || e.metaKey) && e.key == 's' && document.getElementById('editor').style.display != 'none')
                 {
@@ -313,7 +340,7 @@
 </head>
 <body onload="loaded()" class="editor-page notes-page">
     <h2 id="botTitle">Notes</h2>
-    <p class="help">Files in the bot's notes/ directory. The AI can list, read, write and delete these with its note tools.</p>
+    <p class="help">The AI can manage these notes with its tools. Use nickname. or token. to deliver matching memories automatically in channel and private replies.</p>
     <div class="notes-main">
         <div class="sidebar">
             <div class="toolbar">
@@ -324,8 +351,21 @@
             <ul id="noteList"></ul>
         </div>
         <div id="editor" style="display: none;">
-            <label for="noteName">File name</label>
-            <input type="text" id="noteName" autocomplete="off" placeholder="e.g. todo.txt" />
+            <div class="note-name-fields">
+                <div>
+                    <label for="notePrefix">Prefix</label>
+                    <select id="notePrefix" aria-describedby="prefixHelp">
+                        <option value="">(none)</option>
+                        <option value="nickname.">nickname.</option>
+                        <option value="token.">token.</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="noteName">File name (after prefix)</label>
+                    <input type="text" id="noteName" autocomplete="off" placeholder="e.g. todo.txt" aria-describedby="prefixHelp" />
+                </div>
+            </div>
+            <p id="prefixHelp" class="help"></p>
             <label for="noteContent">Contents</label>
             <textarea id="noteContent" spellcheck="false"></textarea>
             <div class="actions">

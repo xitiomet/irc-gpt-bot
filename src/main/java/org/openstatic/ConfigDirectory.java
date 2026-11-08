@@ -122,6 +122,11 @@ final class ConfigDirectory
                 savedBots.remove(id);
             }
         }
+        saveMaster(settings);
+    }
+
+    synchronized void saveMaster(JSONObject settings) throws IOException
+    {
         JSONObject root = new JSONObject(settings.toString());
         root.remove("bots");
         root.remove("headless");

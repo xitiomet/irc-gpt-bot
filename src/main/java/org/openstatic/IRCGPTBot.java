@@ -57,6 +57,7 @@ import com.googlecode.lanterna.TextColor.ANSI;
 import com.googlecode.lanterna.gui2.BasicWindow;
 import com.googlecode.lanterna.gui2.Borders;
 import com.googlecode.lanterna.gui2.Button;
+import com.googlecode.lanterna.gui2.ComboBox;
 import com.googlecode.lanterna.gui2.TextBox;
 import com.googlecode.lanterna.gui2.Direction;
 import com.googlecode.lanterna.gui2.GridLayout;
@@ -503,9 +504,16 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     {
         final BasicWindow editorWindow = new BasicWindow(name == null ? "New Note" : "Note - " + name);
         Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
-        final TextBox nameBox = new TextBox(new TerminalSize(40, 1), name == null ? "" : name);
+        String filename = name == null ? "" : name;
+        final String originalPrefix = filename.regionMatches(true, 0, "nickname.", 0, 9) ? filename.substring(0, 9)
+            : filename.regionMatches(true, 0, "token.", 0, 6) ? filename.substring(0, 6) : "";
+        final ComboBox<String> prefixBox = new ComboBox<String>("(none)", "nickname.", "token.").setReadOnly(true);
+        prefixBox.setSelectedIndex(originalPrefix.isEmpty() ? 0 : originalPrefix.equalsIgnoreCase("nickname.") ? 1 : 2);
+        final TextBox nameBox = new TextBox(new TerminalSize(40, 1), filename.substring(originalPrefix.length()));
         final TextBox contentBox = new TextBox(new TerminalSize(72, 16), content, TextBox.Style.MULTI_LINE);
-        panel.addComponent(new Label("File name"));
+        panel.addComponent(new Label("Prefix: nickname. matches a speaker; token. matches a message word"));
+        panel.addComponent(prefixBox);
+        panel.addComponent(new Label("File name (after prefix), e.g. charlie.txt or flumbar.txt"));
         panel.addComponent(nameBox);
         panel.addComponent(new Label("Contents"));
         panel.addComponent(contentBox);
@@ -513,9 +521,14 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         Panel buttons = new Panel(new LinearLayout(Direction.HORIZONTAL));
         buttons.addComponent(new Button("Save", () -> {
             new Thread(() -> {
-                String newName = nameBox.getText().trim();
                 try
                 {
+                    String prefix = prefixBox.getSelectedIndex() == 0 ? "" : prefixBox.getSelectedItem();
+                    if (prefix.equalsIgnoreCase(originalPrefix))
+                        prefix = originalPrefix;
+                    if (nameBox.getText().trim().isEmpty())
+                        throw new IllegalArgumentException("Enter a file name after the prefix");
+                    String newName = prefix + nameBox.getText().trim();
                     boolean exists = this.getNoteFile(newName, true).isFile();
                     if (exists && !newName.equals(name))
                     {
@@ -1363,7 +1376,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
             {
                 if (replyNow)
                 {
-                    replyToChannel(channel, cl, target, senderNick, !prompted);
+                    replyToChannel(channel, cl, target, msg, !prompted);
                 }
                 else if (openQuestion)
                 {
@@ -1376,15 +1389,15 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         }
     }
 
-    private void replyToChannel(Channel channel, ChatLog cl, String target, String senderNick, boolean unprompted)
+    private void replyToChannel(Channel channel, ChatLog cl, String target, ChatMessage trigger, boolean unprompted)
     {
-        this.lastReplyTo.put(target.toLowerCase(), senderNick);
+        this.lastReplyTo.put(target.toLowerCase(), trigger.getSender());
         if (unprompted)
             this.lastUnpromptedReply.put(target.toLowerCase(), System.currentTimeMillis());
         this.replyExecutor.submit(() -> {
             try
             {
-                ChatMessage outMsg = IRCGPTBotMain.chatGPT.callChatGPT(this.botId, this.botOptions, cl, new GPTTools(this, target)).get();
+                ChatMessage outMsg = IRCGPTBotMain.chatGPT.callChatGPT(this.botId, this.botOptions, cl, new GPTTools(this, target), trigger).get();
                 outMsg.setRecipient(target);
                 String outText = outMsg.getBody().replace("\n", " ").replace("\r", "");
                 if (!outText.trim().isEmpty())
@@ -1448,7 +1461,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
             if (!channel.isPresent() || !this.botOptions.optBoolean("gptEnabled", true))
                 return;
             logAppend(target + ".log", "(OQ) answering open question from " + question.getSender());
-            replyToChannel(channel.get(), cl, target, question.getSender(), true);
+            replyToChannel(channel.get(), cl, target, question, true);
         } catch (Exception e) {
             log(e);
         }
@@ -1483,7 +1496,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                         this.replyExecutor.submit(() -> {
                             try
                             {
-                                ChatMessage outMsg = IRCGPTBotMain.chatGPT.callChatGPT(this.botId, this.botOptions, cl, new GPTTools(this, target)).get();
+                                ChatMessage outMsg = IRCGPTBotMain.chatGPT.callChatGPT(this.botId, this.botOptions, cl, new GPTTools(this, target), msg).get();
                                 String outText = outMsg.getBody();
                                 outMsg.setRecipient(target);
                                 if (!outText.trim().isEmpty())

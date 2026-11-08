@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Master Config</title>
+    <link rel="stylesheet" href="theme.css">
+    <script src="jquery.min.js"></script>
+    <script src="editor.js"></script>
+    <script>
+        var busy = false;
+        var previewToken = null;
+
+        function setStatus(message, error)
+        {
+            var status = document.getElementById('status');
+            status.textContent = message;
+            status.className = error ? 'error-message' : 'help';
+        }
+
+        function setBusy(value)
+        {
+            busy = value;
+            document.querySelectorAll('button, input').forEach(function(element) { element.disabled = busy; });
+            document.getElementById('applyPricing').disabled = busy || previewToken == null;
+        }
+
+        function request(body, done)
+        {
+            setBusy(true);
+            $.ajax({
+                url: '/ircgptbot/api/master/',
+                type: body == null ? 'GET' : 'POST',
+                data: body == null ? undefined : JSON.stringify(body),
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json', cache: false, timeout: 180000
+            }).done(function(json) {
+                if (json.error)
+                    setStatus(json.error, true);
+                else
+                    done(json);
+            }).fail(function(xhr, status) {
+                setStatus(status === 'timeout' ? 'Request timed out. Refresh the pricing preview before retrying.' : 'Unable to reach the bot.', true);
+            }).always(function() { setBusy(false); });
+        }
+
+        function showKeyStatus(configured)
+        {
+            document.getElementById('keyStatus').textContent = configured
+                ? 'An OpenAI key is configured. Its value is never returned to the browser.'
+                : 'No OpenAI key is configured.';
+        }
+
+        function showPricing(pricing)
+        {
+            document.getElementById('pricingStatus').textContent = pricing.modelCount + ' models configured. Last verified: ' + pricing.verifiedAt + '.';
+            document.getElementById('pricingSource').textContent = 'Source: ' + pricing.source;
+        }
+
+        function saveKey()
+        {
+            if (busy)
+                return;
+            var key = document.getElementById('openAiKey').value.trim();
+            if (!key)
+            {
+                setStatus('Enter a replacement OpenAI key.', true);
+                return;
+            }
+            setStatus('Saving key...');
+            request({ action: 'save', openAiKey: key }, function(json) {
+                document.getElementById('openAiKey').value = '';
+                showKeyStatus(json.hasOpenAiKey);
+                setStatus('OpenAI key saved. New requests will use it; no restart needed.');
+            });
+        }
+
+        function showPreview(preview)
+        {
+            previewToken = preview.token;
+            var rows = document.getElementById('priceChanges');
+            rows.textContent = '';
+            preview.changes.forEach(function(change) {
+                var row = document.createElement('tr');
+                var model = document.createElement('td');
+                model.textContent = change.model;
+                row.appendChild(model);
+                ['inputPerMillion', 'cachedInputPerMillion', 'outputPerMillion'].forEach(function(field) {
+                    var cell = document.createElement('td');
+                    cell.textContent = (change.before == null || change.before[field] == null ? '(new)' : '$' + change.before[field])
+                        + ' -> $' + change.after[field];
+                    row.appendChild(cell);
+                });
+                var context = document.createElement('td');
+                context.textContent = change.after.longContextThreshold == null ? 'Standard'
+                    : 'Above ' + change.after.longContextThreshold + ' input tokens: input x' + change.after.longContextInputMultiplier
+                        + ', output x' + change.after.longContextOutputMultiplier;
+                row.appendChild(context);
+                rows.appendChild(row);
+            });
+            document.getElementById('previewSummary').textContent = preview.changes.length + ' new or changed models. Preview expires in 10 minutes.';
+            document.getElementById('skippedPrices').textContent = preview.skipped.length
+                ? 'Not imported: ' + preview.skipped.join('; ') + '. Existing entries for these models remain unchanged.' : '';
+            document.getElementById('pricingPreview').hidden = false;
+            setStatus('Review the changes, then apply. Existing prices have not changed yet.');
+        }
+
+        function previewPrices()
+        {
+            if (busy)
+                return;
+            previewToken = null;
+            document.getElementById('pricingPreview').hidden = true;
+            setStatus('Fetching official OpenAI pricing and verifying model context thresholds...');
+            request({ action: 'previewPricing' }, function(json) { showPreview(json.preview); });
+        }
+
+        function applyPrices()
+        {
+            if (busy || previewToken == null)
+                return;
+            setStatus('Applying pricing update...');
+            request({ action: 'applyPricing', token: previewToken }, function(json) {
+                previewToken = null;
+                document.getElementById('pricingPreview').hidden = true;
+                showPricing(json.pricing);
+                setStatus('Pricing updated: ' + json.pricing.updated + ' models changed. Historical cost estimates were preserved.');
+            });
+        }
+
+        function editorCanClose()
+        {
+            if (busy)
+            {
+                setStatus('Please wait for the current request to finish.');
+                return false;
+            }
+            return document.getElementById('openAiKey').value === '' || confirm('Discard the unsaved OpenAI key?');
+        }
+
+        function loaded()
+        {
+            document.getElementById('saveKey').onclick = saveKey;
+            document.getElementById('fetchPricing').onclick = previewPrices;
+            document.getElementById('applyPricing').onclick = applyPrices;
+            window.onbeforeunload = function() {
+                if (busy || document.getElementById('openAiKey').value !== '')
+                    return 'You have an unfinished request or unsaved key.';
+            };
+            request(null, function(json) {
+                showKeyStatus(json.hasOpenAiKey);
+                showPricing(json.pricing);
+            });
+        }
+    </script>
+</head>
+<body onload="loaded()" class="editor-page">
+    <h2>Master Config</h2>
+    <p class="help">Shared settings for all bots, stored in irc-gpt-bot.json and pricing.json.</p>
+    <section class="form-panel">
+        <h3>OpenAI API key</h3>
+        <p id="keyStatus" class="help"></p>
+        <label for="openAiKey">Replacement OpenAI key</label>
+        <input type="password" id="openAiKey" autocomplete="new-password" placeholder="Enter a new key to replace the current one">
+        <div class="actions"><button type="button" id="saveKey" class="primary">Save key</button></div>
+    </section>
+    <section class="form-panel">
+        <h3>Model pricing</h3>
+        <p id="pricingStatus" class="help"></p>
+        <p id="pricingSource" class="help"></p>
+        <p class="help">Fetch standard USD rates per million tokens from OpenAI's public documentation (no API key needed).
+            Review before applying. Custom endpoint prices and unpublished models stay unchanged.
+            Official rates replace existing entries for the listed models. Historical usage costs are not recalculated.</p>
+        <button type="button" id="fetchPricing">Fetch pricing update</button>
+        <div id="pricingPreview" hidden>
+            <p id="previewSummary" class="help"></p>
+            <div class="table-scroll">
+                <table class="pricing-table">
+                    <thead><tr><th>Model</th><th>Input / 1M</th><th>Cached / 1M</th><th>Output / 1M</th><th>Context pricing</th></tr></thead>
+                    <tbody id="priceChanges"></tbody>
+                </table>
+            </div>
+            <p id="skippedPrices" class="help"></p>
+        </div>
+        <div class="actions"><button type="button" id="applyPricing" class="primary" disabled>Apply pricing update</button></div>
+    </section>
+    <p id="status" role="status" aria-live="polite" class="help"></p>
+</body>
+</html>

@@ -200,7 +200,24 @@ threshold. Prices must be nonnegative JSON numbers, not strings.
 These are token-cost estimates, not billing totals: taxes, discounts, provider
 tool charges, and other non-token fees are excluded. Check and update prices
 against [OpenAI's pricing documentation](https://developers.openai.com/api/docs/pricing).
-No automatic price scraping or network refresh is performed.
+Use **Master Config** (left of **Launch Bot**) to fetch an update automatically
+from OpenAI's public pricing documentation, review new/changed models, then
+**Apply pricing update**. No OpenAI key is needed for the fetch and no periodic
+background refresh occurs. Only standard USD token rates are imported; long-context
+thresholds are verified against each model's documentation. Unsupported models
+(such as those without a cached-input price) are listed as skipped, and a changed
+or unreadable documentation format leaves your prices unchanged.
+
+Applying replaces the previewed model entries in `pricing.json` atomically,
+preserving custom endpoint prices, models absent from the import, and all historical
+usage/costs. The source and verification time are saved. Previews expire after
+10 minutes; if another preview replaces yours or the pricing file changes before
+applying, fetch a fresh preview.
+
+The same master modal lets you replace the shared `openAiKey`. The existing key
+is never returned to the browser; enter a replacement in the password field and
+choose **Save key**. It is saved to `irc-gpt-bot.json` and used on subsequent requests
+without restarting. Leaving the field empty keeps the current key.
 
 To run the migration, pricing, and request-integration tests:
 
@@ -208,6 +225,9 @@ To run the migration, pricing, and request-integration tests:
 mvn -DskipNative=true test
 node --test src/test/js/editor.test.js
 ```
+
+To additionally verify the importer against current public documentation:
+`mvn -P'!linux' -DskipNative=true -Dtest=OpenAIPriceUpdaterTest -Dpricing.liveCheck=true test`.
 
 When directly messaging this bot it will respond to all messages. In a channel it responds when any of these apply (the flag is shown in the channel log):
 
@@ -246,6 +266,44 @@ The bot uses the OpenAI Responses API with function calling, so the model can ac
 | `read_log_file` | Read a file from the bot's own log directory (read-only; large files return their newest 8000 characters, or the last `lines` lines) |
 
 Each bot gets a `notes/` directory inside its log directory (`logPath/<botId>/notes/`), created at startup. The file tools can't reach outside the bot's own log directory, and only files directly inside `notes/` can be written or deleted. Note writes and deletions are logged to `tools.log`. You can also view, create, edit and delete a bot's notes from the web dashboard with its **Notes** button (the list refreshes automatically), or from the bot's window in the console interface with its **Notes** button.
+
+#### Automatic memory notes
+
+Special filename prefixes deliver note contents in the system context of channel
+and private replies, without the AI needing to call `read_note`:
+
+| Filename | Trigger |
+| --- | --- |
+| `nickname.charlie.txt` (or `nickname.charlie`, `nickname.charlie.*`) | The speaking nickname is `charlie` |
+| `token.flumbar.txt` (or `token.flumbar`, `token.flumbar.*`) | The current message contains the whole word `flumbar` |
+| `todo.txt` | No automatic trigger; ordinary tool-managed note |
+
+Here `*` means any filename suffix, not a literal wildcard to enter. Matching is
+case-insensitive. Token words are Unicode letters, digits and underscores;
+punctuation separates them, so `flumbar!` matches but `flumbars` and `my_flumbar`
+do not. Only the triggering message is used, not older history or other queued
+speakers. Multiple matching files are included once each in filename order and
+are isolated to the bot owning them. Creating, updating or deleting a note takes
+effect on the next request, even if that bot's note tools are disabled.
+
+Both notes editors offer **(none)**, **nickname.**, and **token.** prefix selectors.
+Enter the rest of the filename beside the selector (e.g. `charlie.txt`). Existing
+prefixed filenames are split automatically. As before, saving with a different
+filename creates a separate note and leaves the original; delete the old note if
+you want to remove its trigger.
+
+The AI is taught these conventions and can create prefixed memories with
+`write_note` when enabled. Keep memories concise: automatic context allows up to
+64 matching files and 65,536 content characters per request. Files over the
+64 KB write limit, unreadable files and symbolic links are not loaded; errors
+are recorded in the bot's `exceptions.log` and unavailable notes are identified
+in context. Reaching the combined limit logs a warning and explicitly marks
+truncated/omitted context.
+
+Nickname context also appears in channel replies. The AI is instructed to treat
+notes as reference data and not disclose private nickname memories publicly,
+but this is not an access-control guarantee. Avoid storing sensitive information
+in automatically delivered notes, especially token notes that anyone can trigger.
 
 Private conversation logs (`nickname.log`) are flagged `"private": true` in `list_log_files`, and `read_log_file` puts a confidentiality notice at the top of them. The AI is told it may use what's in private logs to inform its own reasoning, but must not reveal, quote or hint at them to anyone except the user the conversation was with.
 
@@ -293,6 +351,15 @@ for errors, cached input, and request counts; incomplete-cost and tracking warni
 remain visible without expanding. Editors share the same theme and stack their
 fields on smaller screens. Styles are bundled locally; no external fonts or
 UI framework are required.
+
+The authenticated master API is `GET /ircgptbot/api/master/` (returns
+`hasOpenAiKey` and pricing metadata, never credentials) and
+`POST /ircgptbot/api/master/` with one of:
+`{"action":"save","openAiKey":"replacement-key"}`,
+`{"action":"previewPricing"}`, or `{"action":"applyPricing","token":"preview-token"}`.
+Pricing previews are held server-side; applying accepts only the preview token,
+not client-supplied rates. Master requests use the same `X-API-Password` header
+as the other editors.
 
 API clients may also use `X-API-Password` for GET and POST requests. Existing
 `apiPassword` query parameters and JSON body fields remain accepted for backwards

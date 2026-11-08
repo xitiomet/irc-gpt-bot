@@ -94,10 +94,27 @@ public class ChatLog
 
     public JSONArray getGPTMessages()
     {
+        return getGPTMessages(null);
+    }
+
+    public JSONArray getGPTMessages(ChatMessage trigger)
+    {
         JSONObject botOptions = this.bot.getBotOptions();
         ArrayList<ChatMessage> snapshot = this.getMessages();
+        if (trigger != null)
+        {
+            // Queued replies must not take context from messages arriving after their trigger.
+            int index = snapshot.indexOf(trigger);
+            snapshot = index >= 0 ? new ArrayList<>(snapshot.subList(0, index + 1)) : new ArrayList<>(List.of(trigger));
+        }
         JSONArray ra = new JSONArray();
         String systemPreamble = botOptions.optString("systemPreamble", "");
+        if (trigger == null)
+        {
+            if (!snapshot.isEmpty())
+                trigger = snapshot.get(snapshot.size() - 1);
+        }
+        systemPreamble += "\n\n" + ContextNotes.forMessage(this.bot, trigger);
         if (botOptions.has("definitionServer"))
         {
             String logBody = snapshot.stream().map((msg) -> msg.getBody()).collect(Collectors.joining(" ")).toLowerCase();

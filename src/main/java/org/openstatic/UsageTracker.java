@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -15,6 +16,8 @@ final class UsageTracker
     private final Path pricingFile;
     private JSONObject usage;
     private String persistenceError;
+    private JSONObject pricingPreview;
+    private JSONObject previewBaseline;
 
     UsageTracker(Path configDirectory, Path logDirectory) throws IOException
     {
@@ -64,6 +67,69 @@ final class UsageTracker
         if (persistenceError != null)
             result.put("trackingError", persistenceError);
         return result;
+    }
+
+    synchronized JSONObject pricingStatus() throws IOException
+    {
+        return pricingStatus(JsonFiles.read(pricingFile));
+    }
+
+    private static JSONObject pricingStatus(JSONObject pricing)
+    {
+        return new JSONObject().put("currency", pricing.getString("currency"))
+            .put("source", pricing.optString("source", "Manually configured"))
+            .put("verifiedAt", pricing.optString("verifiedAt", "Not recorded"))
+            .put("modelCount", pricing.getJSONObject("models").length());
+    }
+
+    synchronized JSONObject previewPrices(JSONObject fetched) throws IOException
+    {
+        JSONObject baseline = JsonFiles.read(pricingFile);
+        if (!"USD".equals(baseline.getString("currency")) || !"USD".equals(fetched.getString("currency")))
+            throw new IllegalArgumentException("Pricing currency must be USD");
+        JSONObject models = fetched.getJSONObject("models");
+        if (models.isEmpty() || models.length() > 100)
+            throw new IllegalArgumentException("Invalid pricing model count");
+        JSONArray changes = new JSONArray();
+        JSONObject existing = baseline.getJSONObject("models");
+        for (String model : new java.util.TreeSet<>(models.keySet()))
+        {
+            JSONObject row = models.getJSONObject(model);
+            OpenAIUsage.price(OpenAIUsage.emptyTotals(), row);
+            JSONObject old = existing.optJSONObject(model);
+            if (old == null || !old.similar(row))
+                changes.put(new JSONObject().put("model", model).put("before", old == null ? JSONObject.NULL : old)
+                    .put("after", row));
+        }
+        previewBaseline = baseline;
+        pricingPreview = new JSONObject().put("source", fetched.getString("source")).put("changes", changes)
+            .put("skipped", fetched.getJSONArray("skipped")).put("modelCount", models.length())
+            .put("expiresAt", System.currentTimeMillis() + java.util.concurrent.TimeUnit.MINUTES.toMillis(10))
+            .put("token", java.util.UUID.randomUUID().toString());
+        return new JSONObject(pricingPreview.toString());
+    }
+
+    synchronized JSONObject applyPrices(String token) throws IOException
+    {
+        if (pricingPreview == null || !pricingPreview.getString("token").equals(token)
+            || System.currentTimeMillis() > pricingPreview.getLong("expiresAt"))
+            throw new IllegalArgumentException("Pricing preview expired or was replaced; fetch a new preview.");
+        JSONObject current = JsonFiles.read(pricingFile);
+        if (!current.similar(previewBaseline))
+            throw new IllegalArgumentException("pricing.json changed since preview; fetch a new preview.");
+        JSONObject models = current.getJSONObject("models");
+        JSONArray changes = pricingPreview.getJSONArray("changes");
+        for (int i = 0; i < changes.length(); i++)
+        {
+            JSONObject change = changes.getJSONObject(i);
+            models.put(change.getString("model"), change.getJSONObject("after"));
+        }
+        current.put("source", pricingPreview.getString("source")).put("verifiedAt", java.time.Instant.now().toString());
+        JsonFiles.write(pricingFile, current);
+        int updated = changes.length();
+        pricingPreview = null;
+        previewBaseline = null;
+        return pricingStatus(current).put("updated", updated);
     }
 
     synchronized void record(String id, String endpoint, JSONObject response)

@@ -382,7 +382,29 @@ public class APIWebServer implements IRCGPTBotListener
                     if (isAuthenticated(request, requestPost))
                     {       
                         try {
-                            if ("/bots/add/".equals(target)) {
+                            if ("/master/".equals(target)) {
+                                httpServletResponse.setContentType("application/json");
+                                httpServletResponse.setCharacterEncoding("UTF-8");
+                                httpServletResponse.setHeader("Cache-Control", "no-store");
+                                try
+                                {
+                                    String action = requestPost.optString("action");
+                                    if ("save".equals(action))
+                                    {
+                                        IRCGPTBotMain.instance.updateOpenAiKey(requestPost.getString("openAiKey"));
+                                        response.put("hasOpenAiKey", true);
+                                    }
+                                    else if ("previewPricing".equals(action))
+                                        response.put("preview", IRCGPTBotMain.usageTracker.previewPrices(OpenAIPriceUpdater.fetch()));
+                                    else if ("applyPricing".equals(action))
+                                        response.put("pricing", IRCGPTBotMain.usageTracker.applyPrices(requestPost.getString("token")));
+                                    else
+                                        throw new IllegalArgumentException("Invalid master configuration action.");
+                                } catch (IOException | IllegalArgumentException | JSONException e) {
+                                    IRCGPTBotMain.log(e);
+                                    response.put("error", e.getMessage());
+                                }
+                            } else if ("/bots/add/".equals(target)) {
                                 if (requestPost.has("id") && requestPost.has("botOptions"))
                                 {
                                     IRCGPTBot bot = IRCGPTBotMain.instance.launchBot(requestPost.optString("id"), requestPost.optJSONObject("botOptions"));
@@ -516,7 +538,19 @@ public class APIWebServer implements IRCGPTBotListener
             if (isAuthenticated(request, null))
             {
                 try {
-                    if ("/bots/".equals(target)) {
+                    if ("/master/".equals(target)) {
+                        httpServletResponse.setContentType("application/json");
+                        httpServletResponse.setCharacterEncoding("UTF-8");
+                        httpServletResponse.setHeader("Cache-Control", "no-store");
+                        try
+                        {
+                            response.put("hasOpenAiKey", !IRCGPTBotMain.settings.optString("openAiKey", "").isBlank())
+                                .put("pricing", IRCGPTBotMain.usageTracker.pricingStatus());
+                        } catch (IOException | IllegalArgumentException | JSONException e) {
+                            IRCGPTBotMain.log(e);
+                            response.put("error", e.getMessage());
+                        }
+                    } else if ("/bots/".equals(target)) {
                         JSONObject bots = new JSONObject();
                         IRCGPTBotMain.instance.getBots().forEach((bot) -> {
                             bots.put(bot.getBotId(), bot.toJSONObject());

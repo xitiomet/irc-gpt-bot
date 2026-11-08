@@ -47,6 +47,8 @@ import com.googlecode.lanterna.gui2.WindowManager;
 import com.googlecode.lanterna.gui2.AbstractListBox.ListItemRenderer;
 
 import com.googlecode.lanterna.gui2.dialogs.TextInputDialog;
+import com.googlecode.lanterna.gui2.dialogs.MessageDialog;
+import com.googlecode.lanterna.gui2.dialogs.MessageDialogButton;
 import com.googlecode.lanterna.gui2.dialogs.TextInputDialogBuilder;
 import com.googlecode.lanterna.input.KeyStroke;
 import com.googlecode.lanterna.input.KeyType;
@@ -460,8 +462,16 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
                 mdb.setTextBoxSize(new TerminalSize(60, 1));
                 TextInputDialog md = mdb.build();
                 String openAiKey = md.showDialog(IRCGPTBotMain.this.gui);
-                IRCGPTBotMain.settings.put("openAiKey", openAiKey);
-                saveSettings();
+                if (openAiKey != null)
+                {
+                    try
+                    {
+                        updateOpenAiKey(openAiKey);
+                    } catch (IOException | IllegalArgumentException e) {
+                        log(e);
+                        MessageDialog.showMessageDialog(this.gui, "OpenAI Key", "Unable to save: " + e.getMessage(), MessageDialogButton.OK);
+                    }
+                }
             });
             z.start();
         } else {
@@ -479,6 +489,15 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
             bot.shutdown();
         });
         System.exit(0);
+    }
+
+    public synchronized void updateOpenAiKey(String key) throws IOException
+    {
+        if (key == null || key.trim().isEmpty() || key.length() > 16384 || key.contains("\n") || key.contains("\r"))
+            throw new IllegalArgumentException("Enter a non-empty OpenAI key without line breaks.");
+        JSONObject next = new JSONObject(settings.toString()).put("openAiKey", key.trim());
+        configDirectory.saveMaster(next);
+        settings.put("openAiKey", key.trim());
     }
 
     public static boolean inJSONArray(JSONArray jsonArray, String str)

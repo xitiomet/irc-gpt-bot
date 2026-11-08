@@ -148,6 +148,32 @@ class ChatGPTUsageTest
     }
 
     @Test
+    void deliversTriggeredMemoriesInChannelAndPrivateApiRequests() throws Exception
+    {
+        IRCGPTBot bot = new IRCGPTBot("memory-bot", new JSONObject().put("enabled", false)
+            .put("nickname", "assistant").put("gptTools", new JSONArray()));
+        bot.saveNote("nickname.charlie.txt", "NICKNAME FACT");
+        bot.saveNote("token.flumbar.txt", "TOKEN FACT");
+        for (String target : new String[] { "#lobby", "assistant" })
+        {
+            ChatLog log = new ChatLog(bot);
+            ChatMessage trigger = new ChatMessage("charlie", target, "flumbar injury", new java.util.Date());
+            log.add(trigger);
+            log.add(new ChatMessage("dana", target, "later unrelated message", new java.util.Date()));
+            responses.add(textResponse());
+            assertEquals("Hello there", chat.callChatGPT("memory-bot", options, log,
+                new GPTTools(bot, target), trigger).get(5, TimeUnit.SECONDS).getBody());
+            JSONObject request = requests.get(requests.size() - 1);
+            assertEquals("charlie", request.getString("user"));
+            JSONObject system = request.getJSONArray("input").getJSONObject(0);
+            assertEquals("system", system.getString("role"));
+            assertTrue(system.getString("content").contains("NICKNAME FACT"));
+            assertTrue(system.getString("content").contains("TOKEN FACT"));
+            assertFalse(request.toString().contains("later unrelated message"));
+        }
+    }
+
+    @Test
     void retainsPaidRoundsWhenLaterApiRequestFails() throws Exception
     {
         responses.add(toolResponse());

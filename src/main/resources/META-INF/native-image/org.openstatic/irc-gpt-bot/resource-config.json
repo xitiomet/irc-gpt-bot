@@ -3,6 +3,7 @@
         "includes": [
             {"pattern": "\\Qirc-gpt-bot/default-pricing.json\\E"},
             {"pattern": "\\Qirc-gpt-bot/editor.js\\E"},
+            {"pattern": "\\Qirc-gpt-bot/master.html\\E"},
             {"pattern": "\\Qirc-gpt-bot/theme.css\\E"}
         ]
     }

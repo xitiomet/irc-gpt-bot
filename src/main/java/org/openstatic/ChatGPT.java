@@ -57,6 +57,11 @@ public class ChatGPT
         return callChatGPT(botId, botOptions, messages.getGPTMessages(), user, tools);
     }
 
+    public Future<ChatMessage> callChatGPT(String botId, JSONObject botOptions, ChatLog messages, GPTTools tools, ChatMessage trigger)
+    {
+        return callChatGPT(botId, botOptions, messages.getGPTMessages(trigger), trigger.getSender(), tools);
+    }
+
     private void log(String text)
     {
         IRCGPTBotMain.logAppend("openai.log", text);

@@ -40,6 +40,10 @@ test('all dashboard actions open modals with bot ID only', () => {
     }
     context.launchBotWindow();
     assert.equal(elements.editorFrame.src, 'launch.html');
+    context.masterConfigWindow();
+    assert.equal(elements.editorFrame.src, 'master.html');
+    assert.equal(elements.editorTitle.textContent, 'Master Config');
+    assert(source('index.html').indexOf('id="masterConfigButton"') < source('index.html').indexOf('id="launchBotButton"'));
     assert(!source('index.js').includes('window.open'));
 });
 
@@ -76,7 +80,7 @@ test('cancelled discard keeps editor open; accepted discard unloads without a se
 });
 
 test('notes exposes its discard hook at global scope', () => {
-    const elements = { editor: { style: { display: 'flex' } }, noteName: { value: 'note.txt' }, noteContent: { value: 'changed' } };
+    const elements = { editor: { style: { display: 'flex' } }, notePrefix: { value: '' }, noteName: { value: 'note.txt' }, noteContent: { value: 'changed' } };
     const context = {
         URLSearchParams,
         window: { location: { search: '?id=bot' } },
@@ -90,6 +94,87 @@ test('notes exposes its discard hook at global scope', () => {
     assert.equal(context.editorCanClose(), false);
     context.confirm = () => true;
     assert.equal(context.editorCanClose(), true);
+});
+
+function notesEditor()
+{
+    const elements = {};
+    for (const id of ['editor', 'notePrefix', 'prefixHelp', 'noteName', 'noteContent', 'noteList',
+        'empty', 'deleteNote', 'saveNote', 'newNote', 'refresh', 'status'])
+        elements[id] = { value: '', style: {}, disabled: false, textContent: '', focus() {} };
+    const context = {
+        URLSearchParams, window: { location: { search: '?id=bot' } }, confirm: () => true,
+        document: {
+            getElementById: id => elements[id],
+            querySelectorAll: selector => {
+                assert.equal(selector, 'button, input, textarea, select');
+                return Object.values(elements);
+            }
+        }
+    };
+    vm.createContext(context);
+    vm.runInContext(source('notes.html').match(/<script type="text\/javascript">([\s\S]*?)<\/script>/)[1], context);
+    context.renderList = () => {};
+    return { context, elements };
+}
+
+test('notes split existing prefixes, preserve casing and track selector changes as dirty', () => {
+    const { context, elements } = notesEditor();
+    for (const [name, prefix, remainder] of [
+        ['todo.txt', '', 'todo.txt'], ['nickname.charlie.txt', 'nickname.', 'charlie.txt'],
+        ['token.flumbar', 'token.', 'flumbar'], ['TOKEN.flumbar.notes.md', 'token.', 'flumbar.notes.md']
+    ])
+    {
+        context.showEditor(name, 'Saved content');
+        assert.equal(elements.notePrefix.value, prefix);
+        assert.equal(elements.noteName.value, remainder);
+        assert.equal(context.noteFileName(), name);
+        assert.equal(context.isDirty(), false);
+        elements.notePrefix.value = prefix === '' ? 'nickname.' : '';
+        assert.equal(context.isDirty(), true);
+        context.confirm = () => false;
+        assert.equal(context.editorCanClose(), false);
+    }
+    context.showEditor(null, '');
+    assert.equal(elements.notePrefix.value, '');
+    assert.equal(context.isDirty(), false);
+    context.setBusy(true);
+    assert.equal(elements.notePrefix.disabled, true);
+    context.setBusy(false);
+    assert.equal(elements.notePrefix.disabled, false);
+});
+
+test('notes save composed names and preserve overwrite, copy and delete behavior', () => {
+    const { context, elements } = notesEditor();
+    const writes = [];
+    context.postNotes = (body, done) => { writes.push(body); done(); };
+    context.showEditor('todo.txt', 'Content');
+    elements.notePrefix.value = 'token.';
+    elements.noteName.value = ' flumbar.txt ';
+    context.saveNote();
+    assert.equal(writes[0].name, 'token.flumbar.txt');
+    assert.equal(writes[0].content, 'Content');
+    assert.equal(context.currentName, 'token.flumbar.txt');
+    assert.equal(context.isDirty(), false);
+    context.deleteNote();
+    assert.equal(writes[1].action, 'delete');
+    assert.equal(writes[1].name, 'token.flumbar.txt');
+    context.showEditor(null, '');
+    elements.notePrefix.value = 'nickname.';
+    elements.noteName.value = '';
+    context.saveNote();
+    assert.equal(writes.length, 2);
+    elements.noteName.value = '../escape';
+    context.saveNote();
+    assert.equal(writes.length, 2);
+    elements.noteName.value = 'charlie.txt';
+    context.notes = [{ name: 'nickname.charlie.txt' }];
+    context.confirm = () => false;
+    context.saveNote();
+    assert.equal(writes.length, 2);
+    context.confirm = () => true;
+    context.saveNote();
+    assert.equal(writes[2].name, 'nickname.charlie.txt');
 });
 
 test('editor authenticates only same-origin API requests through headers', () => {
@@ -110,12 +195,61 @@ test('editor authenticates only same-origin API requests through headers', () =>
     prefilter({ url: 'https://example.com/ircgptbot/api/' }, {}, xhr);
     prefilter({ url: '/jquery.min.js' }, {}, xhr);
     assert.deepEqual(headers, {});
-    for (const name of ['channels', 'tools', 'notes', 'preamble', 'model', 'launch'])
+    for (const name of ['channels', 'tools', 'notes', 'preamble', 'model', 'launch', 'master'])
     {
         assert(source(name + '.html').includes('src="editor.js"'));
         assert(source(name + '.html').includes('href="theme.css"'));
         assert(!source(name + '.html').includes('apiPassword'));
     }
+});
+
+test('master editor keeps replacement keys private and pricing apply gated behind a preview', () => {
+    const elements = {};
+    for (const id of ['status', 'applyPricing', 'openAiKey', 'keyStatus', 'pricingStatus',
+        'pricingSource', 'priceChanges', 'previewSummary', 'skippedPrices', 'pricingPreview'])
+        elements[id] = { value: '', disabled: false, textContent: '', hidden: false, children: [], appendChild(child) { this.children.push(child); } };
+    const context = {
+        window: {}, confirm: () => false,
+        document: {
+            getElementById: id => elements[id],
+            querySelectorAll: () => Object.values(elements),
+            createElement: () => ({ textContent: '', children: [], appendChild(child) { this.children.push(child); } })
+        }
+    };
+    vm.createContext(context);
+    vm.runInContext(source('master.html').match(/<script>([\s\S]*?)<\/script>/)[1], context);
+    context.setBusy(false);
+    assert.equal(elements.applyPricing.disabled, true);
+    const requests = [];
+    context.request = (body, done) => { requests.push(body); done({ hasOpenAiKey: true }); };
+    elements.openAiKey.value = ' test-new-key ';
+    assert.equal(context.editorCanClose(), false);
+    context.saveKey();
+    assert.equal(requests[0].openAiKey, 'test-new-key');
+    assert.equal(elements.openAiKey.value, '');
+    assert(!elements.keyStatus.textContent.includes('test-new-key'));
+    assert.equal(context.editorCanClose(), true);
+    context.busy = true;
+    assert.equal(context.editorCanClose(), false);
+    context.busy = false;
+    const preview = { token: 'server-token', skipped: ['unsupported'], changes: [{
+        model: 'gpt-new', before: null, after: { inputPerMillion: 1, cachedInputPerMillion: 0.1, outputPerMillion: 5 }
+    }] };
+    context.showPreview(preview);
+    context.setBusy(false);
+    assert.equal(elements.applyPricing.disabled, false);
+    assert.equal(elements.priceChanges.children[0].children[0].textContent, 'gpt-new');
+    assert.equal(elements.priceChanges.children[0].children[1].textContent, '(new) -> $1');
+    context.request = (body, done) => {
+        requests.push(body);
+        done({ pricing: { modelCount: 1, verifiedAt: 'now', source: 'official', updated: 1 } });
+    };
+    context.applyPrices();
+    assert.equal(requests[1].action, 'applyPricing');
+    assert.equal(requests[1].token, 'server-token');
+    assert.equal(context.previewToken, null);
+    assert.equal(elements.pricingPreview.hidden, true);
+    assert(elements.status.textContent.includes('Historical cost estimates were preserved'));
 });
 
 test('cards retain identity, actions, live statistics, details, and empty state', () => {

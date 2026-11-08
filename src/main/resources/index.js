@@ -61,6 +61,11 @@ function launchBotWindow()
     openEditor('launch.html', 'Launch Bot');
 }
 
+function masterConfigWindow()
+{
+    openEditor('master.html', 'Master Config');
+}
+
 function sendEvent(wsEvent)
 {
     var out_event = JSON.stringify(wsEvent);
@@ -342,12 +347,14 @@ function setupWebsocket()
                     document.getElementById('login').style.display = 'none';
                     document.getElementById('console').style.display = 'block';
                     document.getElementById('launchBotButton').style.display = 'inline-block';
+                    document.getElementById('masterConfigButton').style.display = 'inline-block';
                 } else if (action == 'authFail') {
                     authenticated = false;
                     closeEditor(null, true);
                     document.getElementById('login').style.display = 'block';
                     document.getElementById('console').style.display = 'none';
                     document.getElementById('launchBotButton').style.display = 'none';
+                    document.getElementById('masterConfigButton').style.display = 'none';
                     document.getElementById('errorMsg').textContent = jsonObject.error;
                     setConnectionState('Sign in required', 'connected');
                 } else if (action == 'launch' && jsonObject.error) {

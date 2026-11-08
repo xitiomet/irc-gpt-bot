@@ -187,7 +187,7 @@ public class GPTTools
         if (isToolEnabled(WRITE_NOTE))
         {
             JSONObject props = new JSONObject();
-            props.put("name", stringProperty("File name of the note, e.g. 'todo.txt' (no directories)"));
+            props.put("name", stringProperty("File name, no directories. Plain notes: todo.txt. Automatic memories: nickname.charlie.txt for speaker charlie, or token.flumbar.txt for messages containing the whole word flumbar."));
             props.put("content", stringProperty("Text to write to the note"));
             JSONObject append = new JSONObject();
             append.put("type", "boolean");
@@ -403,6 +403,7 @@ public class GPTTools
              + "Your plain text reply is automatically sent to " + this.target + ", so only use the messaging tools to reach someone else "
              + "or to respond in a different way (a notice or a /me action). If an action alone is a sufficient response you may reply with no text. "
              + "Use tools only when it is clearly appropriate or requested, and do not describe the tool calls in your reply."
+             + " " + ContextNotes.INSTRUCTIONS
              + (isToolEnabled(LIST_LOG_FILES) || isToolEnabled(READ_LOG_FILE) ? " " + PRIVACY_INSTRUCTIONS : "");
     }
 

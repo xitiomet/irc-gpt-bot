@@ -136,9 +136,18 @@ fieldset.tool label:first-child { margin-top: 0; }
 #empty { padding: 12px; color: var(--muted); }
 #editor { flex: 1; flex-direction: column; gap: 8px; min-width: 0; }
 #editor label { margin: 0; }
+.note-name-fields { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 12px; }
+#editor .note-name-fields label { margin-bottom: 6px; }
+#prefixHelp { margin: 0 0 8px; font-size: 12px; }
 #noteContent { flex: 1; min-height: 150px; resize: none; font-family: ui-monospace, monospace; }
 .launch-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; }
 .wide-field { grid-column: 1 / -1; }
+.table-scroll { overflow-x: auto; margin: 12px 0; }
+.pricing-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.pricing-table th, .pricing-table td { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); }
+.pricing-table th { color: var(--muted); white-space: nowrap; }
+#pricingPreview { margin-top: 16px; }
+#pricingSource, #skippedPrices { overflow-wrap: anywhere; }
 .check-field { display: flex; align-items: center; gap: 10px; margin: 0; font-weight: 400; }
 @media (max-width: 600px) {
     .app-header { padding: 16px; gap: 12px; flex-wrap: wrap; }
