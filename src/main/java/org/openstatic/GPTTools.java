@@ -271,34 +271,45 @@ public class GPTTools
             }
             url += (url.contains("?") ? "&" : "?") + query;
         }
-        HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
-        con.setConnectTimeout(10000);
-        con.setReadTimeout(20000);
-        con.setRequestMethod(method);
-        con.setRequestProperty("Accept", "application/json, text/plain, */*");
-        con.setRequestProperty("User-Agent", "irc-gpt-bot");
-        if ("POST".equals(method))
+        String requestBody = "POST".equals(method) ? values.toString() : null;
+        String request = method + " " + url + (requestBody != null ? " body=" + requestBody : "");
+        try
         {
-            con.setDoOutput(true);
-            con.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-            con.getOutputStream().write(values.toString().getBytes(StandardCharsets.UTF_8));
-        }
-        int status = con.getResponseCode();
-        InputStream is = status >= 400 ? con.getErrorStream() : con.getInputStream();
-        StringBuilder body = new StringBuilder();
-        if (is != null)
-        {
-            try (InputStreamReader reader = new InputStreamReader(is, StandardCharsets.UTF_8))
+            HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
+            con.setConnectTimeout(10000);
+            con.setReadTimeout(20000);
+            con.setRequestMethod(method);
+            con.setRequestProperty("Accept", "application/json, text/plain, */*");
+            con.setRequestProperty("User-Agent", "irc-gpt-bot");
+            if (requestBody != null)
             {
-                char[] buf = new char[4096];
-                int n;
-                while ((n = reader.read(buf)) > 0 && body.length() < MAX_TOOL_URL_RESPONSE)
-                    body.append(buf, 0, n);
+                con.setDoOutput(true);
+                con.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                con.getOutputStream().write(requestBody.getBytes(StandardCharsets.UTF_8));
             }
+            int status = con.getResponseCode();
+            InputStream is = status >= 400 ? con.getErrorStream() : con.getInputStream();
+            StringBuilder body = new StringBuilder();
+            if (is != null)
+            {
+                try (InputStreamReader reader = new InputStreamReader(is, StandardCharsets.UTF_8))
+                {
+                    char[] buf = new char[4096];
+                    int n;
+                    while ((n = reader.read(buf)) > 0 && body.length() < MAX_TOOL_URL_RESPONSE)
+                        body.append(buf, 0, n);
+                }
+            }
+            String text = body.length() > MAX_TOOL_URL_RESPONSE ? body.substring(0, MAX_TOOL_URL_RESPONSE) + "...(truncated)" : body.toString();
+            String statusLine = "HTTP " + status + (con.getResponseMessage() != null ? " " + con.getResponseMessage() : "");
+            this.bot.logAppend("tools.log", "\"" + toolUrl.getString("purpose") + "\" " + request
+                + "\n    -> " + statusLine + " (" + con.getContentType() + ")"
+                + "\n    " + text.replace("\n", "\n    "));
+            return statusLine + "\n" + text;
+        } catch (IOException e) {
+            this.bot.logAppend("tools.log", "\"" + toolUrl.getString("purpose") + "\" " + request + "\n    -> FAILED: " + e);
+            throw e;
         }
-        String text = body.length() > MAX_TOOL_URL_RESPONSE ? body.substring(0, MAX_TOOL_URL_RESPONSE) + "...(truncated)" : body.toString();
-        this.bot.logAppend("tools.log", method + " " + url + " -> HTTP " + status);
-        return "HTTP " + status + "\n" + text;
     }
 
     private String channelDefaultHint()
