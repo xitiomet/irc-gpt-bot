@@ -76,7 +76,7 @@ DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid J
             "gptEnabled": true,       // Is this bot connected to chatGPT (set to false for api only bot)
             "model": "gpt-3.5-turbo", // ChatGPT model to use
             "privateMessages": true,  // Respond to private messages
-            "gptTools": ["send_private_message", "send_notice", "send_action", "kick_user", "set_topic", "get_names", "list_channels", "invite_user", "list_notes", "read_note", "delete_note", "list_log_files", "read_log_file"], // Optional: IRC tools the AI may use (omit for all, [] for none)
+            "gptTools": ["send_private_message", "send_notice", "send_action", "kick_user", "set_topic", "get_names", "list_channels", "invite_user", "list_notes", "read_note", "write_note", "delete_note", "list_log_files", "read_log_file"], // Optional: IRC tools the AI may use (omit for all, [] for none)
             "maxToolRounds": 5,       // Optional: max tool-calling round trips per reply
             "toolUrls": [             // Optional: web services the AI can call (also editable with the dashboard "Tools" button)
                 {"purpose": "Find out what song is playing", "url": "https://example.com/now-playing", "params": {}},
@@ -136,12 +136,15 @@ The bot uses the OpenAI Responses API with function calling, so the model can ac
 | `list_channels` | List the channels the bot is in, or the server's public channel list (`LIST`) |
 | `invite_user` | Invite a user to a channel the bot is in |
 | `list_notes` | List the files in the bot's `notes/` directory |
-| `read_note` | Read a file from the bot's `notes/` directory |
+| `read_note` | Read a file from the bot's `notes/` directory (long notes are read in 8000-character chunks using `offset`) |
+| `write_note` | Create, overwrite or append to a file in the bot's `notes/` directory (max 64 KB per note) |
 | `delete_note` | Delete a file from the bot's `notes/` directory |
 | `list_log_files` | List files in the bot's own log directory (`logPath/<botId>/`) |
 | `read_log_file` | Read a file from the bot's own log directory (read-only; large files return their newest 8000 characters, or the last `lines` lines) |
 
-Each bot gets a `notes/` directory inside its log directory (`logPath/<botId>/notes/`), created at startup. The file tools can't reach outside the bot's own log directory, and only files directly inside `notes/` can be deleted. Note deletions are logged to `tools.log`.
+Each bot gets a `notes/` directory inside its log directory (`logPath/<botId>/notes/`), created at startup. The file tools can't reach outside the bot's own log directory, and only files directly inside `notes/` can be written or deleted. Note writes and deletions are logged to `tools.log`.
+
+Private conversation logs (`nickname.log`) are flagged `"private": true` in `list_log_files`, and `read_log_file` puts a confidentiality notice at the top of them. The AI is told it may use what's in private logs to inform its own reasoning, but must not reveal, quote or hint at them to anyone except the user the conversation was with.
 
 `kick_user` and `set_topic` only apply to the channel the conversation is happening in and are not offered in private messages. `get_names`, `invite_user` and the joined channel list won't expose secret, private, invite-only or keyed channels (`+s`, `+p`, `+i`, `+k`) unless the request comes from inside that channel. Limit the available tools per bot with `"gptTools"`. Legacy `completionsApiUrl` settings are converted automatically by replacing `/chat/completions` with `/responses`.
 

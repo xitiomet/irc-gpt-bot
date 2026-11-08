@@ -43,11 +43,12 @@ public class GPTTools
     public static final String INVITE_USER = "invite_user";
     public static final String LIST_NOTES = "list_notes";
     public static final String READ_NOTE = "read_note";
+    public static final String WRITE_NOTE = "write_note";
     public static final String DELETE_NOTE = "delete_note";
     public static final String LIST_LOG_FILES = "list_log_files";
     public static final String READ_LOG_FILE = "read_log_file";
     public static final String[] ALL_TOOLS = { SEND_PRIVATE_MESSAGE, SEND_NOTICE, SEND_ACTION, KICK_USER, SET_TOPIC, GET_NAMES, LIST_CHANNELS, INVITE_USER,
-                                               LIST_NOTES, READ_NOTE, DELETE_NOTE, LIST_LOG_FILES, READ_LOG_FILE };
+                                               LIST_NOTES, READ_NOTE, WRITE_NOTE, DELETE_NOTE, LIST_LOG_FILES, READ_LOG_FILE };
 
     private static final int RPL_LIST = 322;
     private static final int RPL_LISTEND = 323;
@@ -55,6 +56,7 @@ public class GPTTools
     private static final int MAX_TOOL_URL_RESPONSE = 8000;
     private static final int MAX_FILE_READ = 8000;
     private static final int MAX_FILE_LIST = 500;
+    private static final int MAX_NOTE_SIZE = 65536;
 
     private IRCGPTBot bot;
     private String target;
@@ -177,7 +179,22 @@ public class GPTTools
         {
             JSONObject props = new JSONObject();
             props.put("name", stringProperty("File name of the note, as returned by " + LIST_NOTES));
-            tools.put(functionTool(READ_NOTE, "Read the contents of a file in your notes directory.", props, "name"));
+            JSONObject offset = new JSONObject();
+            offset.put("type", "integer");
+            offset.put("description", "Optional character offset to start reading from, for notes too long to return at once (default 0)");
+            props.put("offset", offset);
+            tools.put(functionTool(READ_NOTE, "Read the contents of a file in your notes directory. Long notes are returned in " + MAX_FILE_READ + "-character chunks.", props, "name"));
+        }
+        if (isToolEnabled(WRITE_NOTE))
+        {
+            JSONObject props = new JSONObject();
+            props.put("name", stringProperty("File name of the note, e.g. 'todo.txt' (no directories)"));
+            props.put("content", stringProperty("Text to write to the note"));
+            JSONObject append = new JSONObject();
+            append.put("type", "boolean");
+            append.put("description", "true to add the content to the end of the note; false (default) to create or replace the whole note");
+            props.put("append", append);
+            tools.put(functionTool(WRITE_NOTE, "Create, overwrite or append to a file in your notes directory. Use notes to remember things between conversations.", props, "name", "content"));
         }
         if (isToolEnabled(DELETE_NOTE))
         {
@@ -364,7 +381,27 @@ public class GPTTools
         return "You are " + this.bot.getNickname() + ", an IRC bot currently in " + where + ". "
              + "Your plain text reply is automatically sent to " + this.target + ", so only use the messaging tools to reach someone else "
              + "or to respond in a different way (a notice or a /me action). If an action alone is a sufficient response you may reply with no text. "
-             + "Use tools only when it is clearly appropriate or requested, and do not describe the tool calls in your reply.";
+             + "Use tools only when it is clearly appropriate or requested, and do not describe the tool calls in your reply."
+             + (isToolEnabled(LIST_LOG_FILES) || isToolEnabled(READ_LOG_FILE) ? " " + PRIVACY_INSTRUCTIONS : "");
+    }
+
+    private static final String PRIVACY_INSTRUCTIONS =
+        "Your log directory holds channel logs (#channel.log) and private conversation logs (nickname.log, one per user who messaged you privately; "
+        + "the listing marks these \"private\": true). Private logs are confidential: you may read them and freely use what they contain to reason, "
+        + "remember context and make better decisions, but never quote, reveal, summarize or hint at their contents, or say who you talked to privately, "
+        + "to anyone other than the user that private conversation was with. Logs of secret, private, invite-only or keyed channels are confidential "
+        + "to that channel in the same way.";
+
+    /** Returns the nickname a private-conversation log belongs to, or null if the file isn't a private log. */
+    private static String privateLogOwner(java.nio.file.Path relative)
+    {
+        if (relative.getNameCount() != 1)
+            return null;
+        String name = relative.getFileName().toString();
+        if (!name.endsWith(".log") || name.equals("tools.log") || name.equals("exceptions.log"))
+            return null;
+        String owner = name.substring(0, name.length() - 4);
+        return owner.isEmpty() || isChannelName(owner) ? null : owner;
     }
 
     private Client client()
@@ -588,14 +625,47 @@ public class GPTTools
 
     private File resolveNote(JSONObject args) throws IOException
     {
+        return resolveNote(args, false);
+    }
+
+    private File resolveNote(JSONObject args, boolean allowNew) throws IOException
+    {
         String name = requireArg(args, "name");
-        if (name.contains("/") || name.contains("\\") || name.equals(".") || name.equals(".."))
+        if (name.contains("/") || name.contains("\\") || name.equals(".") || name.equals("..") || name.length() > 128)
             throw new IllegalArgumentException("'" + name + "' is not a valid note name");
         File notes = this.bot.getNotesFolder().getCanonicalFile();
         File file = new File(notes, name).getCanonicalFile();
-        if (!notes.equals(file.getParentFile()) || !file.isFile())
+        if (!notes.equals(file.getParentFile()))
+            throw new IllegalArgumentException("'" + name + "' is not a valid note name");
+        if (file.isDirectory() || (!allowNew && !file.isFile()))
             throw new IllegalArgumentException("note '" + name + "' does not exist");
         return file;
+    }
+
+    private String writeNote(JSONObject args) throws IOException
+    {
+        File file = resolveNote(args, true);
+        if (!args.has("content"))
+            throw new IllegalArgumentException("missing required argument 'content'");
+        String content = args.optString("content", "");
+        boolean append = args.optBoolean("append", false);
+        long existing = (append && file.isFile()) ? file.length() : 0;
+        byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+        if (existing + bytes.length > MAX_NOTE_SIZE)
+            return "error: notes are limited to " + MAX_NOTE_SIZE + " bytes";
+        boolean created = !file.exists();
+        if (append && existing > 0 && !content.startsWith("\n"))
+        {
+            String current = new String(java.nio.file.Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+            if (!current.endsWith("\n"))
+                bytes = ("\n" + content).getBytes(StandardCharsets.UTF_8);
+        }
+        if (append)
+            java.nio.file.Files.write(file.toPath(), bytes, java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+        else
+            java.nio.file.Files.write(file.toPath(), bytes);
+        this.bot.logAppend("tools.log", "(" + (append ? "APPEND" : "WRITE") + " NOTE) " + file.getName() + " (" + bytes.length + " bytes) requested in " + this.target);
+        return "note '" + file.getName() + "' " + (created ? "created" : (append ? "appended to" : "overwritten")) + " (" + file.length() + " bytes)";
     }
 
     private String listFiles(File base, File dir) throws IOException
@@ -613,8 +683,11 @@ public class GPTTools
             {
                 File f = files[i];
                 JSONObject entry = new JSONObject();
-                entry.put("path", basePath.relativize(dirPath.resolve(f.getName())).toString().replace('\\', '/'));
+                java.nio.file.Path relative = basePath.relativize(dirPath.resolve(f.getName()));
+                entry.put("path", relative.toString().replace('\\', '/'));
                 entry.put("type", f.isDirectory() ? "directory" : "file");
+                if (f.isFile() && base.getCanonicalFile().equals(this.bot.getLogFolder().getCanonicalFile()) && privateLogOwner(relative) != null)
+                    entry.put("private", true);
                 if (f.isFile())
                     entry.put("size", f.length());
                 entry.put("modified", new Date(f.lastModified()).toString());
@@ -626,6 +699,37 @@ public class GPTTools
         result.put("count", files == null ? 0 : files.length);
         result.put("files", entries);
         return result.toString();
+    }
+
+    private String readLogFile(JSONObject args) throws IOException
+    {
+        File file = resolveInLogFolder(requireArg(args, "path"));
+        String text = readFile(file, args.optInt("lines", 0), true);
+        java.nio.file.Path relative = this.bot.getLogFolder().getCanonicalFile().toPath().relativize(file.toPath());
+        String owner = privateLogOwner(relative);
+        if (owner == null || text.startsWith("error:"))
+            return text;
+        String notice = owner.equalsIgnoreCase(this.target)
+            ? "(PRIVATE LOG of your private conversation with " + owner + ", the user you are talking to now. You may discuss it with them, but not with anyone else.)"
+            : "(PRIVATE LOG of your private conversation with " + owner + ". Confidential: use it only to inform your own reasoning. Do not quote, reveal, summarize or hint at it, or mention that this conversation exists, in " + this.target + ".)";
+        return notice + "\n" + text;
+    }
+
+    private String readNote(JSONObject args) throws IOException
+    {
+        File file = resolveNote(args);
+        String text = new String(java.nio.file.Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+        if (text.isEmpty())
+            return "(empty file)";
+        int offset = Math.max(0, args.optInt("offset", 0));
+        if (offset >= text.length())
+            return "error: offset " + offset + " is past the end of the note (" + text.length() + " characters)";
+        int end = Math.min(text.length(), offset + MAX_FILE_READ);
+        String chunk = text.substring(offset, end);
+        if (offset == 0 && end == text.length())
+            return chunk;
+        return chunk + "\n...(characters " + offset + "-" + end + " of " + text.length()
+            + (end < text.length() ? "; call " + READ_NOTE + " with offset " + end + " to continue)" : ")");
     }
 
     /** Returns file text capped at MAX_FILE_READ chars; tail keeps the end (newest log lines), otherwise the start. */
@@ -738,7 +842,9 @@ public class GPTTools
                 case LIST_NOTES:
                     return listFiles(this.bot.getNotesFolder(), this.bot.getNotesFolder());
                 case READ_NOTE:
-                    return readFile(resolveNote(args), 0, false);
+                    return readNote(args);
+                case WRITE_NOTE:
+                    return writeNote(args);
                 case DELETE_NOTE:
                     return deleteNote(args);
                 case LIST_LOG_FILES:
@@ -748,7 +854,7 @@ public class GPTTools
                     return listFiles(this.bot.getLogFolder(), dir);
                 }
                 case READ_LOG_FILE:
-                    return readFile(resolveInLogFolder(requireArg(args, "path")), args.optInt("lines", 0), true);
+                    return readLogFile(args);
                 default:
                     return "error: unknown tool '" + name + "'";
             }
