@@ -1,5 +1,6 @@
 package org.openstatic;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -40,12 +41,20 @@ public class GPTTools
     public static final String GET_NAMES = "get_names";
     public static final String LIST_CHANNELS = "list_channels";
     public static final String INVITE_USER = "invite_user";
-    public static final String[] ALL_TOOLS = { SEND_PRIVATE_MESSAGE, SEND_NOTICE, SEND_ACTION, KICK_USER, SET_TOPIC, GET_NAMES, LIST_CHANNELS, INVITE_USER };
+    public static final String LIST_NOTES = "list_notes";
+    public static final String READ_NOTE = "read_note";
+    public static final String DELETE_NOTE = "delete_note";
+    public static final String LIST_LOG_FILES = "list_log_files";
+    public static final String READ_LOG_FILE = "read_log_file";
+    public static final String[] ALL_TOOLS = { SEND_PRIVATE_MESSAGE, SEND_NOTICE, SEND_ACTION, KICK_USER, SET_TOPIC, GET_NAMES, LIST_CHANNELS, INVITE_USER,
+                                               LIST_NOTES, READ_NOTE, DELETE_NOTE, LIST_LOG_FILES, READ_LOG_FILE };
 
     private static final int RPL_LIST = 322;
     private static final int RPL_LISTEND = 323;
     private static final int MAX_LIST_ENTRIES = 10000;
     private static final int MAX_TOOL_URL_RESPONSE = 8000;
+    private static final int MAX_FILE_READ = 8000;
+    private static final int MAX_FILE_LIST = 500;
 
     private IRCGPTBot bot;
     private String target;
@@ -159,6 +168,38 @@ public class GPTTools
             props.put("nickname", stringProperty("Nickname of the user to invite"));
             props.put("channel", stringProperty("Channel to invite the user to (must be one the bot has joined)." + channelDefaultHint()));
             tools.put(functionTool(INVITE_USER, "Invite a user to a channel (INVITE).", props, "nickname"));
+        }
+        if (isToolEnabled(LIST_NOTES))
+        {
+            tools.put(functionTool(LIST_NOTES, "List the files in your notes directory, with their sizes and last-modified times.", new JSONObject()));
+        }
+        if (isToolEnabled(READ_NOTE))
+        {
+            JSONObject props = new JSONObject();
+            props.put("name", stringProperty("File name of the note, as returned by " + LIST_NOTES));
+            tools.put(functionTool(READ_NOTE, "Read the contents of a file in your notes directory.", props, "name"));
+        }
+        if (isToolEnabled(DELETE_NOTE))
+        {
+            JSONObject props = new JSONObject();
+            props.put("name", stringProperty("File name of the note to delete, as returned by " + LIST_NOTES));
+            tools.put(functionTool(DELETE_NOTE, "Permanently delete a file from your notes directory.", props, "name"));
+        }
+        if (isToolEnabled(LIST_LOG_FILES))
+        {
+            JSONObject props = new JSONObject();
+            props.put("path", stringProperty("Optional subdirectory of your log directory to list (e.g. 'notes'). Defaults to the top of your log directory."));
+            tools.put(functionTool(LIST_LOG_FILES, "List the files and subdirectories in your own log directory (channel logs, private chat logs, tools.log, notes/...).", props));
+        }
+        if (isToolEnabled(READ_LOG_FILE))
+        {
+            JSONObject props = new JSONObject();
+            props.put("path", stringProperty("Path of the file relative to your log directory, as returned by " + LIST_LOG_FILES + " (e.g. '#channel.log' or 'notes/todo.txt')"));
+            JSONObject lines = new JSONObject();
+            lines.put("type", "integer");
+            lines.put("description", "Optional: only return the last N lines of the file");
+            props.put("lines", lines);
+            tools.put(functionTool(READ_LOG_FILE, "Read a file from your own log directory (read-only). Large files return their most recent content.", props, "path"));
         }
         JSONArray toolUrls = getToolUrls();
         for (int i = 0; i < toolUrls.length(); i++)
@@ -533,6 +574,86 @@ public class GPTTools
             this.bot.getChatLog(this.target).add(new ChatMessage(this.bot.getNickname(), to, chatLogBody, new Date(System.currentTimeMillis())));
     }
 
+    /** Resolves a path relative to the bot's log directory, refusing anything that escapes it. */
+    private File resolveInLogFolder(String path) throws IOException
+    {
+        File base = this.bot.getLogFolder().getCanonicalFile();
+        File file = new File(base, path).getCanonicalFile();
+        if (!file.toPath().startsWith(base.toPath()))
+            throw new IllegalArgumentException("path '" + path + "' is outside your log directory");
+        if (!file.exists())
+            throw new IllegalArgumentException("'" + path + "' does not exist");
+        return file;
+    }
+
+    private File resolveNote(JSONObject args) throws IOException
+    {
+        String name = requireArg(args, "name");
+        if (name.contains("/") || name.contains("\\") || name.equals(".") || name.equals(".."))
+            throw new IllegalArgumentException("'" + name + "' is not a valid note name");
+        File notes = this.bot.getNotesFolder().getCanonicalFile();
+        File file = new File(notes, name).getCanonicalFile();
+        if (!notes.equals(file.getParentFile()) || !file.isFile())
+            throw new IllegalArgumentException("note '" + name + "' does not exist");
+        return file;
+    }
+
+    private String listFiles(File base, File dir) throws IOException
+    {
+        if (!dir.isDirectory())
+            return "error: '" + dir.getName() + "' is not a directory";
+        java.nio.file.Path basePath = base.getCanonicalFile().toPath();
+        java.nio.file.Path dirPath = dir.getCanonicalFile().toPath();
+        File[] files = dir.listFiles();
+        JSONArray entries = new JSONArray();
+        if (files != null)
+        {
+            java.util.Arrays.sort(files, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+            for (int i = 0; i < files.length && i < MAX_FILE_LIST; i++)
+            {
+                File f = files[i];
+                JSONObject entry = new JSONObject();
+                entry.put("path", basePath.relativize(dirPath.resolve(f.getName())).toString().replace('\\', '/'));
+                entry.put("type", f.isDirectory() ? "directory" : "file");
+                if (f.isFile())
+                    entry.put("size", f.length());
+                entry.put("modified", new Date(f.lastModified()).toString());
+                entries.put(entry);
+            }
+        }
+        JSONObject result = new JSONObject();
+        result.put("directory", basePath.relativize(dirPath).toString().replace('\\', '/'));
+        result.put("count", files == null ? 0 : files.length);
+        result.put("files", entries);
+        return result.toString();
+    }
+
+    /** Returns file text capped at MAX_FILE_READ chars; tail keeps the end (newest log lines), otherwise the start. */
+    private String readFile(File file, int lines, boolean tail) throws IOException
+    {
+        if (!file.isFile())
+            return "error: '" + file.getName() + "' is not a file";
+        String text = new String(java.nio.file.Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+        if (lines > 0)
+        {
+            String[] all = text.split("\r?\n");
+            int from = Math.max(0, all.length - lines);
+            text = String.join("\n", java.util.Arrays.copyOfRange(all, from, all.length));
+        }
+        if (text.length() > MAX_FILE_READ)
+            text = tail ? "(truncated)..." + text.substring(text.length() - MAX_FILE_READ) : text.substring(0, MAX_FILE_READ) + "...(truncated)";
+        return text.isEmpty() ? "(empty file)" : text;
+    }
+
+    private String deleteNote(JSONObject args) throws IOException
+    {
+        File file = resolveNote(args);
+        if (!file.delete())
+            return "error: could not delete note '" + file.getName() + "'";
+        this.bot.logAppend("tools.log", "(DELETE NOTE) " + file.getName() + " requested in " + this.target);
+        return "note '" + file.getName() + "' deleted";
+    }
+
     /** Executes a tool call and returns a short result string for the model. */
     public String execute(String name, String argumentsJson)
     {
@@ -614,6 +735,20 @@ public class GPTTools
                     return listChannels(args);
                 case INVITE_USER:
                     return inviteUser(args);
+                case LIST_NOTES:
+                    return listFiles(this.bot.getNotesFolder(), this.bot.getNotesFolder());
+                case READ_NOTE:
+                    return readFile(resolveNote(args), 0, false);
+                case DELETE_NOTE:
+                    return deleteNote(args);
+                case LIST_LOG_FILES:
+                {
+                    String path = args.optString("path", "").trim();
+                    File dir = path.isEmpty() ? this.bot.getLogFolder() : resolveInLogFolder(path);
+                    return listFiles(this.bot.getLogFolder(), dir);
+                }
+                case READ_LOG_FILE:
+                    return readFile(resolveInLogFolder(requireArg(args, "path")), args.optInt("lines", 0), true);
                 default:
                     return "error: unknown tool '" + name + "'";
             }

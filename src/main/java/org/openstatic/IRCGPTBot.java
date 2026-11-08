@@ -125,6 +125,8 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
             botOptions.put("channels", new JSONObject());
         if (!botOptions.has("ignore"))
             botOptions.put("ignore", new JSONArray());
+        if (IRCGPTBotMain.logsFolder != null)
+            this.getNotesFolder();
         
         this.logs = new HashMap<String, ChatLog>();
         this.privateChats = new ArrayList<String>();
@@ -811,6 +813,21 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         e.printStackTrace(ps);
         ps.flush();
         this.logAppend("exceptions.log", msg + "\n" + baos.toString());
+    }
+
+    /** This bot's own log directory (logPath/botId). */
+    public File getLogFolder()
+    {
+        return new File(IRCGPTBotMain.logsFolder, this.getBotId());
+    }
+
+    /** The notes/ directory inside this bot's log directory, created on demand. */
+    public File getNotesFolder()
+    {
+        File notes = new File(getLogFolder(), "notes");
+        if (!notes.exists())
+            notes.mkdirs();
+        return notes;
     }
 
     public synchronized void logAppend(String filename, String text)
