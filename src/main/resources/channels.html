@@ -1,5 +1,6 @@
 <html>
 <head>
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Channels</title>
     <script src="jquery.min.js"></script>
@@ -11,6 +12,113 @@
         var busy = false;
         var refreshTimer;
         var channelNames = [];
+        var selectedChannel = null;
+        var detailTimer;
+        var viewVersion = 0;
+        var messagesVersion = '';
+        var rosterVersion = '';
+
+        function openChannel(name)
+        {
+            selectedChannel = name;
+            viewVersion++;
+            messagesVersion = '';
+            rosterVersion = '';
+            document.getElementById('channelList').hidden = true;
+            document.getElementById('channelView').hidden = false;
+            document.getElementById('viewTitle').textContent = name;
+            document.getElementById('topic').textContent = 'Loading topic...';
+            document.getElementById('messages').textContent = '';
+            document.getElementById('roster').textContent = '';
+            document.getElementById('viewStatus').textContent = 'Loading channel...';
+            refreshChannelView();
+        }
+
+        function backToChannels()
+        {
+            selectedChannel = null;
+            viewVersion++;
+            clearTimeout(detailTimer);
+            document.getElementById('channelList').hidden = false;
+            document.getElementById('channelView').hidden = true;
+        }
+
+        function renderChannelView(channel)
+        {
+            document.getElementById('topic').textContent = channel.topic || '(No topic)';
+            var messageList = document.getElementById('messages');
+            var version = JSON.stringify(channel.messages);
+            if (version !== messagesVersion)
+            {
+                var atBottom = messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight < 40;
+                var scroll = messageList.scrollTop;
+                var initial = messagesVersion === '';
+                messageList.textContent = '';
+                channel.messages.forEach(function(message) {
+                    var row = document.createElement('li');
+                    var time = document.createElement('time');
+                    time.dateTime = new Date(message.timestamp).toISOString();
+                    time.textContent = new Date(message.timestamp).toLocaleTimeString();
+                    var sender = document.createElement('strong');
+                    sender.textContent = message.sender;
+                    var text = document.createElement('span');
+                    text.textContent = message.body;
+                    row.appendChild(time);
+                    row.appendChild(sender);
+                    row.appendChild(text);
+                    messageList.appendChild(row);
+                });
+                messagesVersion = version;
+                messageList.scrollTop = initial || atBottom ? messageList.scrollHeight : scroll;
+            }
+            document.getElementById('emptyMessages').hidden = channel.messages.length !== 0;
+            var roster = document.getElementById('roster');
+            version = JSON.stringify(channel.roster);
+            if (version !== rosterVersion)
+            {
+                roster.textContent = '';
+                channel.roster.forEach(function(user) {
+                    var row = document.createElement('li');
+                    row.textContent = user.prefix + user.nickname;
+                    roster.appendChild(row);
+                });
+                rosterVersion = version;
+            }
+            document.getElementById('rosterTitle').textContent = 'Roster (' + channel.roster.length + ')';
+            document.getElementById('viewStatus').textContent = channel.rosterComplete ? 'Live updates every 2 seconds.' : 'Loading roster from IRC...';
+        }
+
+        function refreshChannelView()
+        {
+            clearTimeout(detailTimer);
+            if (selectedChannel == null)
+                return;
+            var name = selectedChannel;
+            var version = viewVersion;
+            $.ajax({
+                url: botUrl + 'channel/',
+                data: { name: name },
+                dataType: 'json', cache: false, timeout: 10000
+            }).done(function(json) {
+                if (name !== selectedChannel || version !== viewVersion)
+                    return;
+                if (json.error || !json.channel)
+                {
+                    document.getElementById('viewStatus').textContent = json.error || 'Channel unavailable.';
+                    document.getElementById('topic').textContent = '(Channel unavailable)';
+                    document.getElementById('roster').textContent = '';
+                    rosterVersion = '';
+                    return;
+                }
+                renderChannelView(json.channel);
+            }).fail(function() {
+                if (name === selectedChannel && version === viewVersion)
+                    document.getElementById('viewStatus').textContent = 'Unable to update channel. Retrying...';
+            }).always(function() {
+                if (name === selectedChannel && version === viewVersion)
+                    detailTimer = setTimeout(refreshChannelView, 2000);
+            });
+        }
 
         function setStatus(message)
         {
@@ -20,7 +128,7 @@
         function updateButtons()
         {
             document.querySelectorAll('button').forEach(function(button) {
-                button.disabled = busy || !connected;
+                button.disabled = button.id === 'backToChannels' ? false : busy || !connected;
             });
         }
 
@@ -32,8 +140,10 @@
                 list.textContent = 'The bot is not in any channels.';
             channels.forEach(function(channel) {
                 var row = document.createElement('li');
-                var name = document.createElement('span');
+                var name = document.createElement('button');
                 name.textContent = channel;
+                name.className = 'channel-link';
+                name.onclick = function() { openChannel(channel); };
                 var leave = document.createElement('button');
                 leave.textContent = 'Leave';
                 leave.onclick = function() {
@@ -127,6 +237,7 @@
 
         function loaded()
         {
+            document.getElementById('backToChannels').onclick = backToChannels;
             document.getElementById('joinForm').onsubmit = function(event) {
                 event.preventDefault();
                 channelAction('join', document.getElementById('channelName').value);
@@ -139,6 +250,8 @@
 <body onload="loaded()" class="editor-page">
     <h2 id="botTitle">Channels</h2>
     <p id="connectionStatus" role="status">Loading channels...</p>
+    <div id="channelList">
+    <p class="help">Click a channel to view its messages, topic, and roster.</p>
     <ul id="channels"></ul>
     <form id="joinForm" class="form-panel">
         <label for="channelName">Join a channel</label>
@@ -147,6 +260,19 @@
             <button type="submit" class="primary" disabled>Join</button>
         </div>
     </form>
+    </div>
+    <section id="channelView" hidden>
+        <div class="toolbar"><button type="button" id="backToChannels">Back to channels</button><h3 id="viewTitle"></h3></div>
+        <div class="form-panel channel-topic"><strong>Topic</strong><p id="topic"></p></div>
+        <div class="channel-layout">
+            <section class="channel-transcript" aria-label="Channel messages">
+                <ol id="messages"></ol>
+                <p id="emptyMessages" class="help" hidden>No messages observed yet. Showing up to 255 recent messages since this bot started.</p>
+            </section>
+            <aside class="channel-roster"><h3 id="rosterTitle">Roster</h3><ul id="roster"></ul></aside>
+        </div>
+        <p id="viewStatus" role="status" class="help"></p>
+    </section>
     <p id="status" role="status"></p>
 </body>
 </html>

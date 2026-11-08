@@ -312,11 +312,14 @@ test('cards retain identity, actions, live statistics, details, and empty state'
 
 test('bot settings serialize all tool selections, toggles and nickname lists and guard dirty edits', () => {
     const elements = {};
-    for (const id of ['model', 'systemPreamble', 'ignore', 'aliases', 'botOps', 'acceptInvites', 'greet', 'privateMessages', 'status', 'saveButton'])
+    for (const id of ['model', 'systemPreamble', 'ignore', 'aliases', 'botOps', 'acceptInvites', 'greet', 'privateMessages',
+        'greetPublic','secure','gptEnabled','enabled','server','nickname','user','realName','operatorName','definitionServer',
+        'modelsApiUrl','responsesApiUrl','port','contextDepth','followUpSeconds','replyCooldownSeconds','openQuestionSeconds',
+        'maxToolRounds','password','operatorPassword','clearPassword','clearOperatorPassword','reconnect','status','saveButton'])
         elements[id] = { value: '', checked: false, disabled: false };
     const tools = [{ value: 'write_note', checked: true }, { value: 'read_note', checked: false }];
     const context = {
-        window: {}, confirm: () => false,
+        window: {}, confirm: () => false, getParameterByName: () => 'bot',
         document: {
             getElementById: id => elements[id],
             querySelectorAll: selector => selector === '#builtInTools input:checked' ? tools.filter(tool => tool.checked)
@@ -324,7 +327,7 @@ test('bot settings serialize all tool selections, toggles and nickname lists and
         }
     };
     vm.createContext(context);
-    vm.runInContext(source('preamble.html').match(/<script type="text\/javascript">([\s\S]*?)<\/script>/)[1], context);
+    vm.runInContext(source('bot-editor.js'), context);
     elements.model.value = 'gpt-4o-mini';
     elements.systemPreamble.value = 'Prompt';
     elements.ignore.value = 'one, two\none';
@@ -368,4 +371,119 @@ test('header shows server-wide historical estimate and flags incomplete usage on
     context.updateTotalCost({costEstimate: 12, unpricedTokensSpent: 0, untrackedRequests: 1});
     assert(elements.totalCostEstimate.textContent.endsWith('(incomplete)'));
     assert(elements.totalCostEstimate.title.includes('removed bots'));
+});
+
+test('channel detail renders messages and roster safely and preserves reading position during live updates', () => {
+    function element()
+    {
+        return { textContent: '', children: [], hidden: false, scrollTop: 0, scrollHeight: 500, clientHeight: 100,
+            appendChild(child) { this.children.push(child); } };
+    }
+    const elements = {};
+    for (const id of ['channelList', 'channelView', 'viewTitle', 'topic', 'messages', 'roster', 'emptyMessages', 'rosterTitle', 'viewStatus'])
+        elements[id] = element();
+    const context = {
+        URLSearchParams, window: { location: { search: '?id=bot' } }, clearTimeout() {},
+        document: { getElementById: id => elements[id], createElement: element }
+    };
+    vm.createContext(context);
+    vm.runInContext(source('channels.html').match(/<script type="text\/javascript">([\s\S]*?)<\/script>/)[1], context);
+    context.refreshChannelView = () => {};
+    context.openChannel('#lobby');
+    assert.equal(elements.channelList.hidden, true);
+    const channel = { topic: '<script>topic</script>', rosterComplete: true, roster: [{nickname:'Alice',prefix:'@'}],
+        messages: [{id:1,sender:'<nick>',body:'<img onerror=bad>',timestamp:1700000000000}] };
+    context.renderChannelView(channel);
+    assert.equal(elements.topic.textContent, '<script>topic</script>');
+    assert.equal(elements.messages.children[0].children[1].textContent, '<nick>');
+    assert.equal(elements.messages.children[0].children[2].textContent, '<img onerror=bad>');
+    assert.equal(elements.roster.children[0].textContent, '@Alice');
+    assert.equal(elements.messages.scrollTop, 500);
+    elements.messages.scrollTop = 20;
+    channel.messages.push({id:2,sender:'bob',body:'new message',timestamp:1700000001000});
+    channel.roster = [{nickname:'bob',prefix:''}];
+    context.renderChannelView(channel);
+    assert.equal(elements.messages.scrollTop, 20);
+    assert.equal(elements.rosterTitle.textContent, 'Roster (1)');
+    context.backToChannels();
+    assert.equal(context.selectedChannel, null);
+    assert.equal(elements.channelView.hidden, true);
+    assert.equal(elements.channelList.hidden, false);
+});
+
+test('channel polling ignores stale responses after selecting another channel or going back', () => {
+    const elements = {};
+    for (const id of ['channelList','channelView','viewTitle','topic','messages','roster','viewStatus'])
+        elements[id] = {textContent:'',hidden:false};
+    const pending = [];
+    const context = {
+        URLSearchParams, window: {location:{search:'?id=bot'}}, clearTimeout() {}, setTimeout() {return 1;},
+        document: {getElementById:id=>elements[id]},
+        $: {ajax(options) {
+            const item = {options};
+            pending.push(item);
+            const chain = {done(fn) {item.done=fn;return chain;},fail(fn) {item.fail=fn;return chain;},always(fn) {item.always=fn;return chain;}};
+            return chain;
+        }}
+    };
+    vm.createContext(context);
+    vm.runInContext(source('channels.html').match(/<script type="text\/javascript">([\s\S]*?)<\/script>/)[1],context);
+    let renders = 0;
+    context.renderChannelView = () => renders++;
+    context.openChannel('#one');
+    context.openChannel('#two');
+    pending[0].done({channel:{}});
+    assert.equal(renders,0);
+    pending[1].done({channel:{}});
+    assert.equal(renders,1);
+    context.backToChannels();
+    pending[1].done({channel:{}});
+    assert.equal(renders,1);
+    assert.equal(pending[0].options.data.name,'#one');
+});
+
+test('launch and edit share fields and serialize the selected model and complete IRC configuration', () => {
+    for (const name of ['launch.html', 'preamble.html'])
+        assert(source(name).includes('src="bot-editor.js"'));
+    const fields = source('bot-fields.html');
+    assert(fields.includes('<select id="model"'));
+    for (const id of ['server','port','nickname','user','realName','secure','operatorName','operatorPassword','greetPublic','followUpSeconds'])
+        assert(fields.includes('id="' + id + '"'), id);
+    const elements = {};
+    for (const id of Array.from(fields.matchAll(/id="([^"]+)"/g), match => match[1]).concat(['botTitle','status','saveButton']))
+        elements[id] = {value:'',checked:false,disabled:false,hidden:false,checkValidity:()=>true};
+    const requests = [];
+    const context = {
+        window:{}, getParameterByName:()=>null, closeEditor(){}, confirm:()=>true,
+        document:{
+            getElementById:id=>elements[id],
+            querySelectorAll:selector=>selector==='#builtInTools input:checked' ? [] : Object.values(elements)
+        },
+        $:{ajax(options) {
+            requests.push(JSON.parse(options.data));
+            const chain={done(){return chain;},fail(){return chain;},always(){return chain;}};
+            return chain;
+        }}
+    };
+    vm.createContext(context);
+    vm.runInContext(source('bot-editor.js'),context);
+    context.ready=true;
+    elements.botId.value='new-bot';
+    elements.server.value='irc.example.net';
+    elements.nickname.value='nick';
+    elements.model.value='gpt-4.1-mini';
+    elements.port.value='6697';
+    for(const id of ['contextDepth','followUpSeconds','replyCooldownSeconds','openQuestionSeconds','maxToolRounds'])
+        elements[id].value='5';
+    elements.secure.checked=true;
+    elements.operatorName.value='operator';
+    elements.operatorPassword.value='local-test-password';
+    context.save();
+    assert.equal(requests[0].editor,true);
+    assert.equal(requests[0].botOptions.model,'gpt-4.1-mini');
+    assert.equal(requests[0].botOptions.port,6697);
+    assert.equal(requests[0].botOptions.secure,true);
+    assert.equal(requests[0].botOptions.operatorPassword,'local-test-password');
+    assert(!Object.hasOwn(requests[0].botOptions,'botId'));
+    assert(!Object.hasOwn(requests[0].botOptions,'reconnect'));
 });

@@ -409,8 +409,25 @@ public class APIWebServer implements IRCGPTBotListener
                             } else if ("/bots/add/".equals(target)) {
                                 if (requestPost.has("id") && requestPost.has("botOptions"))
                                 {
-                                    IRCGPTBot bot = IRCGPTBotMain.instance.launchBot(requestPost.optString("id"), requestPost.optJSONObject("botOptions"));
-                                    response.put("bot", bot.toJSONObject());
+                                    JSONObject options = requestPost.getJSONObject("botOptions");
+                                    if (requestPost.optBoolean("editor"))
+                                    {
+                                        try
+                                        {
+                                            JSONObject input = new JSONObject(options.toString()).put("preamble", options.getString("systemPreamble"));
+                                            options = IRCGPTBot.validateEditorUpdate(input);
+                                            for (String field : new ArrayList<>(options.keySet()))
+                                                if (options.isNull(field)) options.remove(field);
+                                        } catch (IllegalArgumentException | JSONException | ArithmeticException e) {
+                                            IRCGPTBotMain.log(e);
+                                            response.put("error", e.getMessage());
+                                        }
+                                    }
+                                    if (!response.has("error"))
+                                    {
+                                        IRCGPTBot bot = IRCGPTBotMain.instance.launchBot(requestPost.optString("id"), options);
+                                        response.put("bot", bot.toJSONObject());
+                                    }
                                 }
                             } else if (target.startsWith("/bot/")) {
                                 target = target.substring(5);
@@ -552,7 +569,10 @@ public class APIWebServer implements IRCGPTBotListener
             if (isAuthenticated(request, null))
             {
                 try {
-                    if ("/master/".equals(target)) {
+                    if ("/models/".equals(target)) {
+                        response.put("models", IRCGPTBotMain.chatGPT.listModels(new JSONObject()))
+                            .put("options", BotEditorOptions.defaults("", true)).put("builtInTools", new JSONArray(GPTTools.ALL_TOOLS));
+                    } else if ("/master/".equals(target)) {
                         httpServletResponse.setContentType("application/json");
                         httpServletResponse.setCharacterEncoding("UTF-8");
                         httpServletResponse.setHeader("Cache-Control", "no-store");
@@ -621,6 +641,15 @@ public class APIWebServer implements IRCGPTBotListener
                                         response.put("builtInTools", new JSONArray(GPTTools.ALL_TOOLS));
                                     } else if ("tools".equals(command)) {
                                         response.put("toolUrls", bot.getToolUrls());
+                                    } else if ("channel".equals(command)) {
+                                        httpServletResponse.setCharacterEncoding("UTF-8");
+                                        httpServletResponse.setHeader("Cache-Control", "no-store");
+                                        try
+                                        {
+                                            response.put("channel", bot.getChannelView(request.getParameter("name")));
+                                        } catch (IllegalArgumentException e) {
+                                            response.put("error", e.getMessage());
+                                        }
                                     } else if ("notes".equals(command)) {
                                         httpServletResponse.setCharacterEncoding("UTF-8");
                                         response.put("notes", bot.listNotes());

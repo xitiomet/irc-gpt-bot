@@ -84,6 +84,8 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     private String botNickname;
     private String botId;
     private HashMap<String, ChatLog> logs;
+    private final Map<String, JSONArray> channelMessages = new HashMap<>();
+    private long channelMessageSequence;
     private ArrayList<String> privateChats;
     // Channel (lowercase) -> nickname the bot most recently replied to, for conversation continuation
     private final ConcurrentHashMap<String, String> lastReplyTo = new ConcurrentHashMap<String, String>();
@@ -667,6 +669,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
 
     public void connect()
     {
+        this.botNickname = this.botOptions.optString("nickname", this.botId);
         try
         {
             if (this.client != null)
@@ -827,14 +830,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
 
     public JSONObject getEditorOptions()
     {
-        JSONObject options = new JSONObject();
-        for (String field : new String[] {"acceptInvites", "greet", "privateMessages"})
-            options.put(field, this.botOptions.optBoolean(field, false));
-        for (String field : new String[] {"ignore", "aliases", "botOps"})
-            options.put(field, new JSONArray(this.botOptions.optJSONArray(field) == null ? "[]" : this.botOptions.getJSONArray(field).toString()));
-        JSONArray tools = this.botOptions.optJSONArray("gptTools");
-        options.put("gptTools", tools == null ? new JSONArray(GPTTools.ALL_TOOLS) : new JSONArray(tools.toString()));
-        return options;
+        return BotEditorOptions.view(this.botOptions, this.botId);
     }
 
     static JSONObject validateEditorUpdate(JSONObject input)
@@ -870,13 +866,19 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
             }
             update.put(field, normalized);
         }
+        BotEditorOptions.validateAdditional(input, update);
         return update;
     }
 
     public void updateEditorOptions(JSONObject input) throws IOException
     {
+        boolean wasEnabled = isEnabled();
         IRCGPTBotMain.instance.updateBotOptions(this, validateEditorUpdate(input));
         setPreamble(this.botOptions.getString("systemPreamble"));
+        if (wasEnabled != isEnabled())
+            setEnabled(isEnabled());
+        else if (input.optBoolean("reconnect") && isEnabled())
+            connect();
         this.fireStats();
     }
 
@@ -1142,6 +1144,43 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         }
     }
 
+    synchronized void recordChannelMessage(String channel, String sender, String body)
+    {
+        if (channel == null || channel.isEmpty() || "#&+!".indexOf(channel.charAt(0)) < 0)
+            return;
+        String key = channel.toLowerCase(java.util.Locale.ROOT);
+        JSONArray messages = channelMessages.computeIfAbsent(key, ignored -> new JSONArray());
+        messages.put(new JSONObject().put("id", ++channelMessageSequence).put("sender", sender)
+            .put("body", body).put("timestamp", System.currentTimeMillis()));
+        if (messages.length() > 255)
+            messages.remove(0);
+    }
+
+    public JSONObject getChannelView(String name)
+    {
+        if (name == null || !name.matches("[#&+!][^\\s,\\x00\\x07:]+"))
+            throw new IllegalArgumentException("Enter a channel name such as #lobby.");
+        Client active = this.client;
+        if (active == null || !"CONNECTED".equals(this.statusLine))
+            throw new IllegalArgumentException("The bot is not connected.");
+        Channel channel = active.getChannel(name).orElseThrow(() -> new IllegalArgumentException("The bot is no longer in " + name + "."));
+        JSONArray roster = new JSONArray();
+        for (String nick : channel.getNicknames().stream().sorted(String.CASE_INSENSITIVE_ORDER).toList())
+        {
+            String prefix = channel.getUserModes(nick).filter(modes -> !modes.isEmpty())
+                .map(modes -> String.valueOf(modes.first().getNickPrefix())).orElse("");
+            roster.put(new JSONObject().put("nickname", nick).put("prefix", prefix));
+        }
+        JSONArray messages;
+        synchronized (this)
+        {
+            JSONArray history = channelMessages.get(channel.getName().toLowerCase(java.util.Locale.ROOT));
+            messages = history == null ? new JSONArray() : new JSONArray(history.toString());
+        }
+        return new JSONObject().put("name", channel.getName()).put("topic", channel.getTopic().getValue().orElse(""))
+            .put("roster", roster).put("rosterComplete", channel.hasCompleteUserData()).put("messages", messages);
+    }
+
     // Fired after IRC registration completes, on initial connect and every reconnect
     @Handler
     public void onNegotiationCompleteEvent(ClientNegotiationCompleteEvent negotiationCompleteEvent)
@@ -1329,6 +1368,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                             {
                                 logAppend(channel.getName() + ".log", outMsg.toSimpleLine());
                                 channel.sendMultiLineMessage(outText);
+                                recordChannelMessage(channel.getName(), this.botNickname, outText);
                             } else {
                                 logAppend(joiner.getNick() + ".log", outMsg.toSimpleLine());
                                 joiner.sendMultiLineNotice(outText);
@@ -1347,11 +1387,13 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     public void sendPrivateMessage(String to, String message)
     {
         this.client.sendMultiLineMessage(to, message);
+        recordChannelMessage(to, this.botNickname, message);
     }
 
     public void sendNotice(String to, String message)
     {
         this.client.sendMultiLineNotice(to, message);
+        recordChannelMessage(to, this.botNickname, "(notice) " + message);
     }
 
     @Handler
@@ -1365,6 +1407,9 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         String body = event.getMessage();
         Channel channel = event.getChannel();
         String target = channel.getName();
+
+        if (!senderNick.equals(botNickname))
+            recordChannelMessage(target, senderNick, body);
 
         if (senderNick.equals(botNickname))
         {
@@ -1460,6 +1505,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                     logAppend(target + ".log", outMsg.toSimpleLine());
                     cl.add(outMsg);
                     channel.sendMultiLineMessage(outText);
+                    recordChannelMessage(target, this.botNickname, outText);
                 }
                 this.messagesHandled++;
                 this.fireStats();

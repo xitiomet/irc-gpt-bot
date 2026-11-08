@@ -1,0 +1,66 @@
+<div id="launchIdentity" class="form-panel" hidden>
+    <label for="botId">Bot identifier</label><input id="botId" type="text" placeholder="MyGPTBot" disabled>
+</div>
+<section class="form-panel">
+    <h3>Identity &amp; IRC connection</h3>
+    <p class="help">Connection changes take effect on the next reconnect. Channel membership is managed in Channels.</p>
+    <div class="launch-grid">
+        <div><label for="server">IRC server</label><input id="server" type="text" placeholder="irc.example.net" disabled></div>
+        <div><label for="port">IRC port</label><input id="port" type="number" min="1" max="65535" disabled></div>
+        <div><label for="nickname">IRC nickname</label><input id="nickname" type="text" placeholder="MyGPTBot" disabled></div>
+        <div><label for="user">IRC username</label><input id="user" type="text" placeholder="Defaults to nickname" disabled></div>
+        <div><label for="realName">Real name</label><input id="realName" type="text" placeholder="Defaults to nickname" disabled></div>
+        <label class="check-field"><input id="secure" type="checkbox" disabled>Use TLS / SSL</label>
+        <div><label for="password">Replacement IRC server password</label><input id="password" type="password" autocomplete="new-password" disabled><p id="passwordStatus" class="help"></p><label class="check-field"><input id="clearPassword" type="checkbox" disabled>Clear saved server password</label></div>
+        <div><label for="operatorName">IRC operator name</label><input id="operatorName" type="text" placeholder="Defaults to nickname" disabled></div>
+        <div><label for="operatorPassword">Replacement IRC operator password</label><input id="operatorPassword" type="password" autocomplete="new-password" disabled><p id="operatorPasswordStatus" class="help"></p><label class="check-field"><input id="clearOperatorPassword" type="checkbox" disabled>Clear saved operator password</label></div>
+    </div>
+    <p class="help">Passwords are never returned to the browser. Leave replacement fields blank to keep saved values, or explicitly clear them. OPER is sent on reconnect when an operator password is set.</p>
+    <label class="check-field" id="reconnectOption"><input id="reconnect" type="checkbox" disabled>Reconnect after saving (disconnects the current IRC session)</label>
+</section>
+<section class="form-panel">
+    <h3>Model &amp; prompt</h3>
+    <label for="model">Model</label><select id="model" disabled></select>
+    <div id="manualModelField" hidden><label for="manualModel">Model ID (no models returned)</label><input id="manualModel" type="text" placeholder="Enter the model ID your provider supports" disabled></div>
+    <div class="launch-grid">
+        <div><label for="contextDepth">Context depth (messages)</label><input id="contextDepth" type="number" min="0" max="255" disabled></div>
+        <div><label for="maxToolRounds">Maximum tool rounds</label><input id="maxToolRounds" type="number" min="1" max="2147483647" disabled></div>
+    </div>
+    <label for="systemPreamble">System preamble</label><textarea id="systemPreamble" rows="10" class="prompt-field" disabled></textarea>
+</section>
+<section class="form-panel">
+    <h3>Behavior</h3>
+    <div class="launch-grid">
+        <label class="check-field"><input id="enabled" type="checkbox" disabled>Connect bot to IRC (enabled)</label>
+        <label class="check-field"><input id="gptEnabled" type="checkbox" disabled>Enable AI replies</label>
+        <label class="check-field"><input id="acceptInvites" type="checkbox" disabled>Accept channel invites</label>
+        <label class="check-field"><input id="greet" type="checkbox" disabled>Greet users on join</label>
+        <label class="check-field"><input id="greetPublic" type="checkbox" disabled>Greet publicly in the channel</label>
+        <label class="check-field"><input id="privateMessages" type="checkbox" disabled>Respond to private messages</label>
+        <div><label for="followUpSeconds">Follow-up window (seconds)</label><input id="followUpSeconds" type="number" min="0" max="2147483647" disabled></div>
+        <div><label for="replyCooldownSeconds">Unprompted reply cooldown (seconds)</label><input id="replyCooldownSeconds" type="number" min="0" max="2147483647" disabled></div>
+        <div><label for="openQuestionSeconds">Open-question delay (seconds, 0 disables)</label><input id="openQuestionSeconds" type="number" min="0" max="2147483647" disabled></div>
+    </div>
+</section>
+<section class="form-panel">
+    <h3>Built-in GPT tools</h3>
+    <p class="help">Checked tools are available when appropriate. Moderation tools still require a channel. URL tools are managed separately in Tools.</p>
+    <div class="toolbar"><button type="button" onclick="selectTools(true)" disabled>Enable all</button><button type="button" onclick="selectTools(false)" disabled>Disable all</button></div>
+    <div id="builtInTools" class="launch-grid"></div>
+</section>
+<section class="form-panel">
+    <h3>Nickname lists</h3>
+    <p class="help">Separate entries with commas, spaces, or new lines. Clear a field to empty its list.</p>
+    <div class="launch-grid">
+        <div><label for="ignore">Ignore list</label><textarea id="ignore" rows="4" disabled></textarea></div>
+        <div><label for="aliases">Aliases</label><textarea id="aliases" rows="4" disabled></textarea></div>
+        <div class="wide-field"><label for="botOps">Bot operators (botOps)</label><textarea id="botOps" rows="4" disabled></textarea><p class="help">Users granted operator status when possible, and protected from AI kicks.</p></div>
+    </div>
+</section>
+<details class="form-panel">
+    <summary>Advanced AI endpoints</summary>
+    <p class="help">Blank API URLs inherit the master configuration. Definition server is optional. Reopen after changing Models API URL to reload the dropdown.</p>
+    <label for="modelsApiUrl">Models API URL</label><input id="modelsApiUrl" type="url" disabled>
+    <label for="responsesApiUrl">Responses API URL</label><input id="responsesApiUrl" type="url" disabled>
+    <label for="definitionServer">Definition server URL</label><input id="definitionServer" type="url" disabled>
+</details>

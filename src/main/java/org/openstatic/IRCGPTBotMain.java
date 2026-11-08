@@ -504,12 +504,14 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
     {
         JSONObject options = new JSONObject(bot.getBotOptions().toString());
         for (String field : update.keySet())
-            options.put(field, update.get(field));
+            if (update.isNull(field)) options.remove(field);
+            else options.put(field, update.get(field));
         JSONObject next = new JSONObject(settings.toString());
         next.getJSONObject("bots").put(bot.getBotId(), options);
         configDirectory.save(next);
         for (String field : update.keySet())
-            bot.getBotOptions().put(field, update.get(field));
+            if (update.isNull(field)) bot.getBotOptions().remove(field);
+            else bot.getBotOptions().put(field, update.get(field));
         settings.getJSONObject("bots").put(bot.getBotId(), bot.getBotOptions());
     }
 

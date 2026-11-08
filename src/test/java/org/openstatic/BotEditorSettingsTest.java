@@ -63,6 +63,44 @@ class BotEditorSettingsTest
     }
 
     @Test
+    void exposesAllSupportedOptionsButNeverReturnsPasswords()
+    {
+        JSONObject settings = new JSONObject().put("password", "private-server-password").put("operatorPassword", "private-oper-password")
+            .put("secure", true).put("port", 6697).put("greetPublic", true).put("replyCooldownSeconds", 40);
+        JSONObject view = BotEditorOptions.view(settings, "testbot");
+        assertTrue(view.getBoolean("hasPassword"));
+        assertTrue(view.getBoolean("hasOperatorPassword"));
+        assertFalse(view.toString().contains("private-server-password"));
+        assertFalse(view.toString().contains("private-oper-password"));
+        assertEquals(6697, view.getInt("port"));
+        assertTrue(view.getBoolean("secure"));
+        assertEquals("testbot", view.getString("nickname"));
+        assertEquals(40, view.getInt("replyCooldownSeconds"));
+        assertTrue(BotEditorOptions.defaults("", true).getBoolean("privateMessages"));
+    }
+
+    @Test
+    void validatesConnectionOptionsAndExplicitPasswordReplacementOrClearing()
+    {
+        JSONObject full = input().put("server", "irc.example.net").put("nickname", "NewNick").put("port", 6697)
+            .put("secure", true).put("user", "").put("password", "").put("operatorPassword", "new-oper-password")
+            .put("greetPublic", true).put("contextDepth", 10).put("modelsApiUrl", "https://example.net/models");
+        JSONObject update = IRCGPTBot.validateEditorUpdate(full);
+        assertEquals("NewNick", update.getString("nickname"));
+        assertEquals(6697, update.getInt("port"));
+        assertTrue(update.isNull("user"));
+        assertFalse(update.has("password"));
+        assertEquals("new-oper-password", update.getString("operatorPassword"));
+        assertTrue(IRCGPTBot.validateEditorUpdate(input().put("clearPassword", true)).isNull("password"));
+        assertThrows(IllegalArgumentException.class, () -> IRCGPTBot.validateEditorUpdate(input().put("port", 0)));
+        assertThrows(IllegalArgumentException.class, () -> IRCGPTBot.validateEditorUpdate(input().put("port", 65536)));
+        assertThrows(IllegalArgumentException.class, () -> IRCGPTBot.validateEditorUpdate(input().put("nickname", "two names")));
+        assertThrows(IllegalArgumentException.class, () -> IRCGPTBot.validateEditorUpdate(input().put("modelsApiUrl", "file:///etc/test")));
+        assertThrows(IllegalArgumentException.class, () -> IRCGPTBot.validateEditorUpdate(input().put("password", "x").put("clearPassword", true)));
+        assertThrows(IllegalArgumentException.class, () -> IRCGPTBot.validateEditorUpdate(input().put("password", "x\r\nQUIT")));
+    }
+
+    @Test
     void rejectsInvalidValuesBeforeApplyingAnySettings()
     {
         assertThrows(IllegalArgumentException.class, () -> IRCGPTBot.validateEditorUpdate(input().put("model", " ")));

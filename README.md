@@ -358,14 +358,38 @@ Tool checkboxes include **Enable all** / **Disable all** actions; absent
 `gptTools` starts with all tools checked, while `[]` means none. URL tools remain
 separate and unaffected. Nickname lists accept commas, whitespace, or one entry
 per line; an empty field clears the list. Behavior toggles reflect the bot's
-existing settings (false when absent); `greetPublic` is left unchanged.
-All edits save together and take effect without reconnecting. Unsaved edits
+existing settings. All edits save together. Unsaved edits
 require confirmation before closing. Changing `botOps` affects future operator
 grants and kick protection; it does not revoke IRC operator modes already granted.
+
+**Launch Bot** and **Edit Model/Prompt** share the same form: model dropdown,
+prompt, built-in tools, nickname lists, and all supported IRC connection/behavior
+fields (server, port, nickname, user, real name, TLS, server password, OPER name
+and password, greeting visibility, invite/private-message toggles, and reply
+timings). Model choices come from the configured Models API; editing retains
+the current model even if the provider does not list it. When launching and no
+models are returned, an explicit model-ID field is shown rather than guessing.
+The advanced section supports per-bot Models/Responses API and definition-server
+URLs. Blank API URLs inherit master defaults.
+
+IRC connection changes take effect on reconnect; choose **Reconnect after saving**
+to apply them immediately. Changing **Connect bot to IRC** enables/disables the bot
+immediately. Other behavior changes take effect on subsequent events.
+Existing server/OPER passwords are never sent to the browser: blank replacement
+fields retain them, and dedicated clear checkboxes remove them explicitly.
 
 The header shows **Total Cost Estimate** beneath the connection status after
 sign-in. It updates live from stored usage across all bots, including removed
 bots. Unpriced/untracked usage or persistence errors mark the estimate incomplete.
+
+In **Channels**, click a joined channel to open its topic, running message
+transcript, and roster (including operator/voice prefixes). The view refreshes
+every two seconds while open, reflecting messages, topic changes, joins, parts,
+and nickname/mode changes. It shows up to 255 messages observed since bot startup,
+including ignored users and locally sent bot replies, without mixing private
+conversations into channel history. Reading older messages does not force-scroll
+to the bottom; **Back to channels** returns to join/leave controls. Disconnected
+or departed channels show an explicit unavailable status.
 
 The authenticated master API is `GET /ircgptbot/api/master/` (returns
 `hasOpenAiKey` and pricing metadata, never credentials) and

@@ -121,6 +121,8 @@ public class ChatGPT
         {
             String url = resolveApiUrl(botOptions, "modelsApiUrl", "https://api.openai.com/v1/models");
             HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
+            con.setConnectTimeout(10000);
+            con.setReadTimeout(15000);
             con.setRequestMethod("GET");
             con.setRequestProperty("Content-Type", "application/json");
             con.setRequestProperty("Authorization", "Bearer " + IRCGPTBotMain.settings.optString("openAiKey"));

@@ -628,6 +628,7 @@ public class GPTTools
     private void record(String to, String logLine, String chatLogBody)
     {
         this.bot.logAppend(to + ".log", "(TOOL) " + this.bot.getNickname() + ": " + logLine);
+        this.bot.recordChannelMessage(to, this.bot.getNickname(), chatLogBody);
         // Only the active conversation's history is updated so the model sees what it did there
         if (to.equalsIgnoreCase(this.target))
             this.bot.getChatLog(this.target).add(new ChatMessage(this.bot.getNickname(), to, chatLogBody, new Date(System.currentTimeMillis())));

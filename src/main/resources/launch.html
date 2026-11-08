@@ -1,86 +1,18 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Launch Bot</title>
     <link rel="stylesheet" href="theme.css">
     <script src="jquery.min.js"></script>
     <script src="editor.js"></script>
-    <script type="text/javascript">
-        function launch()
-        {
-            var botId = document.getElementById('botId').value;
-            var botOptions = {"systemPreamble": document.getElementById('systemPreamble').value};
-            var inputs = document.getElementsByTagName("input");
-            var inputsList = Array.prototype.slice.call(inputs);
-            inputsList.forEach(element => {
-                if (element.type == 'checkbox')
-                {
-                    botOptions[element.id] = element.checked;
-                } else if (element.type == 'number') {
-                    botOptions[element.id] = parseInt(element.value);
-                } else if (element.type == 'text' || element.type == 'password') {
-                    if (element.id != 'botId')
-                    {
-                        if (element.value != "")
-                            botOptions[element.id] = element.value;
-                    }
-                }
-            });
-            var launchCode = {
-                "id": botId,
-                "botOptions": botOptions
-            };
-            postJSON("/ircgptbot/api/bots/add/", launchCode, response => {
-                if (response.error)
-                    alert("Unable to launch bot: " + response.error);
-                else
-                    closeEditor();
-            }, () => { alert("Unable to launch bot. Check the connection and try again."); });
-        }
-
-        function postJSON(url, data, onSuccess, onError) {
-            $.ajax({
-                url: url,
-                type: 'POST',
-                data: JSON.stringify(data),
-                contentType: 'application/json; charset=utf-8',
-                dataType: 'json',
-                success: onSuccess,
-                error: onError
-            });
-        }
-    </script>
+    <script src="bot-editor.js"></script>
 </head>
-
-<body class="editor-page">
-    <h2>Launch Bot</h2>
-    <p class="help">Connect a new bot to your IRC server. You can adjust its model, tools, and channels afterwards.</p>
-    <div class="form-panel">
-        <h3>Identity &amp; connection</h3>
-        <div class="launch-grid">
-            <div><label for="botId">Bot identifier</label><input type="text" id="botId" placeholder="MyGPTBot"></div>
-            <div><label for="nickname">IRC nickname</label><input type="text" id="nickname" placeholder="chatGPT"></div>
-            <div><label for="server">IRC server</label><input type="text" id="server" placeholder="irc.yourserver.net"></div>
-            <div><label for="port">IRC port</label><input type="text" id="port" value="6667"></div>
-            <div><label for="user">IRC username</label><input type="text" id="user" value="chatGPT"></div>
-            <div><label for="password">IRC password</label><input type="password" id="password" autocomplete="new-password"></div>
-            <div><label for="realName">Real name</label><input type="text" id="realName" value="chatGPT"></div>
-            <label class="check-field"><input type="checkbox" id="secure">Use SSL</label>
-        </div>
-    </div>
-    <div class="form-panel">
-        <h3>AI &amp; behavior</h3>
-        <div class="launch-grid">
-            <div><label for="model">OpenAI model</label><input type="text" id="model" value="gpt-3.5-turbo"></div>
-            <div><label for="contextDepth">Context depth (messages)</label><input type="number" id="contextDepth" value="15"></div>
-            <div class="wide-field"><label for="systemPreamble">System preamble</label><textarea id="systemPreamble" rows="5"></textarea></div>
-            <label class="check-field"><input type="checkbox" id="privateMessages" checked>Respond to private messages</label>
-            <label class="check-field"><input type="checkbox" id="acceptInvites" checked>Accept channel invites</label>
-            <label class="check-field"><input type="checkbox" id="greet" checked>Greet users on join</label>
-            <label class="check-field"><input type="checkbox" id="greetPublic" checked>Greet publicly in the channel</label>
-            <label class="check-field"><input type="checkbox" id="gptEnabled" checked>Enable ChatGPT</label>
-        </div>
-    </div>
-    <div class="toolbar save-toolbar"><button onclick="launch()" class="primary">Launch Bot</button></div>
+<body onload="loaded()" class="editor-page">
+    <h2 id="botTitle">Launch Bot</h2>
+    <div id="botFields"></div>
+    <p id="status" role="status">Loading bot settings...</p>
+    <div class="toolbar save-toolbar"><button id="saveButton" onclick="save()" disabled class="primary">Launch Bot</button></div>
 </body>
 </html>

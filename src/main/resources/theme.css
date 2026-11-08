@@ -16,6 +16,7 @@
     background: var(--canvas);
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; }
 h1, h2, h3, p { margin-top: 0; }
 h1 { margin-bottom: 8px; font-size: clamp(26px, 4vw, 34px); letter-spacing: -0.035em; line-height: 1.2; }
@@ -124,6 +125,17 @@ fieldset.tool label:first-child { margin-top: 0; }
 #channels li { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0; padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
 #channels li span { overflow-wrap: anywhere; }
 .join-controls { display: flex; gap: 10px; }
+.channel-link { border: 0; color: var(--accent); text-align: left; overflow-wrap: anywhere; }
+.channel-topic p { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.channel-layout { display: grid; grid-template-columns: minmax(0, 1fr) 180px; gap: 16px; }
+.channel-transcript, .channel-roster { min-width: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 16px; }
+#messages { list-style: none; margin: 0; padding: 0; height: 400px; overflow-y: auto; overflow-wrap: anywhere; }
+#messages li { padding: 8px 0; border-bottom: 1px solid var(--border); }
+#messages time { color: var(--muted); font-size: 11px; margin-right: 8px; }
+#messages strong { margin-right: 8px; }
+#messages span { white-space: pre-wrap; }
+#roster { list-style: none; margin: 0; padding: 0; max-height: 400px; overflow-y: auto; overflow-wrap: anywhere; }
+#viewTitle { margin: 0; overflow-wrap: anywhere; }
 .prompt-field { min-height: 300px; margin-bottom: 16px; }
 .notes-page { display: flex; flex-direction: column; height: 100dvh; }
 .notes-main { display: flex; gap: 20px; flex: 1; min-height: 0; }
@@ -169,6 +181,8 @@ fieldset.tool label:first-child { margin-top: 0; }
     .notes-page { height: auto; min-height: 100dvh; }
     #noteContent { min-height: 220px; }
     .launch-grid { grid-template-columns: minmax(0, 1fr); }
+    .channel-layout { grid-template-columns: minmax(0, 1fr); }
+    #roster { max-height: 180px; }
     .wide-field { grid-column: auto; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
