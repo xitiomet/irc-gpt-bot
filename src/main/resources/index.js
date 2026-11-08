@@ -50,15 +50,31 @@ function toolsWindow(botId)
     window.open('tools.html?apiPassword=' + encodeURIComponent(document.getElementById('password').value) + '&id=' + encodeURIComponent(botId), "Tools", "width=640,height=720");
 }
 
-function reconnectBot(objectId)
+function notesWindow(botId)
 {
-    sendEvent({"command":"reconnect", "id": objectId});
+    window.open('notes.html?apiPassword=' + encodeURIComponent(document.getElementById('password').value) + '&id=' + encodeURIComponent(botId), "Notes", "width=760,height=640");
 }
 
-function shutdownBot(objectId)
+function toggleBot(objectId)
 {
-    if (confirm("Are you sure you want to terminate this bot?"))
-        sendEvent({"command":"shutdown", "id": objectId});
+    var button = document.getElementById("toggle_" + objectId);
+    if (button.dataset.enabled == "true")
+    {
+        if (confirm("Are you sure you want to disable this bot? It will disconnect from IRC until enabled again."))
+            sendEvent({"command":"disable", "id": objectId});
+    } else {
+        sendEvent({"command":"enable", "id": objectId});
+    }
+}
+
+function updateToggleButton(objectId, enabled)
+{
+    var button = document.getElementById("toggle_" + objectId);
+    if (button == null)
+        return;
+    enabled = (enabled !== false);
+    button.dataset.enabled = enabled ? "true" : "false";
+    button.textContent = enabled ? "Disable" : "Enable";
 }
 
 function deleteBot(objectId)
@@ -122,7 +138,7 @@ function addBot(json)
         avatarImgTag.style.height = '64px';
         avatarImgTag.style.width = '64px';
         nicknameTag.innerHTML = "<b style=\"font-size: 18px;\">" + json.stats.nickname + "</b><br />" + json.stats.model;
-        actionsTag.innerHTML = "<table><tr><td><button style=\"width: 128px;\" onClick=\"editModelPromptWindow('" + objectId + "')\">Edit Model/Prompt</button><br /><button style=\"width: 128px;\" onClick=\"reconnectBot('" + objectId + "')\">Reconnect</button><br /><button style=\"width: 128px;\" onClick=\"channelsWindow('" + objectId + "')\">Channels</button></td><td><button style=\"width: 128px;\" onClick=\"toolsWindow('" + objectId + "')\">Tools</button><br /><button style=\"width: 128px;\" onClick=\"shutdownBot('" + objectId + "')\">Shutdown</button><br /><button style=\"width: 128px;\" onClick=\"deleteBot('" + objectId + "')\">Delete</button></td></tr></table>";
+        actionsTag.innerHTML = "<table><tr><td><button style=\"width: 128px;\" onClick=\"editModelPromptWindow('" + objectId + "')\">Edit Model/Prompt</button><br /><button style=\"width: 128px;\" onClick=\"notesWindow('" + objectId + "')\">Notes</button><br /><button style=\"width: 128px;\" onClick=\"channelsWindow('" + objectId + "')\">Channels</button></td><td><button style=\"width: 128px;\" onClick=\"toolsWindow('" + objectId + "')\">Tools</button><br /><button style=\"width: 128px;\" id=\"toggle_" + objectId + "\" onClick=\"toggleBot('" + objectId + "')\">Disable</button><br /><button style=\"width: 128px;\" onClick=\"deleteBot('" + objectId + "')\">Delete</button></td></tr></table>";
         document.getElementById("botTable").appendChild(botTag);
     } else {
         avatarTag = document.getElementById(avatarTagId);
@@ -132,6 +148,7 @@ function addBot(json)
         actionsTag = document.getElementById(actionsTagId);
     }
     statsTag.innerHTML = "<b>Messages Handled</b> " + json.stats.messagesHandled + "<br /><b>Messages Seen</b> " + json.stats.messagesSeen + "<br /><b>Errors</b> " + json.stats.errorCount;
+    updateToggleButton(objectId, json.stats.enabled);
     var targetStatusIcon = json.stats.status + ".svg";
     if (avatarImgTag.src != targetStatusIcon)
         avatarImgTag.src = targetStatusIcon;
@@ -163,6 +180,7 @@ function updateBot(json)
     if (nicknameTag != null)
         nicknameTag.innerHTML = "<b style=\"font-size: 18px;\">" + json.stats.nickname + "</b><br />" + json.stats.model;
     statsTag.innerHTML = "<b>Messages Handled</b> " + json.stats.messagesHandled + "<br /><b>Messages Seen</b> " + json.stats.messagesSeen + "<br /><b>Errors</b> " + json.stats.errorCount;
+    updateToggleButton(objectId, json.stats.enabled);
     var targetStatusIcon = json.stats.status + ".svg";
     if (avatarImgTag.src != targetStatusIcon)
         avatarImgTag.src = targetStatusIcon;

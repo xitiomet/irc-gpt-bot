@@ -118,6 +118,13 @@ public class APIWebServer implements IRCGPTBotListener
                         session.sendText(authObj.toString(), Callback.NOOP);
                     }
                 }
+                if (command.equals("enable") || command.equals("disable"))
+                {
+                    String objectId = j.optString("id", null);
+                    IRCGPTBot bot = objectId == null ? null : IRCGPTBotMain.instance.getBotbyIdentifier(objectId);
+                    if (bot != null)
+                        bot.setEnabled(command.equals("enable"));
+                }
                 if (command.equals("reconnect"))
                 {
                     String objectId = j.optString("id", null);
@@ -427,6 +434,32 @@ public class APIWebServer implements IRCGPTBotListener
                                                         response.put("warning", "Entries without a purpose or an http(s) URL were not saved.");
                                                 }
                                             }
+                                            else if ("notes".equals(command))
+                                            {
+                                                httpServletResponse.setCharacterEncoding("UTF-8");
+                                                String action = requestPost.optString("action");
+                                                String name = requestPost.optString("name", "").trim();
+                                                try
+                                                {
+                                                    if ("save".equals(action))
+                                                    {
+                                                        bot.saveNote(name, requestPost.optString("content", ""));
+                                                        bot.logAppend("tools.log", "(DASHBOARD SAVE NOTE) " + name);
+                                                    }
+                                                    else if ("delete".equals(action))
+                                                    {
+                                                        bot.deleteNote(name);
+                                                        bot.logAppend("tools.log", "(DASHBOARD DELETE NOTE) " + name);
+                                                    }
+                                                    else
+                                                    {
+                                                        response.put("error", "Invalid notes action.");
+                                                    }
+                                                } catch (IllegalArgumentException | IOException e) {
+                                                    response.put("error", e.getMessage());
+                                                }
+                                                response.put("notes", bot.listNotes());
+                                            }
                                             else if ("channels".equals(command))
                                             {
                                                 String action = requestPost.optString("action");
@@ -534,6 +567,23 @@ public class APIWebServer implements IRCGPTBotListener
                                         response.put("models", bot.getAvailableModels());
                                     } else if ("tools".equals(command)) {
                                         response.put("toolUrls", bot.getToolUrls());
+                                    } else if ("notes".equals(command)) {
+                                        httpServletResponse.setCharacterEncoding("UTF-8");
+                                        response.put("notes", bot.listNotes());
+                                        if (parameterNames.contains("name"))
+                                        {
+                                            try
+                                            {
+                                                response.put("name", request.getParameter("name"));
+                                                response.put("content", bot.readNote(request.getParameter("name")));
+                                            } catch (IllegalArgumentException | IOException e) {
+                                                response.put("error", e.getMessage());
+                                            }
+                                        }
+                                    } else if ("enable".equals(command)) {
+                                        bot.setEnabled(true);
+                                    } else if ("disable".equals(command)) {
+                                        bot.setEnabled(false);
                                     }
                                 }
                             }

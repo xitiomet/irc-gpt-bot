@@ -56,7 +56,6 @@ public class GPTTools
     private static final int MAX_TOOL_URL_RESPONSE = 8000;
     private static final int MAX_FILE_READ = 8000;
     private static final int MAX_FILE_LIST = 500;
-    private static final int MAX_NOTE_SIZE = 65536;
 
     private IRCGPTBot bot;
     private String target;
@@ -630,16 +629,7 @@ public class GPTTools
 
     private File resolveNote(JSONObject args, boolean allowNew) throws IOException
     {
-        String name = requireArg(args, "name");
-        if (name.contains("/") || name.contains("\\") || name.equals(".") || name.equals("..") || name.length() > 128)
-            throw new IllegalArgumentException("'" + name + "' is not a valid note name");
-        File notes = this.bot.getNotesFolder().getCanonicalFile();
-        File file = new File(notes, name).getCanonicalFile();
-        if (!notes.equals(file.getParentFile()))
-            throw new IllegalArgumentException("'" + name + "' is not a valid note name");
-        if (file.isDirectory() || (!allowNew && !file.isFile()))
-            throw new IllegalArgumentException("note '" + name + "' does not exist");
-        return file;
+        return this.bot.getNoteFile(requireArg(args, "name"), allowNew);
     }
 
     private String writeNote(JSONObject args) throws IOException
@@ -651,8 +641,8 @@ public class GPTTools
         boolean append = args.optBoolean("append", false);
         long existing = (append && file.isFile()) ? file.length() : 0;
         byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
-        if (existing + bytes.length > MAX_NOTE_SIZE)
-            return "error: notes are limited to " + MAX_NOTE_SIZE + " bytes";
+        if (existing + bytes.length > IRCGPTBot.MAX_NOTE_SIZE)
+            return "error: notes are limited to " + IRCGPTBot.MAX_NOTE_SIZE + " bytes";
         boolean created = !file.exists();
         if (append && existing > 0 && !content.startsWith("\n"))
         {

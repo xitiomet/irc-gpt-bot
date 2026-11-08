@@ -76,6 +76,7 @@ DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid J
             "gptEnabled": true,       // Is this bot connected to chatGPT (set to false for api only bot)
             "model": "gpt-3.5-turbo", // ChatGPT model to use
             "privateMessages": true,  // Respond to private messages
+            "enabled": true,          // Optional: false keeps the bot disconnected (toggled by the dashboard Enable/Disable button)
             "gptTools": ["send_private_message", "send_notice", "send_action", "kick_user", "set_topic", "get_names", "list_channels", "invite_user", "list_notes", "read_note", "write_note", "delete_note", "list_log_files", "read_log_file"], // Optional: IRC tools the AI may use (omit for all, [] for none)
             "maxToolRounds": 5,       // Optional: max tool-calling round trips per reply
             "toolUrls": [             // Optional: web services the AI can call (also editable with the dashboard "Tools" button)
@@ -142,7 +143,7 @@ The bot uses the OpenAI Responses API with function calling, so the model can ac
 | `list_log_files` | List files in the bot's own log directory (`logPath/<botId>/`) |
 | `read_log_file` | Read a file from the bot's own log directory (read-only; large files return their newest 8000 characters, or the last `lines` lines) |
 
-Each bot gets a `notes/` directory inside its log directory (`logPath/<botId>/notes/`), created at startup. The file tools can't reach outside the bot's own log directory, and only files directly inside `notes/` can be written or deleted. Note writes and deletions are logged to `tools.log`.
+Each bot gets a `notes/` directory inside its log directory (`logPath/<botId>/notes/`), created at startup. The file tools can't reach outside the bot's own log directory, and only files directly inside `notes/` can be written or deleted. Note writes and deletions are logged to `tools.log`. You can also view, create, edit and delete a bot's notes from the web dashboard with its **Notes** button (the list refreshes automatically), or from the bot's window in the console interface with its **Notes** button.
 
 Private conversation logs (`nickname.log`) are flagged `"private": true` in `list_log_files`, and `read_log_file` puts a confidentiality notice at the top of them. The AI is told it may use what's in private logs to inform its own reasoning, but must not reveal, quote or hint at them to anyone except the user the conversation was with.
 
@@ -160,6 +161,7 @@ Each `toolUrls` entry becomes an extra tool. The AI sees the `purpose` and calls
 ### API Server / Web interface
 
 irc-gpt-bot also provides a web interface and api server for ease of use. By default this is configured for port 6553 with password "changeme"
+Each bot's **Disable** / **Enable** button disconnects it from IRC or reconnects it. The choice is saved as `"enabled"` in the bot's settings, so a disabled bot stays offline after a restart.
 If you plan on exposing this interface to the internet, i highly encourage wrapping it with SSL on nginx.
 
 first you should create an upstream for ircgptbot

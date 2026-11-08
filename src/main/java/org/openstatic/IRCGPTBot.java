@@ -23,15 +23,20 @@ import org.kitteh.irc.client.library.exception.KittehNagException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.SortedSet;
@@ -103,6 +108,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     private Button serverButton;
     private Button channelsButton;
     private Button optionsButton;
+    private Button notesButton;
     private Button reconnectButton;
     private Button exitButton;
     private long errorCount;
@@ -412,6 +418,12 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                     t.start();
                 }
             });
+            this.notesButton = new Button("Notes", new Runnable() {
+                @Override
+                public void run() {
+                    IRCGPTBot.this.notesDialog();
+                }
+            });
             this.reconnectButton = new Button("Reconnect", new Runnable() {
                 @Override
                 public void run() {
@@ -427,6 +439,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
             this.mainPanel.addComponent(this.serverButton);
             this.mainPanel.addComponent(this.channelsButton);
             this.mainPanel.addComponent(this.optionsButton);
+            this.mainPanel.addComponent(this.notesButton);
             this.mainPanel.addComponent(this.reconnectButton);
             this.mainPanel.addComponent(this.exitButton);
             this.channelsButton.takeFocus();
@@ -438,6 +451,112 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
             log(wex);
         }
         this.botNickname = botOptions.optString("nickname", this.botId);
+    }
+
+    private static final String NEW_NOTE_ITEM = "(New Note)";
+
+    /** Console (lanterna) browser for the notes/ directory: pick a note to view/edit/delete, or create one. */
+    private void notesDialog()
+    {
+        Thread t = new Thread(() -> {
+            try
+            {
+                while (true)
+                {
+                    JSONArray notes = this.listNotes();
+                    Map<String, String> labels = new LinkedHashMap<String, String>();
+                    labels.put(NEW_NOTE_ITEM, null);
+                    for (int i = 0; i < notes.length(); i++)
+                    {
+                        JSONObject note = notes.getJSONObject(i);
+                        long size = note.optLong("size");
+                        String sizeText = size < 1024 ? size + " B" : String.format("%.1f KB", size / 1024.0);
+                        String noteName = note.getString("name");
+                        String padded = noteName.length() < 40 ? IRCGPTBotMain.createSizedString(noteName, 40) : noteName;
+                        labels.put(padded + " " + sizeText, noteName);
+                    }
+                    ListSelectDialogBuilder<String> lsdb = new ListSelectDialogBuilder<String>();
+                    for (String label : labels.keySet())
+                        lsdb.addListItem(label);
+                    lsdb.setListBoxSize(new TerminalSize(56, 12));
+                    lsdb.setTitle("Notes");
+                    lsdb.setDescription(notes.length() == 0 ? "No notes yet" : notes.length() + " note(s) in " + this.getNotesFolder().getPath());
+                    ListSelectDialog<String> lsd = (ListSelectDialog<String>) lsdb.build();
+                    String selected = lsd.showDialog(IRCGPTBotMain.instance.gui);
+                    if (selected == null)
+                        return;
+                    String name = labels.get(selected);
+                    noteEditor(name, name == null ? "" : this.readNote(name));
+                }
+            } catch (Exception e) {
+                log(e);
+            }
+        });
+        t.start();
+    }
+
+    /** Blocks until the editor window closes. name is null for a new note. */
+    private void noteEditor(final String name, String content)
+    {
+        final BasicWindow editorWindow = new BasicWindow(name == null ? "New Note" : "Note - " + name);
+        Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
+        final TextBox nameBox = new TextBox(new TerminalSize(40, 1), name == null ? "" : name);
+        final TextBox contentBox = new TextBox(new TerminalSize(72, 16), content, TextBox.Style.MULTI_LINE);
+        panel.addComponent(new Label("File name"));
+        panel.addComponent(nameBox);
+        panel.addComponent(new Label("Contents"));
+        panel.addComponent(contentBox);
+
+        Panel buttons = new Panel(new LinearLayout(Direction.HORIZONTAL));
+        buttons.addComponent(new Button("Save", () -> {
+            new Thread(() -> {
+                String newName = nameBox.getText().trim();
+                try
+                {
+                    boolean exists = this.getNoteFile(newName, true).isFile();
+                    if (exists && !newName.equals(name))
+                    {
+                        MessageDialogButton answer = MessageDialog.showMessageDialog(IRCGPTBotMain.instance.gui, "Save Note",
+                            "A note named \"" + newName + "\" already exists. Overwrite it?", MessageDialogButton.Yes, MessageDialogButton.No);
+                        if (answer != MessageDialogButton.Yes)
+                            return;
+                    }
+                    String text = contentBox.getText();
+                    // Lanterna's TextBox drops the trailing newline, so restore it
+                    if (!text.isEmpty() && !text.endsWith("\n"))
+                        text += "\n";
+                    this.saveNote(newName, text);
+                    this.logAppend("tools.log", "(CONSOLE SAVE NOTE) " + newName);
+                    editorWindow.close();
+                } catch (Exception e) {
+                    MessageDialog.showMessageDialog(IRCGPTBotMain.instance.gui, "Save Note", "Unable to save: " + e.getMessage(), MessageDialogButton.OK);
+                }
+            }).start();
+        }));
+        if (name != null)
+        {
+            buttons.addComponent(new Button("Delete", () -> {
+                new Thread(() -> {
+                    MessageDialogButton answer = MessageDialog.showMessageDialog(IRCGPTBotMain.instance.gui, "Delete Note",
+                        "Permanently delete the note \"" + name + "\"?", MessageDialogButton.Yes, MessageDialogButton.No);
+                    if (answer != MessageDialogButton.Yes)
+                        return;
+                    try
+                    {
+                        this.deleteNote(name);
+                        this.logAppend("tools.log", "(CONSOLE DELETE NOTE) " + name);
+                        editorWindow.close();
+                    } catch (Exception e) {
+                        MessageDialog.showMessageDialog(IRCGPTBotMain.instance.gui, "Delete Note", "Unable to delete: " + e.getMessage(), MessageDialogButton.OK);
+                    }
+                }).start();
+            }));
+        }
+        buttons.addComponent(new Button("Cancel", () -> editorWindow.close()));
+        panel.addComponent(buttons);
+        editorWindow.setComponent(panel);
+        (name == null ? nameBox : contentBox).takeFocus();
+        IRCGPTBotMain.instance.gui.addWindowAndWait(editorWindow);
     }
 
     private void serverOptions()
@@ -601,6 +720,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         ro.put("id", this.botId);
         ro.put("nickname", this.botNickname);
         ro.put("status", statusLine);
+        ro.put("enabled", this.isEnabled());
         if (this.botOptions.optBoolean("gptEnabled", true))
         {
             ro.put("model", this.botOptions.optString("model", "gpt-3.5-turbo"));
@@ -830,6 +950,89 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         return notes;
     }
 
+    public static final int MAX_NOTE_SIZE = 65536;
+
+    /** Resolves a note by plain file name, refusing anything outside notes/. */
+    public File getNoteFile(String name, boolean allowNew) throws IOException
+    {
+        name = name == null ? "" : name.trim();
+        if (name.isEmpty() || name.contains("/") || name.contains("\\") || name.equals(".") || name.equals("..") || name.length() > 128)
+            throw new IllegalArgumentException("'" + name + "' is not a valid note name");
+        File notes = getNotesFolder().getCanonicalFile();
+        File file = new File(notes, name).getCanonicalFile();
+        if (!notes.equals(file.getParentFile()))
+            throw new IllegalArgumentException("'" + name + "' is not a valid note name");
+        if (file.isDirectory() || (!allowNew && !file.isFile()))
+            throw new IllegalArgumentException("note '" + name + "' does not exist");
+        return file;
+    }
+
+    public JSONArray listNotes()
+    {
+        JSONArray notes = new JSONArray();
+        File[] files = getNotesFolder().listFiles(File::isFile);
+        if (files != null)
+        {
+            Arrays.sort(files, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+            for (File f : files)
+            {
+                JSONObject note = new JSONObject();
+                note.put("name", f.getName());
+                note.put("size", f.length());
+                note.put("modified", f.lastModified());
+                notes.put(note);
+            }
+        }
+        return notes;
+    }
+
+    public String readNote(String name) throws IOException
+    {
+        return new String(Files.readAllBytes(getNoteFile(name, false).toPath()), StandardCharsets.UTF_8);
+    }
+
+    public void saveNote(String name, String content) throws IOException
+    {
+        byte[] bytes = (content == null ? "" : content).getBytes(StandardCharsets.UTF_8);
+        if (bytes.length > MAX_NOTE_SIZE)
+            throw new IllegalArgumentException("notes are limited to " + MAX_NOTE_SIZE + " bytes");
+        Files.write(getNoteFile(name, true).toPath(), bytes);
+    }
+
+    public void deleteNote(String name) throws IOException
+    {
+        File file = getNoteFile(name, false);
+        if (!file.delete())
+            throw new IOException("could not delete note '" + file.getName() + "'");
+    }
+
+    public boolean isEnabled()
+    {
+        return this.botOptions.optBoolean("enabled", true);
+    }
+
+    /** Enabling connects to IRC; disabling disconnects. The setting is saved so it survives restarts. */
+    public void setEnabled(boolean enabled)
+    {
+        this.botOptions.put("enabled", enabled);
+        if (enabled)
+        {
+            this.connect();
+        } else {
+            try
+            {
+                if (this.client != null)
+                    this.client.shutdown();
+            } catch (Exception e) {
+                log(e);
+            }
+            this.statusLine = "DISCONNECTED";
+        }
+        this.fireStats();
+        if (IRCGPTBotMain.instance != null)
+            IRCGPTBotMain.instance.saveSettings();
+    }
+
     public synchronized void logAppend(String filename, String text)
     {
         IRCGPTBotMain.logAppend(this.getBotId() +  "/" + filename, text);
@@ -850,7 +1053,8 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
             this.mainThread = new Thread(this);
         }
         this.mainThread.start();
-        this.connect();
+        if (this.isEnabled())
+            this.connect();
     }
 
     public synchronized ChatLog getChatLog(String target)

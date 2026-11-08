@@ -1,0 +1,356 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Notes</title>
+    <script src="jquery.min.js"></script>
+    <script type="text/javascript">
+        var parameters = new URLSearchParams(window.location.search);
+        var botUrl = '/ircgptbot/api/bot/' + encodeURIComponent(parameters.get('id')) + '/';
+        var busy = false;
+        var notes = [];
+        var currentName = null;
+        var currentModified = null;
+        var savedContent = '';
+        var listVersion = 0;
+        var refreshing = false;
+        var REFRESH_MS = 5000;
+
+        function setStatus(message)
+        {
+            document.getElementById('status').textContent = message;
+        }
+
+        function setBusy(value)
+        {
+            busy = value;
+            document.querySelectorAll('button, input, textarea').forEach(function(el) {
+                el.disabled = busy;
+            });
+            if (!busy)
+                updateButtons();
+        }
+
+        function isDirty()
+        {
+            var nameInput = document.getElementById('noteName');
+            return document.getElementById('noteContent').value != savedContent || (currentName || '') != nameInput.value.trim();
+        }
+
+        function confirmDiscard()
+        {
+            return !isDirty() || confirm('Discard unsaved changes to this note?');
+        }
+
+        function formatSize(bytes)
+        {
+            return bytes < 1024 ? bytes + ' B' : (bytes / 1024).toFixed(1) + ' KB';
+        }
+
+        function updateButtons()
+        {
+            document.getElementById('deleteNote').disabled = busy || currentName == null;
+        }
+
+        function findNote(name)
+        {
+            for (var i = 0; i < notes.length; i++)
+                if (notes[i].name == name)
+                    return notes[i];
+            return null;
+        }
+
+        function renderList()
+        {
+            var list = document.getElementById('noteList');
+            var scrollTop = list.scrollTop;
+            list.textContent = '';
+            notes.forEach(function(note) {
+                var item = document.createElement('li');
+                if (note.name == currentName)
+                    item.className = 'selected';
+                var name = document.createElement('div');
+                name.className = 'name';
+                name.textContent = note.name;
+                var meta = document.createElement('div');
+                meta.className = 'meta';
+                meta.textContent = formatSize(note.size) + ' - ' + new Date(note.modified).toLocaleString();
+                item.appendChild(name);
+                item.appendChild(meta);
+                item.title = note.name;
+                item.onclick = function() {
+                    if (!busy && note.name != currentName && confirmDiscard())
+                        openNote(note.name);
+                };
+                list.appendChild(item);
+            });
+            list.scrollTop = scrollTop;
+            document.getElementById('empty').style.display = notes.length ? 'none' : 'block';
+        }
+
+        function setNotes(newNotes)
+        {
+            notes = newNotes;
+            listVersion++;
+        }
+
+        function showEditor(name, content)
+        {
+            currentName = name;
+            var note = name == null ? null : findNote(name);
+            currentModified = note ? note.modified : null;
+            savedContent = content;
+            document.getElementById('noteName').value = name || '';
+            document.getElementById('noteContent').value = content;
+            document.getElementById('editor').style.display = 'flex';
+            renderList();
+            updateButtons();
+        }
+
+        function request(options, onDone)
+        {
+            setBusy(true);
+            $.ajax(Object.assign({ dataType: 'json', cache: false, timeout: 10000 }, options)).done(function(json) {
+                if (json.bot && json.bot.id)
+                    document.getElementById('botTitle').textContent = json.bot.id + ' - Notes';
+                if (Array.isArray(json.notes))
+                    setNotes(json.notes);
+                if (json.error)
+                {
+                    renderList();
+                    setStatus(json.error);
+                    return;
+                }
+                onDone(json);
+            }).fail(function() {
+                setStatus('Unable to reach the bot.');
+            }).always(function() {
+                setBusy(false);
+            });
+        }
+
+        // Polls the note list without disabling the UI; the open note and list scroll position are kept.
+        function backgroundRefresh()
+        {
+            if (busy || refreshing || document.hidden)
+                return;
+            refreshing = true;
+            var version = listVersion;
+            $.ajax({
+                url: botUrl + 'notes/',
+                data: { apiPassword: parameters.get('apiPassword') },
+                dataType: 'json',
+                cache: false,
+                timeout: 10000
+            }).done(function(json) {
+                // Skip if a user action updated the list while this request was in flight
+                if (busy || version != listVersion || json.error || !Array.isArray(json.notes))
+                    return;
+                if (JSON.stringify(json.notes) == JSON.stringify(notes))
+                    return;
+                setNotes(json.notes);
+                renderList();
+                checkOpenNote();
+            }).always(function() {
+                refreshing = false;
+            });
+        }
+
+        // Keeps the editor in step with changes made elsewhere (e.g. by the AI) without losing unsaved edits.
+        function checkOpenNote()
+        {
+            if (currentName == null)
+                return;
+            var name = currentName;
+            var note = findNote(name);
+            if (note == null)
+            {
+                setStatus('"' + name + '" was deleted outside this window. Save to keep it.');
+                return;
+            }
+            if (note.modified == currentModified)
+                return;
+            if (isDirty())
+            {
+                setStatus('"' + name + '" was changed outside this window. Saving will overwrite those changes.');
+                return;
+            }
+            $.ajax({
+                url: botUrl + 'notes/',
+                data: { apiPassword: parameters.get('apiPassword'), name: name },
+                dataType: 'json',
+                cache: false,
+                timeout: 10000
+            }).done(function(json) {
+                if (json.error || busy || currentName != name || isDirty())
+                    return;
+                var textarea = document.getElementById('noteContent');
+                var start = textarea.selectionStart, end = textarea.selectionEnd, scroll = textarea.scrollTop;
+                textarea.value = json.content || '';
+                textarea.setSelectionRange(Math.min(start, textarea.value.length), Math.min(end, textarea.value.length));
+                textarea.scrollTop = scroll;
+                savedContent = textarea.value;
+                currentModified = note.modified;
+                setStatus('"' + name + '" was updated outside this window and has been reloaded.');
+            });
+        }
+
+        function loadNotes()
+        {
+            setStatus('Loading notes...');
+            request({ url: botUrl + 'notes/', data: { apiPassword: parameters.get('apiPassword') } }, function(json) {
+                if (!json.bot)
+                {
+                    setStatus('Bot unavailable.');
+                    return;
+                }
+                renderList();
+                setStatus('');
+            });
+        }
+
+        function openNote(name)
+        {
+            setStatus('Loading ' + name + '...');
+            request({ url: botUrl + 'notes/', data: { apiPassword: parameters.get('apiPassword'), name: name } }, function(json) {
+                showEditor(json.name, json.content || '');
+                setStatus('');
+            });
+        }
+
+        function newNote()
+        {
+            if (busy || !confirmDiscard())
+                return;
+            showEditor(null, '');
+            document.getElementById('noteName').focus();
+            setStatus('');
+        }
+
+        function postNotes(body, onDone)
+        {
+            body.apiPassword = parameters.get('apiPassword');
+            request({
+                url: botUrl + 'notes/',
+                type: 'POST',
+                data: JSON.stringify(body),
+                contentType: 'application/json; charset=utf-8'
+            }, onDone);
+        }
+
+        function saveNote()
+        {
+            if (busy)
+                return;
+            var name = document.getElementById('noteName').value.trim();
+            var content = document.getElementById('noteContent').value;
+            if (name == '' || /[\/\\]/.test(name) || name == '.' || name == '..')
+            {
+                setStatus('Enter a file name without slashes, e.g. todo.txt');
+                return;
+            }
+            var exists = notes.some(function(n) { return n.name == name; });
+            if (name != currentName && exists && !confirm('A note named "' + name + '" already exists. Overwrite it?'))
+                return;
+            setStatus('Saving...');
+            postNotes({ action: 'save', name: name, content: content }, function() {
+                showEditor(name, content);
+                setStatus('Saved ' + name + '.');
+            });
+        }
+
+        function deleteNote()
+        {
+            if (busy || currentName == null)
+                return;
+            var name = currentName;
+            if (!confirm('Permanently delete the note "' + name + '"?'))
+                return;
+            setStatus('Deleting...');
+            postNotes({ action: 'delete', name: name }, function() {
+                currentName = null;
+                savedContent = '';
+                document.getElementById('editor').style.display = 'none';
+                renderList();
+                updateButtons();
+                setStatus('Deleted ' + name + '.');
+            });
+        }
+
+        function loaded()
+        {
+            document.getElementById('newNote').onclick = newNote;
+            document.getElementById('saveNote').onclick = saveNote;
+            document.getElementById('deleteNote').onclick = deleteNote;
+            document.getElementById('refresh').onclick = function() {
+                if (!busy)
+                    loadNotes();
+            };
+            document.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && e.key == 's' && document.getElementById('editor').style.display != 'none')
+                {
+                    e.preventDefault();
+                    saveNote();
+                }
+            });
+            window.onbeforeunload = function() {
+                if (document.getElementById('editor').style.display != 'none' && isDirty())
+                    return 'You have unsaved changes.';
+            };
+            loadNotes();
+            setInterval(backgroundRefresh, REFRESH_MS);
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden)
+                    backgroundRefresh();
+            });
+        }
+    </script>
+    <style>
+        body { font-family: Sans Serif; margin: 20px; display: flex; flex-direction: column; height: calc(100vh - 40px); box-sizing: border-box; }
+        h2 { text-align: center; margin: 0 0 8px 0; }
+        p.help { font-size: 13px; color: #444; margin: 0 0 10px 0; }
+        .main { display: flex; gap: 12px; flex: 1; min-height: 0; }
+        .sidebar { width: 220px; display: flex; flex-direction: column; border: 1px solid #aaa; border-radius: 4px; }
+        .sidebar .toolbar { display: flex; justify-content: space-between; padding: 6px; border-bottom: 1px solid #aaa; }
+        #noteList { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+        #noteList li { padding: 6px 8px; cursor: pointer; border-bottom: 1px solid #eee; }
+        #noteList li:hover { background: #f0f0f0; }
+        #noteList li.selected { background: #dde8ff; }
+        #noteList .name { font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #noteList .meta { font-size: 11px; color: #666; }
+        #empty { padding: 8px; color: #666; font-size: 13px; }
+        #editor { flex: 1; flex-direction: column; gap: 6px; min-width: 0; }
+        #editor label { font-size: 13px; font-weight: bold; }
+        #noteName { width: 100%; padding: 6px; box-sizing: border-box; }
+        #noteContent { flex: 1; width: 100%; padding: 6px; box-sizing: border-box; font-family: monospace; resize: none; }
+        .actions { display: flex; justify-content: space-between; }
+        button { padding: 6px 12px; }
+        #status { min-height: 1em; margin: 8px 0 0 0; }
+    </style>
+</head>
+<body onload="loaded()">
+    <h2 id="botTitle">Notes</h2>
+    <p class="help">Files in the bot's notes/ directory. The AI can list, read, write and delete these with its note tools.</p>
+    <div class="main">
+        <div class="sidebar">
+            <div class="toolbar">
+                <button type="button" id="newNote">New</button>
+                <button type="button" id="refresh">Refresh</button>
+            </div>
+            <div id="empty" style="display: none;">No notes yet.</div>
+            <ul id="noteList"></ul>
+        </div>
+        <div id="editor" style="display: none;">
+            <label for="noteName">File name</label>
+            <input type="text" id="noteName" autocomplete="off" placeholder="e.g. todo.txt" />
+            <label for="noteContent">Contents</label>
+            <textarea id="noteContent" spellcheck="false"></textarea>
+            <div class="actions">
+                <button type="button" id="deleteNote">Delete</button>
+                <button type="button" id="saveNote">Save</button>
+            </div>
+        </div>
+    </div>
+    <p id="status" role="status"></p>
+</body>
+</html>
