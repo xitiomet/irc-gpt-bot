@@ -161,6 +161,15 @@ class TerminalInterfaceTest
             {
                 click(gui, terminal, section);
                 waitFor(() -> gui.getWindows().size() == 2);
+                if ("Timing / Context".equals(section))
+                {
+                    String fieldLabels = labels(gui.getActiveWindow().getComponent());
+                    assertFalse(fieldLabels.contains("port"));
+                    for (String field : new String[] {"contextDepth", "followUpSeconds", "replyCooldownSeconds", "openQuestionSeconds", "maxToolRounds"})
+                        assertTrue(fieldLabels.contains(field), field);
+                }
+                if ("IRC Connection".equals(section))
+                    assertTrue(labels(gui.getActiveWindow().getComponent()).contains("port"));
                 assertTrue(gui.getActiveWindow().getSize().getColumns() <= 78, section + " exceeds terminal width");
                 assertTrue(gui.getActiveWindow().getSize().getRows() <= 22, section + " exceeds terminal height");
                 assertNull(failure.get());

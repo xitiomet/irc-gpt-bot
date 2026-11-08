@@ -221,7 +221,8 @@ final class TerminalBotEditor
                 panel.addComponent(text.get(field));
                 section(gui, field, panel);
             }));
-        menu.addComponent(new Button("Timing / Context", () -> section(gui, "Timing / Context", fields(BotEditorOptions.NUMBER_FIELDS))));
+        menu.addComponent(new Button("Timing / Context", () -> section(gui, "Timing / Context",
+            fields("contextDepth", "followUpSeconds", "replyCooldownSeconds", "openQuestionSeconds", "maxToolRounds"))));
         menu.addComponent(new Button("AI Endpoints", () -> {
             Panel panel = fields("definitionServer", "modelsApiUrl", "responsesApiUrl");
             panel.addComponent(new Label("Blank values inherit the master configuration."));
