@@ -471,6 +471,10 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
 
     public static void main(String[] args)
     {
+        if ("runtime".equals(System.getProperty("org.graalvm.nativeimage.imagecode")))
+        {
+            WindowsConsole.attachParentConsole();
+        }
         System.setProperty("org.eclipse.jetty.util.log.class", "org.eclipse.jetty.util.log.StdErrLog");
         System.setProperty("org.eclipse.jetty.LEVEL", "OFF");
         CommandLine cmd = null;

@@ -25,7 +25,23 @@ if ($VCRuntimeDirectory -eq 'auto' -or !$VCRuntimeDirectory) {
 if (!$VCRuntimeDirectory -or !(Test-Path (Join-Path $VCRuntimeDirectory 'vcruntime140.dll'))) {
     throw 'Run from a Visual Studio x64 developer prompt, or pass -Dwindows.vcRuntimeDir=<dir> pointing to the x64 Visual C++ CRT directory (containing vcruntime140.dll).'
 }
-$compiler = (Get-Command $MakeNSIS -ErrorAction Stop).Source
+$compiler = (Get-Command $MakeNSIS -ErrorAction SilentlyContinue).Source
+if (!$compiler) {
+    # NSIS's installer does not add itself to PATH, so check its registered and default install locations
+    $candidates = @()
+    foreach ($key in 'HKLM:\SOFTWARE\WOW6432Node\NSIS', 'HKLM:\SOFTWARE\NSIS') {
+        $installDir = (Get-ItemProperty -LiteralPath $key -ErrorAction SilentlyContinue).'(default)'
+        if ($installDir) {
+            $candidates += Join-Path $installDir 'makensis.exe'
+        }
+    }
+    $candidates += Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe'
+    $candidates += Join-Path $env:ProgramFiles 'NSIS\makensis.exe'
+    $compiler = $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
+}
+if (!$compiler) {
+    throw "Unable to find makensis.exe. Install NSIS (https://nsis.sourceforge.io/), add it to PATH, or pass -Dwindows.makeNSIS=<path to makensis.exe>."
+}
 # Use a fresh staging directory so stale DLLs from older builds cannot leak into the installer.
 $stage = Join-Path $target ('windows-installer-' + [guid]::NewGuid().ToString('N'))
 $payload = Join-Path $stage 'payload'

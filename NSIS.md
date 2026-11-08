@@ -6,7 +6,7 @@ On Windows, `mvn package` activates the `windows` profile. It builds a GraalVM n
 
 - A GraalVM JDK (25 or newer) with `JAVA_HOME` or `GRAALVM_HOME` pointing at it
 - Visual Studio (or the Build Tools) with the "Desktop development with C++" workload. Run the build from an **x64 Native Tools Command Prompt** so `cl.exe`, `link.exe` and `rc.exe` are on the `PATH` and `VCToolsRedistDir` is set.
-- [NSIS](https://nsis.sourceforge.io/) with `makensis.exe` on the `PATH`
+- [NSIS](https://nsis.sourceforge.io/). Its default install location is detected; it does not need to be on the `PATH`.
 
 ### Build
 
@@ -25,7 +25,7 @@ The build does the following:
 
 | Property | Default | Purpose |
 |----------|---------|---------|
-| `-Dwindows.makeNSIS=<path>` | `makensis.exe` | Path to `makensis.exe` if it is not on the `PATH` |
+| `-Dwindows.makeNSIS=<path>` | `makensis.exe` | Path to `makensis.exe`. If it is not on the `PATH`, the build looks for it in the NSIS install location from the registry, then in `Program Files (x86)\NSIS` and `Program Files\NSIS`. |
 | `-Dwindows.vcRuntimeDir=<dir>` | `auto` | x64 Visual C++ CRT folder (containing `vcruntime140.dll`). `auto` detects it from `VCToolsRedistDir`. |
 | `-DskipNative=true` | `false` | Build only the jar. This skips the native executable and the installer. |
 

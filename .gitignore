@@ -8,3 +8,4 @@ jre/
 .vscode/
 upload.sh
 irc-gpt-bot-logs/
+src/main/resources/META-INF/native-image/.lock
