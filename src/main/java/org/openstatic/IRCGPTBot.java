@@ -825,6 +825,61 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         return this.botOptions.optString("model", "gpt-3.5-turbo");
     }
 
+    public JSONObject getEditorOptions()
+    {
+        JSONObject options = new JSONObject();
+        for (String field : new String[] {"acceptInvites", "greet", "privateMessages"})
+            options.put(field, this.botOptions.optBoolean(field, false));
+        for (String field : new String[] {"ignore", "aliases", "botOps"})
+            options.put(field, new JSONArray(this.botOptions.optJSONArray(field) == null ? "[]" : this.botOptions.getJSONArray(field).toString()));
+        JSONArray tools = this.botOptions.optJSONArray("gptTools");
+        options.put("gptTools", tools == null ? new JSONArray(GPTTools.ALL_TOOLS) : new JSONArray(tools.toString()));
+        return options;
+    }
+
+    static JSONObject validateEditorUpdate(JSONObject input)
+    {
+        JSONObject update = new JSONObject();
+        Object model = input.get("model");
+        if (!(model instanceof String) || ((String) model).isBlank())
+            throw new IllegalArgumentException("Select a model.");
+        if (!(input.get("preamble") instanceof String))
+            throw new IllegalArgumentException("System preamble must be text.");
+        update.put("model", model).put("systemPreamble", input.getString("preamble"));
+        for (String field : new String[] {"acceptInvites", "greet", "privateMessages"})
+        {
+            if (!(input.get(field) instanceof Boolean))
+                throw new IllegalArgumentException(field + " must be true or false.");
+            update.put(field, input.getBoolean(field));
+        }
+        for (String field : new String[] {"gptTools", "ignore", "aliases", "botOps"})
+        {
+            JSONArray values = input.getJSONArray(field);
+            JSONArray normalized = new JSONArray();
+            Set<String> seen = new java.util.LinkedHashSet<>();
+            for (Object value : values)
+            {
+                if (!(value instanceof String) || ((String) value).isBlank()
+                    || ((String) value).chars().anyMatch(c -> Character.isWhitespace(c) || Character.isISOControl(c) || c == ','))
+                    throw new IllegalArgumentException(field + " must contain non-empty names without spaces or commas.");
+                String name = (String) value;
+                if ("gptTools".equals(field) && !Arrays.asList(GPTTools.ALL_TOOLS).contains(name))
+                    throw new IllegalArgumentException("Unknown built-in tool: " + name);
+                if (seen.add(name))
+                    normalized.put(name);
+            }
+            update.put(field, normalized);
+        }
+        return update;
+    }
+
+    public void updateEditorOptions(JSONObject input) throws IOException
+    {
+        IRCGPTBotMain.instance.updateBotOptions(this, validateEditorUpdate(input));
+        setPreamble(this.botOptions.getString("systemPreamble"));
+        this.fireStats();
+    }
+
     public void setModel(String model)
     {
         if (model != null && !"".equals(model))

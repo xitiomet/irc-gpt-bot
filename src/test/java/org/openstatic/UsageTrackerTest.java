@@ -46,6 +46,23 @@ class UsageTrackerTest
     }
 
     @Test
+    void combinedTotalsIncludeHistoricalBotsAndIncompleteUsageAfterReload() throws Exception
+    {
+        tracker.record("active", OPENAI, response("gpt-4o-mini", 1000, 200, 100));
+        tracker.record("removed", OPENAI, response("gpt-4o-mini", 1000, 200, 100));
+        tracker.record("unknown", OPENAI, response("unpriced", 20, 0, 10));
+        tracker.record("untracked", OPENAI, new JSONObject());
+        JSONObject totals = tracker.totals();
+        assertCost("0.000390", totals);
+        assertEquals(2230, totals.getLong("tokensSpent"));
+        assertEquals(30, totals.getLong("unpricedTokensSpent"));
+        assertEquals(1, totals.getLong("untrackedRequests"));
+        assertEquals(4, totals.getLong("requests"));
+        assertEquals("USD", totals.getString("currency"));
+        assertTrue(totals.similar(new UsageTracker(config, logs).totals()));
+    }
+
+    @Test
     void countsCachedTokensOnceAndPersistsPerBotAndModelTotals() throws Exception
     {
         tracker.record("alice", OPENAI, response("gpt-4o-mini", 1000, 200, 100));

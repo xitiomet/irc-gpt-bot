@@ -14,7 +14,10 @@
             <img src="icon-32.png" alt="" width="32" height="32">
             <span>IRC GPT <span class="brand-secondary">Bot Manager</span></span>
         </a>
-        <span id="connectionState" class="connection-state" role="status">Connecting...</span>
+        <div class="header-status">
+            <span id="connectionState" class="connection-state" role="status">Connecting...</span>
+            <span id="totalCostEstimate" class="total-cost" role="status" hidden>Total Cost Estimate: loading...</span>
+        </div>
         <button onclick="masterConfigWindow()" id="masterConfigButton" style="display: none;">Master Config</button>
         <button onclick="launchBotWindow()" id="launchBotButton" class="primary" style="display: none;">Launch Bot</button>
     </header>

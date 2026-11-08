@@ -352,6 +352,21 @@ remain visible without expanding. Editors share the same theme and stack their
 fields on smaller screens. Styles are bundled locally; no external fonts or
 UI framework are required.
 
+**Edit Model/Prompt** also controls `acceptInvites`, `greet`, `privateMessages`,
+the built-in `gptTools` allowlist, and the `ignore`, `aliases`, and `botOps` lists.
+Tool checkboxes include **Enable all** / **Disable all** actions; absent
+`gptTools` starts with all tools checked, while `[]` means none. URL tools remain
+separate and unaffected. Nickname lists accept commas, whitespace, or one entry
+per line; an empty field clears the list. Behavior toggles reflect the bot's
+existing settings (false when absent); `greetPublic` is left unchanged.
+All edits save together and take effect without reconnecting. Unsaved edits
+require confirmation before closing. Changing `botOps` affects future operator
+grants and kick protection; it does not revoke IRC operator modes already granted.
+
+The header shows **Total Cost Estimate** beneath the connection status after
+sign-in. It updates live from stored usage across all bots, including removed
+bots. Unpriced/untracked usage or persistence errors mark the estimate incomplete.
+
 The authenticated master API is `GET /ircgptbot/api/master/` (returns
 `hasOpenAiKey` and pricing metadata, never credentials) and
 `POST /ircgptbot/api/master/` with one of:

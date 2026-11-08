@@ -60,6 +60,8 @@ public class APIWebServer implements IRCGPTBotListener
 
     public void shareBots(Session session)
     {
+        session.sendText(new JSONObject().put("action", "usageTotals")
+            .put("usage", IRCGPTBotMain.usageTracker.totals()).toString(), Callback.NOOP);
         IRCGPTBotMain.instance.getBots().forEach((bot) -> {
             JSONObject msg = new JSONObject();
             msg.put("action", "botAdded");
@@ -423,7 +425,19 @@ public class APIWebServer implements IRCGPTBotListener
                                         if (st.hasMoreTokens())
                                         {
                                             String command = st.nextToken();
-                                            if ("preamble".equals(command) && requestPost.has("preamble"))
+                                            if ("settings".equals(command))
+                                            {
+                                                try
+                                                {
+                                                    bot.updateEditorOptions(requestPost);
+                                                    response.put("preamble", bot.getPreamble()).put("model", bot.getModel())
+                                                        .put("options", bot.getEditorOptions());
+                                                } catch (IOException | IllegalArgumentException | JSONException e) {
+                                                    IRCGPTBotMain.log(e);
+                                                    response.put("error", e.getMessage());
+                                                }
+                                            }
+                                            else if ("preamble".equals(command) && requestPost.has("preamble"))
                                             {
                                                 if (requestPost.has("model") && requestPost.optString("model").trim().isEmpty())
                                                 {
@@ -603,6 +617,8 @@ public class APIWebServer implements IRCGPTBotListener
                                         response.put("model", bot.getModel());
                                         response.put("preamble", bot.getPreamble());
                                         response.put("models", bot.getAvailableModels());
+                                        response.put("options", bot.getEditorOptions());
+                                        response.put("builtInTools", new JSONArray(GPTTools.ALL_TOOLS));
                                     } else if ("tools".equals(command)) {
                                         response.put("toolUrls", bot.getToolUrls());
                                     } else if ("notes".equals(command)) {
@@ -664,6 +680,7 @@ public class APIWebServer implements IRCGPTBotListener
         msg.put("stats", bot.toJSONObject());
         msg.put("action", "botStats");
         this.broadcastJSONObject(msg);
+        this.broadcastJSONObject(new JSONObject().put("action", "usageTotals").put("usage", IRCGPTBotMain.usageTracker.totals()));
     }
 
     @Override

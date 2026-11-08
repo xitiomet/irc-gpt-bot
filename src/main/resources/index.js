@@ -291,6 +291,16 @@ function setConnectionState(text, state)
     indicator.dataset.state = state;
 }
 
+function updateTotalCost(usage)
+{
+    var total = document.getElementById('totalCostEstimate');
+    var incomplete = usage.unpricedTokensSpent > 0 || usage.untrackedRequests > 0 || !!usage.trackingError;
+    total.textContent = 'Total Cost Estimate: $' + Number(usage.costEstimate).toFixed(6) + ' USD' + (incomplete ? ' (incomplete)' : '');
+    total.title = 'Historical estimate across all bots, including removed bots. Not a billing total.'
+        + (incomplete ? ' Some usage is unpriced, untracked, or not persisted.' : '');
+    total.hidden = !authenticated;
+}
+
 function setupWebsocket()
 {
     try
@@ -331,7 +341,10 @@ function setupWebsocket()
             if (jsonObject.hasOwnProperty("action"))
             {
                 var action = jsonObject.action;
-                if (action == 'botRemoved')
+                if (action == 'usageTotals')
+                {
+                    updateTotalCost(jsonObject.usage);
+                } else if (action == 'botRemoved')
                 {
                     removeBot(jsonObject.id);
                 } else if (action == 'botAdded') {
@@ -340,6 +353,8 @@ function setupWebsocket()
                     updateBot(jsonObject);
                 } else if (action == 'authOk') {
                     authenticated = true;
+                    document.getElementById('totalCostEstimate').textContent = 'Total Cost Estimate: loading...';
+                    document.getElementById('totalCostEstimate').hidden = false;
                     document.getElementById('botTable').textContent = '';
                     updateBotCount();
                     setConnectionState('Live updates', 'connected');
@@ -350,6 +365,7 @@ function setupWebsocket()
                     document.getElementById('masterConfigButton').style.display = 'inline-block';
                 } else if (action == 'authFail') {
                     authenticated = false;
+                    document.getElementById('totalCostEstimate').hidden = true;
                     closeEditor(null, true);
                     document.getElementById('login').style.display = 'block';
                     document.getElementById('console').style.display = 'none';

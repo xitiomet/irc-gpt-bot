@@ -69,6 +69,17 @@ final class UsageTracker
         return result;
     }
 
+    synchronized JSONObject totals()
+    {
+        JSONObject totals = OpenAIUsage.emptyTotals().put("currency", "USD");
+        JSONObject bots = usage.getJSONObject("bots");
+        for (String id : bots.keySet())
+            OpenAIUsage.add(totals, bots.getJSONObject(id));
+        if (persistenceError != null)
+            totals.put("trackingError", persistenceError);
+        return totals;
+    }
+
     synchronized JSONObject pricingStatus() throws IOException
     {
         return pricingStatus(JsonFiles.read(pricingFile));

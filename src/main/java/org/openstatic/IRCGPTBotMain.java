@@ -500,6 +500,19 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         settings.put("openAiKey", key.trim());
     }
 
+    public synchronized void updateBotOptions(IRCGPTBot bot, JSONObject update) throws IOException
+    {
+        JSONObject options = new JSONObject(bot.getBotOptions().toString());
+        for (String field : update.keySet())
+            options.put(field, update.get(field));
+        JSONObject next = new JSONObject(settings.toString());
+        next.getJSONObject("bots").put(bot.getBotId(), options);
+        configDirectory.save(next);
+        for (String field : update.keySet())
+            bot.getBotOptions().put(field, update.get(field));
+        settings.getJSONObject("bots").put(bot.getBotId(), bot.getBotOptions());
+    }
+
     public static boolean inJSONArray(JSONArray jsonArray, String str)
     {
         if (str != null && jsonArray != null)

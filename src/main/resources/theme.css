@@ -65,7 +65,9 @@ label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; }
 }
 .brand { display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; font-size: 18px; font-weight: 700; }
 .brand-secondary { font-weight: 400; color: #adbdcd; }
-.connection-state { margin-left: auto; color: #c4d2df; font-size: 12px; }
+.header-status { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; min-width: 0; }
+.connection-state { color: #c4d2df; font-size: 12px; }
+.total-cost { color: #c4d2df; font-size: 11px; }
 .connection-state::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; background: #eab75e; }
 .connection-state[data-state="connected"]::before { background: #5cdbad; }
 .workspace { max-width: 1280px; margin: 0 auto; padding: 40px 24px 64px; }

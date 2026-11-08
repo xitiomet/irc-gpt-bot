@@ -309,3 +309,63 @@ test('cards retain identity, actions, live statistics, details, and empty state'
     assert.equal(nodes.botCount.textContent, '0 bots');
     assert.equal(nodes.emptyBots.hidden, false);
 });
+
+test('bot settings serialize all tool selections, toggles and nickname lists and guard dirty edits', () => {
+    const elements = {};
+    for (const id of ['model', 'systemPreamble', 'ignore', 'aliases', 'botOps', 'acceptInvites', 'greet', 'privateMessages', 'status', 'saveButton'])
+        elements[id] = { value: '', checked: false, disabled: false };
+    const tools = [{ value: 'write_note', checked: true }, { value: 'read_note', checked: false }];
+    const context = {
+        window: {}, confirm: () => false,
+        document: {
+            getElementById: id => elements[id],
+            querySelectorAll: selector => selector === '#builtInTools input:checked' ? tools.filter(tool => tool.checked)
+                : selector === '#builtInTools input' ? tools : [...Object.values(elements), ...tools]
+        }
+    };
+    vm.createContext(context);
+    vm.runInContext(source('preamble.html').match(/<script type="text\/javascript">([\s\S]*?)<\/script>/)[1], context);
+    elements.model.value = 'gpt-4o-mini';
+    elements.systemPreamble.value = 'Prompt';
+    elements.ignore.value = 'one, two\none';
+    elements.aliases.value = 'helper chat';
+    elements.botOps.value = '';
+    elements.acceptInvites.checked = true;
+    const state = context.editorState();
+    assert.deepEqual(Array.from(state.ignore), ['one', 'two']);
+    assert.deepEqual(Array.from(state.aliases), ['helper', 'chat']);
+    assert.deepEqual(Array.from(state.botOps), []);
+    assert.deepEqual(Array.from(state.gptTools), ['write_note']);
+    assert.equal(state.acceptInvites, true);
+    assert.equal(state.greet, false);
+    assert.equal(state.privateMessages, false);
+    context.ready = true;
+    context.savedState = JSON.stringify(state);
+    assert.equal(context.editorCanClose(), true);
+    context.selectTools(true);
+    assert.deepEqual(Array.from(context.editorState().gptTools), ['write_note', 'read_note']);
+    assert.equal(context.editorCanClose(), false);
+    context.selectTools(false);
+    assert.equal(context.editorState().gptTools.length, 0);
+    context.setBusy(true);
+    assert.equal(elements.ignore.disabled, true);
+    assert.equal(context.editorCanClose(), false);
+    context.setBusy(false);
+    assert.equal(elements.ignore.disabled, false);
+});
+
+test('header shows server-wide historical estimate and flags incomplete usage only when authenticated', () => {
+    const {context, elements} = dashboard();
+    elements.totalCostEstimate = {};
+    context.updateTotalCost({costEstimate: 0.00039, unpricedTokensSpent: 0, untrackedRequests: 0});
+    assert.equal(elements.totalCostEstimate.hidden, true);
+    context.authenticated = true;
+    context.updateTotalCost({costEstimate: 0.00039, unpricedTokensSpent: 0, untrackedRequests: 0});
+    assert.equal(elements.totalCostEstimate.textContent, 'Total Cost Estimate: $0.000390 USD');
+    assert.equal(elements.totalCostEstimate.hidden, false);
+    context.updateTotalCost({costEstimate: 12, unpricedTokensSpent: 10, untrackedRequests: 0});
+    assert.equal(elements.totalCostEstimate.textContent, 'Total Cost Estimate: $12.000000 USD (incomplete)');
+    context.updateTotalCost({costEstimate: 12, unpricedTokensSpent: 0, untrackedRequests: 1});
+    assert(elements.totalCostEstimate.textContent.endsWith('(incomplete)'));
+    assert(elements.totalCostEstimate.title.includes('removed bots'));
+});
