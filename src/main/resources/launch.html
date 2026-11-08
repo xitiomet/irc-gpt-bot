@@ -1,17 +1,8 @@
 <html>
 <head>
     <script src="jquery.min.js"></script>
+    <script src="editor.js"></script>
     <script type="text/javascript">
-        function getParameterByName(name, url = window.location.href) 
-        {
-            name = name.replace(/[\[\]]/g, '\\$&');
-            var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
-                results = regex.exec(url);
-            if (!results) return null;
-            if (!results[2]) return '';
-            return decodeURIComponent(results[2].replace(/\+/g, ' '));
-        }
-
         function launch()
         {
             var botId = document.getElementById('botId').value;
@@ -32,17 +23,15 @@
                     }
                 }
             });
-            console.log(botOptions);
             var launchCode = {
                 "id": botId,
-                "botOptions": botOptions,
-                "apiPassword": getParameterByName('apiPassword')
+                "botOptions": botOptions
             };
-            postJSON("ircgptbot/api/bots/add/", launchCode, response => {
+            postJSON("/ircgptbot/api/bots/add/", launchCode, response => {
                 if (response.error)
                     alert("Unable to launch bot: " + response.error);
                 else
-                    window.close();
+                    closeEditor();
             }, () => { alert("Unable to launch bot. Check the connection and try again."); });
         }
 

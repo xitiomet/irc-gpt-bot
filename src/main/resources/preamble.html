@@ -3,17 +3,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Edit Model/Prompt</title>
     <script src="jquery.min.js"></script>
+    <script src="editor.js"></script>
     <script type="text/javascript">
-        function getParameterByName(name, url = window.location.href) 
-        {
-            name = name.replace(/[\[\]]/g, '\\$&');
-            var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
-                results = regex.exec(url);
-            if (!results) return null;
-            if (!results[2]) return '';
-            return decodeURIComponent(results[2].replace(/\+/g, ' '));
-        }
-
         function save()
         {
             var button = document.getElementById('saveButton');
@@ -22,8 +13,7 @@
             var preamble = document.getElementById('systemPreamble').value;
             var updateCode = {
                 "model": document.getElementById('model').value,
-                "preamble": preamble,
-                "apiPassword": getParameterByName('apiPassword')
+                "preamble": preamble
             };
             button.disabled = true;
             document.getElementById('status').textContent = 'Saving...';
@@ -40,7 +30,7 @@
                 else
                 {
                     document.getElementById('status').textContent = 'Saved.';
-                    window.close();
+                    closeEditor();
                 }
             }).fail(function() {
                 document.getElementById('status').textContent = 'Unable to save. Please retry.';
@@ -54,7 +44,6 @@
             document.getElementById('status').textContent = 'Loading model and prompt...';
             $.ajax({
                 url: '/ircgptbot/api/bot/' + encodeURIComponent(getParameterByName('id')) + '/models/',
-                data: { apiPassword: getParameterByName('apiPassword') },
                 dataType: 'json',
                 cache: false,
                 timeout: 30000

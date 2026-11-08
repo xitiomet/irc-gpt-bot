@@ -6,31 +6,65 @@ var protocol = location.protocol;
 var port = location.port;
 var wsProtocol = 'ws';
 var httpUrl = '';
+var authenticated = false;
 
-function getParameterByName(name, url = window.location.href) 
+function openEditor(page, title, botId)
 {
-    name = name.replace(/[\[\]]/g, '\\$&');
-    var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
-        results = regex.exec(url);
-    if (!results) return null;
-    if (!results[2]) return '';
-    return decodeURIComponent(results[2].replace(/\+/g, ' '));
+    if (!authenticated)
+        return;
+    var dialog = document.getElementById('editorDialog');
+    var frame = document.getElementById('editorFrame');
+    if (dialog.open && !editorCanClose())
+        return;
+    document.getElementById('editorTitle').textContent = title;
+    frame.title = title;
+    frame.src = page + (botId == null ? '' : '?id=' + encodeURIComponent(botId));
+    if (!dialog.open)
+        dialog.showModal();
+}
+
+function getEditorPassword(source)
+{
+    var frame = document.getElementById('editorFrame');
+    if (!authenticated || !document.getElementById('editorDialog').open || source !== frame.contentWindow)
+        throw new Error('Editor is not authenticated.');
+    return document.getElementById('password').value;
+}
+
+function editorCanClose()
+{
+    var editor = document.getElementById('editorFrame').contentWindow;
+    if (typeof editor.editorCanClose === 'function' && !editor.editorCanClose())
+        return false;
+    editor.onbeforeunload = null;
+    return true;
+}
+
+function closeEditor(source, force)
+{
+    if (source != null && source !== document.getElementById('editorFrame').contentWindow)
+        return;
+    if (force || editorCanClose())
+    {
+        document.getElementById('editorFrame').contentWindow.onbeforeunload = null;
+        document.getElementById('editorDialog').close();
+    }
 }
 
 function editModelPromptWindow(botId)
 {
-    window.open('preamble.html?apiPassword=' + encodeURIComponent(document.getElementById('password').value) + '&id=' + encodeURIComponent(botId), "Edit Model/Prompt", "width=520,height=720");
+    openEditor('preamble.html', 'Edit Model/Prompt', botId);
 }
 
 function launchBotWindow()
 {
-    var myWindow = window.open('launch.html?apiPassword=' + encodeURIComponent(document.getElementById('password').value), "LaunchBot", "width=455,height=635");
+    openEditor('launch.html', 'Launch Bot');
 }
 
 function sendEvent(wsEvent)
 {
     var out_event = JSON.stringify(wsEvent);
-    if (debugMode)
+    if (debugMode && wsEvent.command !== 'auth')
         console.log("Transmit: " + out_event);
     try
     {
@@ -42,17 +76,17 @@ function sendEvent(wsEvent)
 
 function channelsWindow(botId)
 {
-    window.open('channels.html?apiPassword=' + encodeURIComponent(document.getElementById('password').value) + '&id=' + encodeURIComponent(botId), "Channels", "width=455,height=560");
+    openEditor('channels.html', 'Channels', botId);
 }
 
 function toolsWindow(botId)
 {
-    window.open('tools.html?apiPassword=' + encodeURIComponent(document.getElementById('password').value) + '&id=' + encodeURIComponent(botId), "Tools", "width=640,height=720");
+    openEditor('tools.html', 'Tools', botId);
 }
 
 function notesWindow(botId)
 {
-    window.open('notes.html?apiPassword=' + encodeURIComponent(document.getElementById('password').value) + '&id=' + encodeURIComponent(botId), "Notes", "width=760,height=640");
+    openEditor('notes.html', 'Notes', botId);
 }
 
 function toggleBot(objectId)
@@ -256,11 +290,17 @@ function setupWebsocket()
                 } else if (action == 'botStats') {
                     updateBot(jsonObject);
                 } else if (action == 'authOk') {
+                    authenticated = true;
                     document.getElementById('login').style.display = 'none';
                     document.getElementById('console').style.display = 'block';
                     document.getElementById('launchBotButton').style.display = 'inline-block';
                 } else if (action == 'authFail') {
-                    document.getElementById('errorMsg').innerHTML = jsonObject.error;
+                    authenticated = false;
+                    closeEditor(null, true);
+                    document.getElementById('login').style.display = 'block';
+                    document.getElementById('console').style.display = 'none';
+                    document.getElementById('launchBotButton').style.display = 'none';
+                    document.getElementById('errorMsg').textContent = jsonObject.error;
                 } else if (action == 'launch' && jsonObject.error) {
                     alert("Unable to launch bot: " + jsonObject.error);
                 }
@@ -277,5 +317,14 @@ function setupWebsocket()
 }
 
 window.onload = function() {
+    var dialog = document.getElementById('editorDialog');
+    dialog.addEventListener('close', function() {
+        document.getElementById('editorFrame').src = 'about:blank';
+    });
+    dialog.addEventListener('cancel', function(event) {
+        event.preventDefault();
+        closeEditor();
+    });
+    document.getElementById('closeEditorButton').onclick = function() { closeEditor(); };
     setupWebsocket();
 };

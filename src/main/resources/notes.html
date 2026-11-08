@@ -4,6 +4,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Notes</title>
     <script src="jquery.min.js"></script>
+    <script src="editor.js"></script>
     <script type="text/javascript">
         var parameters = new URLSearchParams(window.location.search);
         var botUrl = '/ircgptbot/api/bot/' + encodeURIComponent(parameters.get('id')) + '/';
@@ -138,7 +139,6 @@
             var version = listVersion;
             $.ajax({
                 url: botUrl + 'notes/',
-                data: { apiPassword: parameters.get('apiPassword') },
                 dataType: 'json',
                 cache: false,
                 timeout: 10000
@@ -177,7 +177,7 @@
             }
             $.ajax({
                 url: botUrl + 'notes/',
-                data: { apiPassword: parameters.get('apiPassword'), name: name },
+                data: { name: name },
                 dataType: 'json',
                 cache: false,
                 timeout: 10000
@@ -198,7 +198,7 @@
         function loadNotes()
         {
             setStatus('Loading notes...');
-            request({ url: botUrl + 'notes/', data: { apiPassword: parameters.get('apiPassword') } }, function(json) {
+            request({ url: botUrl + 'notes/' }, function(json) {
                 if (!json.bot)
                 {
                     setStatus('Bot unavailable.');
@@ -212,7 +212,7 @@
         function openNote(name)
         {
             setStatus('Loading ' + name + '...');
-            request({ url: botUrl + 'notes/', data: { apiPassword: parameters.get('apiPassword'), name: name } }, function(json) {
+            request({ url: botUrl + 'notes/', data: { name: name } }, function(json) {
                 showEditor(json.name, json.content || '');
                 setStatus('');
             });
@@ -229,7 +229,6 @@
 
         function postNotes(body, onDone)
         {
-            body.apiPassword = parameters.get('apiPassword');
             request({
                 url: botUrl + 'notes/',
                 type: 'POST',
@@ -303,6 +302,11 @@
                 if (!document.hidden)
                     backgroundRefresh();
             });
+        }
+
+        function editorCanClose()
+        {
+            return document.getElementById('editor').style.display == 'none' || confirmDiscard();
         }
     </script>
     <style>

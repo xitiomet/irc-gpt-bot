@@ -1,25 +1,20 @@
 <html>
 <head>
     <script src="jquery.min.js"></script>
+    <script src="editor.js"></script>
     <script type="text/javascript">
-        function getParameterByName(name, url = window.location.href) 
-        {
-            name = name.replace(/[\[\]]/g, '\\$&');
-            var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
-                results = regex.exec(url);
-            if (!results) return null;
-            if (!results[2]) return '';
-            return decodeURIComponent(results[2].replace(/\+/g, ' '));
-        }
-
         function save()
         {
             var model = document.getElementById('model').value;
             var updateCode = {
-                "model": model,
-                "apiPassword": getParameterByName('apiPassword')
+                "model": model
             };
-            postJSON("/ircgptbot/api/bot/" + encodeURIComponent(getParameterByName('id')) + "/model/", updateCode, () => { window.close() }, () => { window.close() });
+            postJSON("/ircgptbot/api/bot/" + encodeURIComponent(getParameterByName('id')) + "/model/", updateCode, response => {
+                if (response.error)
+                    document.getElementById('status').textContent = response.error;
+                else
+                    closeEditor();
+            }, () => { document.getElementById('status').textContent = 'Unable to save model. Please retry.'; });
         }
 
         function postJSON(url, data, onSuccess, onError) {
@@ -37,8 +32,13 @@
         function loaded()
         {
             document.getElementById('status').innerHTML = "Loading models&hellip;";
-            $.getJSON('/ircgptbot/api/bot/' + getParameterByName('id') + '/models/?apiPassword=' + encodeURIComponent(getParameterByName('apiPassword')) + '&id=' + encodeURIComponent(getParameterByName('id')), function(json) {
-                document.getElementById('botTitle').innerHTML = json.bot.id + " - Model";
+            $.getJSON('/ircgptbot/api/bot/' + encodeURIComponent(getParameterByName('id')) + '/models/', function(json) {
+                if (json.error || !json.bot)
+                {
+                    document.getElementById('status').textContent = json.error || 'Bot unavailable.';
+                    return;
+                }
+                document.getElementById('botTitle').textContent = json.bot.id + " - Model";
                 var select = document.getElementById('model');
                 select.innerHTML = '';
                 var models = json.models || [];

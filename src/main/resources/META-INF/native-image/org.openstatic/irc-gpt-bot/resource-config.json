@@ -1,7 +1,8 @@
 {
     "resources": {
         "includes": [
-            {"pattern": "\\Qirc-gpt-bot/default-pricing.json\\E"}
+            {"pattern": "\\Qirc-gpt-bot/default-pricing.json\\E"},
+            {"pattern": "\\Qirc-gpt-bot/editor.js\\E"}
         ]
     }
 }

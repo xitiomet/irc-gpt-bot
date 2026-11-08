@@ -3,6 +3,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Tools</title>
     <script src="jquery.min.js"></script>
+    <script src="editor.js"></script>
     <script type="text/javascript">
         var parameters = new URLSearchParams(window.location.search);
         var botUrl = '/ircgptbot/api/bot/' + encodeURIComponent(parameters.get('id')) + '/';
@@ -171,7 +172,6 @@
             setStatus('Loading tools...');
             $.ajax({
                 url: botUrl + 'tools/',
-                data: { apiPassword: parameters.get('apiPassword') },
                 dataType: 'json',
                 cache: false,
                 timeout: 10000
@@ -207,7 +207,6 @@
                 url: botUrl + 'tools/',
                 type: 'POST',
                 data: JSON.stringify({
-                    apiPassword: parameters.get('apiPassword'),
                     toolUrls: collected.tools
                 }),
                 contentType: 'application/json; charset=utf-8',

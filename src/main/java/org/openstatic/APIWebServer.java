@@ -331,6 +331,14 @@ public class APIWebServer implements IRCGPTBotListener
     }
 
     public static class ApiServlet extends HttpServlet {
+        boolean isAuthenticated(HttpServletRequest request, JSONObject body)
+        {
+            String password = request.getHeader("X-API-Password");
+            if (password == null)
+                password = body == null ? request.getParameter("apiPassword") : body.optString("apiPassword", null);
+            return IRCGPTBotMain.settings.optString("apiPassword", "").equals(password);
+        }
+
         public JSONObject readJSONObjectPOST(HttpServletRequest request) {
             StringBuffer jb = new StringBuffer();
             String line = null;
@@ -371,19 +379,14 @@ public class APIWebServer implements IRCGPTBotListener
                     //System.err.println("Path: " + target);
                     JSONObject response = new JSONObject();
                     JSONObject requestPost = readJSONObjectPOST(request);
-                    if (IRCGPTBotMain.settings.optString("apiPassword","").equals(requestPost.optString("apiPassword")))
+                    if (isAuthenticated(request, requestPost))
                     {       
                         try {
                             if ("/bots/add/".equals(target)) {
-                                if (requestPost.has("id") && requestPost.has("botOptions") && requestPost.has("apiPassword"))
+                                if (requestPost.has("id") && requestPost.has("botOptions"))
                                 {
-                                    if (requestPost.optString("apiPassword", "").equals(IRCGPTBotMain.settings.optString("apiPassword")))
-                                    {
-                                        IRCGPTBot bot = IRCGPTBotMain.instance.launchBot(requestPost.optString("id"), requestPost.optJSONObject("botOptions"));
-                                        response.put("bot", bot.toJSONObject());
-                                    } else {
-                                        response.put("error","Invalid apiPassword");
-                                    }
+                                    IRCGPTBot bot = IRCGPTBotMain.instance.launchBot(requestPost.optString("id"), requestPost.optJSONObject("botOptions"));
+                                    response.put("bot", bot.toJSONObject());
                                 }
                             } else if (target.startsWith("/bot/")) {
                                 target = target.substring(5);
@@ -510,7 +513,7 @@ public class APIWebServer implements IRCGPTBotListener
             //System.err.println("Path: " + target);
             Set<String> parameterNames = request.getParameterMap().keySet();
             JSONObject response = new JSONObject();
-            if (IRCGPTBotMain.settings.optString("apiPassword","").equals(request.getParameter("apiPassword")))
+            if (isAuthenticated(request, null))
             {
                 try {
                     if ("/bots/".equals(target)) {

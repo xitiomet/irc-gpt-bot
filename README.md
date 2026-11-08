@@ -206,6 +206,7 @@ To run the migration, pricing, and request-integration tests:
 
 ```bash
 mvn -DskipNative=true test
+node --test src/test/js/editor.test.js
 ```
 
 When directly messaging this bot it will respond to all messages. In a channel it responds when any of these apply (the flag is shown in the channel log):
@@ -280,6 +281,18 @@ and body descriptions:
 
 irc-gpt-bot also provides a web interface and api server for ease of use. By default this is configured for port 6553 with password "changeme"
 Each bot's **Disable** / **Enable** button disconnects it from IRC or reconnects it. The choice is saved as `"enabled"` in the bot's settings, so a disabled bot stays offline after a restart.
+Dashboard editors open in in-page modals instead of popup windows. Their URLs
+contain only the bot ID, never the API password. Editors obtain the credential
+from the authenticated dashboard in memory and send it in the `X-API-Password`
+request header, including for reads; no password is saved in browser storage.
+Close an editor with **Close** or **Escape**. Notes retain their unsaved-change
+confirmation. Editor pages opened directly ask you to use the dashboard instead.
+
+API clients may also use `X-API-Password` for GET and POST requests. Existing
+`apiPassword` query parameters and JSON body fields remain accepted for backwards
+compatibility, but the dashboard no longer uses them. When a header is supplied
+it takes precedence over those legacy values. Use HTTPS: a header keeps a
+password out of URLs/history but does not encrypt an HTTP connection.
 If you plan on exposing this interface to the internet, i highly encourage wrapping it with SSL on nginx.
 
 first you should create an upstream for ircgptbot

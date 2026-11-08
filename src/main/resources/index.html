@@ -174,9 +174,39 @@
                 -ms-user-select: none;
                 user-select: none;
             }
+            #editorDialog {
+                width: min(900px, calc(100vw - 32px));
+                height: min(820px, calc(100dvh - 32px));
+                max-width: none;
+                max-height: none;
+                padding: 0;
+                border: 1px solid #555;
+                border-radius: 8px;
+                background: white;
+                color: black;
+            }
+            #editorDialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+            .editorHeader {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                padding: 10px 14px;
+                border-bottom: 1px solid #ccc;
+                font-family: sans-serif;
+            }
+            #editorTitle { margin: 0; font-size: 18px; }
+            #editorFrame { display: block; border: 0; width: 100%; height: calc(100% - 52px); }
           </style>
     </head>
     <body>
+        <dialog id="editorDialog" aria-labelledby="editorTitle">
+            <div class="editorHeader">
+                <h2 id="editorTitle">Editor</h2>
+                <button type="button" id="closeEditorButton" aria-label="Close editor">Close</button>
+            </div>
+            <iframe id="editorFrame" title="Editor" src="about:blank" referrerpolicy="no-referrer"></iframe>
+        </dialog>
         <div style="padding: 2px 2px 2px 2px; margin: 0px 0px 0px 0px; background: black; border: solid 1px black; color: white; position: fixed; top: 0; width: 100%; height: 42px;">
             <table width="100%"><tbody>
                 <tr><td width="32px"><img src="icon-32.png"></td>

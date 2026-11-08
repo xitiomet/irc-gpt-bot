@@ -3,6 +3,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Channels</title>
     <script src="jquery.min.js"></script>
+    <script src="editor.js"></script>
     <script type="text/javascript">
         var parameters = new URLSearchParams(window.location.search);
         var botUrl = '/ircgptbot/api/bot/' + encodeURIComponent(parameters.get('id')) + '/';
@@ -51,7 +52,6 @@
             clearTimeout(refreshTimer);
             $.ajax({
                 url: botUrl,
-                data: { apiPassword: parameters.get('apiPassword') },
                 dataType: 'json',
                 cache: false,
                 timeout: 10000
@@ -102,7 +102,6 @@
                 url: botUrl + 'channels/',
                 type: 'POST',
                 data: JSON.stringify({
-                    apiPassword: parameters.get('apiPassword'),
                     action: action,
                     channel: channel
                 }),
