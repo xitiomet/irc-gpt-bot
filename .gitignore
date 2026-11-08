@@ -4,6 +4,9 @@ target/
 dependency-reduced-pom.xml
 config.json
 irc-gpt-bot.json
+.irc-gpt-bot/
+irc-gpt-bot.d/
+config.d/
 jre/
 .vscode/
 upload.sh

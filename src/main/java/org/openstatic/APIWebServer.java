@@ -204,6 +204,7 @@ public class APIWebServer implements IRCGPTBotListener
                         IRCGPTBotMain.instance.launchBot(botId, botOptions);
                     } catch (Exception e) {
                         IRCGPTBotMain.log(e);
+                        session.sendText(new JSONObject().put("action", "launch").put("error", e.getMessage()).toString(), Callback.NOOP);
                     }
                 }
             } else {

@@ -5,9 +5,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -58,6 +61,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
     public static ChatGPT chatGPT;
     public static JSONObject settings;
     public static File settingsFile;
+    static ConfigDirectory configDirectory;
+    static UsageTracker usageTracker;
     public static IRCGPTBotMain instance;
     private static boolean noConsoleGui = false;
     public static File logsFolder;
@@ -75,7 +80,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
     private Label topLabel;
     private Label bottomLabel;
 
-    public IRCGPTBotMain()
+    public IRCGPTBotMain() throws IOException
     {
         super();
         this.setHints(Arrays.asList(Window.Hint.CENTERED));
@@ -87,10 +92,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         IRCGPTBotMain.instance = this;
         String defaultLogPath = new File(settingsFile.getParentFile(), "irc-gpt-bot-logs").toString();
         IRCGPTBotMain.logsFolder = new File(IRCGPTBotMain.settings.optString("logPath", defaultLogPath));
-        if (!IRCGPTBotMain.logsFolder.exists())
-        {
-            IRCGPTBotMain.logsFolder.mkdirs();
-        }
+        Files.createDirectories(IRCGPTBotMain.logsFolder.toPath());
+        IRCGPTBotMain.usageTracker = new UsageTracker(configDirectory.directory, IRCGPTBotMain.logsFolder.toPath());
         try
         {
             if (!settings.optBoolean("headless", false))
@@ -151,13 +154,23 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
 
     public synchronized IRCGPTBot launchBot(String botId, JSONObject botOptions)
     {
-        if (this.settings.has("responsesApiUrl") && ! botOptions.has("responsesApiUrl"))
+        ConfigDirectory.validateBotId(botId);
+        if (this.bots.containsKey(botId))
+            throw new IllegalArgumentException("Bot already exists: " + botId);
+        JSONObject configuredBots = settings.getJSONObject("bots");
+        for (String existingId : configuredBots.keySet())
+            if (!existingId.equals(botId) && existingId.equalsIgnoreCase(botId))
+                throw new IllegalArgumentException("Bot identifier collides with " + existingId);
+        if (!configuredBots.has(botId))
         {
-            botOptions.put("responsesApiUrl", settings.optString("responsesApiUrl", "https://api.openai.com/v1/responses"));
-        }
-        if (this.settings.has("completionsApiUrl") && ! botOptions.has("completionsApiUrl") && ! botOptions.has("responsesApiUrl"))
-        {
-            botOptions.put("completionsApiUrl", settings.optString("completionsApiUrl", "https://api.openai.com/v1/chat/completions"));
+            configuredBots.put(botId, botOptions);
+            try
+            {
+                persistSettings();
+            } catch (UncheckedIOException e) {
+                configuredBots.remove(botId);
+                throw e;
+            }
         }
         final IRCGPTBot bot = new IRCGPTBot(botId, botOptions);
         bot.start();
@@ -257,6 +270,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         if (this.bots.containsKey(bot.getBotId()))
         {
             this.bots.remove(bot.getBotId());
+            settings.getJSONObject("bots").remove(bot.getBotId());
+            persistSettings();
             try
             {
                 int idx = getMainListIndex(bot);
@@ -289,7 +304,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
                     {
                         this.launchBot(botId, botSettings);
                     } catch (Exception ex) {
-                        
+                        log(ex);
+                        ex.printStackTrace(System.err);
                     }
                 }
             }
@@ -334,17 +350,26 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         }
     }
 
-    public void saveSettings()
+    public synchronized void saveSettings()
     {
-        JSONObject botsJSON = new JSONObject();
+        JSONObject botsJSON = IRCGPTBotMain.settings.getJSONObject("bots");
         for(IRCGPTBot bot : this.bots.values())
         {
             botsJSON.put(bot.getBotId(), bot.getBotOptions());
         }
         IRCGPTBotMain.settings.put("bots", botsJSON);
-        if (IRCGPTBotMain.settings.has("headless"))
-            IRCGPTBotMain.settings.remove("headless");
-        saveJSONObject(IRCGPTBotMain.settingsFile, IRCGPTBotMain.settings);
+        persistSettings();
+    }
+
+    private void persistSettings()
+    {
+        try
+        {
+            configDirectory.save(settings);
+        } catch (IOException e) {
+            log(e);
+            throw new UncheckedIOException("Unable to save bot configuration", e);
+        }
     }
 
     @Override
@@ -478,12 +503,11 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         System.setProperty("org.eclipse.jetty.util.log.class", "org.eclipse.jetty.util.log.StdErrLog");
         System.setProperty("org.eclipse.jetty.LEVEL", "OFF");
         CommandLine cmd = null;
-        IRCGPTBotMain.settingsFile = new File(System.getProperty("user.home"),".irc-gpt-bot.json");
-        IRCGPTBotMain.settings = migrateConfigIfNeeded(loadJSONObject(settingsFile));
+        IRCGPTBotMain.settings = new JSONObject();
         Options options = new Options();
         CommandLineParser parser = new DefaultParser();
         options.addOption(new Option("?", "help", false, "Shows help"));
-        options.addOption(new Option("f", "config", true, "Specify a config file (.json) to use"));
+        options.addOption(new Option("f", "config", true, "Specify a config directory (or legacy .json file)"));
         options.addOption(new Option("g", "gui", false, "Turn on GUI mode"));
         options.addOption(new Option("h", "headless", false, "Turn on Headless mode"));
         options.addOption(new Option("l", "log-output", true, "Specify log output path"));
@@ -495,11 +519,13 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
             {
                 showHelp(options);
             }
-            if (cmd.hasOption("f"))
-            {
-                IRCGPTBotMain.settingsFile = new File(cmd.getOptionValue("f"));
-                IRCGPTBotMain.settings = migrateConfigIfNeeded(loadJSONObject(settingsFile));
-            }
+            Path legacy = Path.of(System.getProperty("user.home"), ".irc-gpt-bot.json");
+            Path location = cmd.hasOption("f") ? Path.of(cmd.getOptionValue("f"))
+                : Path.of(System.getProperty("user.home"), ".irc-gpt-bot");
+            configDirectory = ConfigDirectory.open(location);
+            settings = configDirectory.load(cmd.hasOption("f") && location.toString().endsWith(".json") ? location
+                : cmd.hasOption("f") ? null : legacy);
+            settingsFile = configDirectory.directory.resolve("irc-gpt-bot.json").toFile();
             if (cmd.hasOption("l"))
             {
                 IRCGPTBotMain.settings.put("logPath", cmd.getOptionValue("l"));
@@ -521,8 +547,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
             IRCGPTBotMain botMain = new IRCGPTBotMain();
             botMain.start();
         } catch (Throwable e) {
-            if (settings.optBoolean("debug", false))
-                e.printStackTrace(System.err);
+            e.printStackTrace(System.err);
+            System.exit(1);
         }
     }
     public static void showHelp(Options options)
@@ -541,13 +567,13 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
     {
         if (!config.has("bots") && config.has("nickname"))
         {
+            Set<String> rootKeys = Set.of("openAiKey", "logPath", "apiServer", "apiPort", "apiPassword",
+                "responsesApiUrl", "completionsApiUrl", "modelsApiUrl", "headless", "guiMode", "debug");
             JSONObject bots = new JSONObject();
             JSONObject bot = new JSONObject(config.toString());
-            if (bot.has("openAiKey"))
-                bot.remove("openAiKey");
-            if (bot.has("logPath"))
-                bot.remove("logPath");
-            if (bot.has("channels"))
+            for (String key : rootKeys)
+                bot.remove(key);
+            if (bot.optJSONArray("channels") != null)
             {
                 JSONObject chanKeys = new JSONObject();
                 if (bot.has("channelKeys"))
@@ -574,7 +600,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
             Set<String> configKeys = new HashSet<>(config.keySet());
             for (String key : configKeys)
             {
-                if (!key.equals("openAiKey") && !key.equals("logPath"))
+                if (!rootKeys.contains(key))
                 {
                     config.remove(key);
                 }

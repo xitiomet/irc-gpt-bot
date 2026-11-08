@@ -103,6 +103,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     private Label joinedChannelsLabel;
     private Label messagesHandledLabel;
     private Label errorCountLabel;
+    private Label usageLabel;
     private Label timeLabel;
     private Label connectionLabel;
     private Button serverButton;
@@ -143,6 +144,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
             this.joinedChannelsLabel = new Label("");
             this.messagesHandledLabel = new Label("");
             this.errorCountLabel = new Label("");
+            this.usageLabel = new Label("");
             this.connectionLabel = new Label(" LAUNCHING ");
             this.connectionLabel.setBackgroundColor(ANSI.BLACK);
             this.connectionLabel.setForegroundColor(ANSI.RED_BRIGHT);
@@ -151,6 +153,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
             this.mainPanel.addComponent(this.joinedChannelsLabel);
             this.mainPanel.addComponent(this.messagesHandledLabel);
             this.mainPanel.addComponent(this.errorCountLabel);
+            this.mainPanel.addComponent(this.usageLabel);
             this.serverButton = new Button("Server", new Runnable() {
                 @Override
                 public void run() {
@@ -731,6 +734,8 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         ro.put("messagesHandled", this.messagesHandled);
         ro.put("messagesSeen", this.messagesSeen);
         ro.put("errorCount", this.errorCount);
+        if (IRCGPTBotMain.usageTracker != null)
+            ro.put("usage", IRCGPTBotMain.usageTracker.forBot(this.botId));
         JSONArray channels = new JSONArray();
         if (this.client != null)
             this.client.getChannels().forEach((channel) -> channels.put(channel.getName()));
@@ -1247,7 +1252,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                     this.replyExecutor.submit(() -> {
                         try
                         {
-                            ChatMessage outMsg = IRCGPTBotMain.chatGPT.callChatGPT(this.botOptions, messages).get();
+                            ChatMessage outMsg = IRCGPTBotMain.chatGPT.callChatGPT(this.botId, this.botOptions, messages).get();
                             String outText = outMsg.getBody();
                             if (outText.trim().isEmpty())
                                 return;
@@ -1379,7 +1384,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         this.replyExecutor.submit(() -> {
             try
             {
-                ChatMessage outMsg = IRCGPTBotMain.chatGPT.callChatGPT(this.botOptions, cl, new GPTTools(this, target)).get();
+                ChatMessage outMsg = IRCGPTBotMain.chatGPT.callChatGPT(this.botId, this.botOptions, cl, new GPTTools(this, target)).get();
                 outMsg.setRecipient(target);
                 String outText = outMsg.getBody().replace("\n", " ").replace("\r", "");
                 if (!outText.trim().isEmpty())
@@ -1478,7 +1483,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                         this.replyExecutor.submit(() -> {
                             try
                             {
-                                ChatMessage outMsg = IRCGPTBotMain.chatGPT.callChatGPT(this.botOptions, cl, new GPTTools(this, target)).get();
+                                ChatMessage outMsg = IRCGPTBotMain.chatGPT.callChatGPT(this.botId, this.botOptions, cl, new GPTTools(this, target)).get();
                                 String outText = outMsg.getBody();
                                 outMsg.setRecipient(target);
                                 if (!outText.trim().isEmpty())
@@ -1532,6 +1537,15 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                 IRCGPTBot.this.joinedChannelsLabel.setText("Joined Channels: " + String.valueOf(joinedChannels));
                 IRCGPTBot.this.messagesHandledLabel.setText("Messages Handled: " + String.valueOf(IRCGPTBot.this.messagesHandled) + " / " + String.valueOf(IRCGPTBot.this.messagesSeen));
                 IRCGPTBot.this.errorCountLabel.setText("Errors: " + String.valueOf(IRCGPTBot.this.errorCount));
+                if (IRCGPTBotMain.usageTracker != null)
+                {
+                    JSONObject usage = IRCGPTBotMain.usageTracker.forBot(this.botId);
+                    this.usageLabel.setText("AI Tokens: " + usage.getLong("tokensSpent") + " | Est. USD: $"
+                        + usage.getBigDecimal("costEstimate").toPlainString()
+                        + " | Unpriced: " + usage.getLong("unpricedTokensSpent")
+                        + " | Untracked: " + usage.getLong("untrackedRequests")
+                        + (usage.has("trackingError") ? " | USAGE SAVE ERROR" : ""));
+                }
                 if (IRCGPTBotMain.instance.gui != null)
                 {
                     IRCGPTBotMain.instance.gui.updateScreen();

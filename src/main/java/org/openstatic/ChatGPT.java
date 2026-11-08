@@ -43,13 +43,18 @@ public class ChatGPT
 
     public Future<ChatMessage> callChatGPT(JSONObject botOptions, final ChatLog messages, GPTTools tools)
     {
+        return callChatGPT(botIdentifier(botOptions), botOptions, messages, tools);
+    }
+
+    public Future<ChatMessage> callChatGPT(String botId, JSONObject botOptions, final ChatLog messages, GPTTools tools)
+    {
         String user = null;
         ChatMessage lastMessage = messages.getLastMessage();
         if (lastMessage != null)
         {
             user = lastMessage.getSender();
         }
-        return callChatGPT(botOptions, messages.getGPTMessages(), user, tools);
+        return callChatGPT(botId, botOptions, messages.getGPTMessages(), user, tools);
     }
 
     private void log(String text)
@@ -83,6 +88,26 @@ public class ChatGPT
     {
         return callChatGPT(botOptions, messages, null, null);
     } 
+
+    public Future<ChatMessage> callChatGPT(String botId, JSONObject botOptions, JSONArray messages)
+    {
+        return callChatGPT(botId, botOptions, messages, null, null);
+    }
+
+    public void shutdown()
+    {
+        this.executorService.shutdown();
+    }
+
+    private static String botIdentifier(JSONObject botOptions)
+    {
+        JSONObject bots = IRCGPTBotMain.settings == null ? null : IRCGPTBotMain.settings.optJSONObject("bots");
+        if (bots != null)
+            for (String id : bots.keySet())
+                if (bots.optJSONObject(id) == botOptions)
+                    return id;
+        return null;
+    }
 
     public JSONArray listModels(JSONObject botOptions)
     {
@@ -200,12 +225,19 @@ public class ChatGPT
 
     public Future<ChatMessage> callChatGPT(JSONObject botOptions, JSONArray messages, String user, GPTTools tools)
     {
+        return callChatGPT(botIdentifier(botOptions), botOptions, messages, user, tools);
+    }
+
+    public Future<ChatMessage> callChatGPT(String botId, JSONObject botOptions, JSONArray messages, String user, GPTTools tools)
+    {
         Callable<ChatMessage> callable = new Callable<ChatMessage>() 
         {
             public ChatMessage call()
             {
                 try
                 {
+                    if (IRCGPTBotMain.usageTracker != null && botId == null)
+                        throw new IllegalArgumentException("A bot identifier is required for usage tracking");
                     String url = resolveResponsesApiUrl(botOptions);
                     JSONArray input = new JSONArray();
                     for (int i = 0; i < messages.length(); i++)
@@ -228,6 +260,16 @@ public class ChatGPT
                             data.put("tool_choice", (round == maxRounds - 1) ? "none" : "auto");
                         }
                         JSONObject response = postResponse(url, data);
+                        if (IRCGPTBotMain.usageTracker != null)
+                        {
+                            IRCGPTBotMain.usageTracker.record(botId, url, response);
+                            if (IRCGPTBotMain.instance != null)
+                            {
+                                IRCGPTBot bot = IRCGPTBotMain.instance.getBotbyIdentifier(botId);
+                                if (bot != null)
+                                    bot.fireStats();
+                            }
+                        }
                         JSONArray output = response.optJSONArray("output");
                         if (output == null)
                             output = new JSONArray();

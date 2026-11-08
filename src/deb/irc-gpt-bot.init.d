@@ -17,7 +17,7 @@ CWD=/var/log/irc-gpt-bot
 JVM_ARGS=
 JAR_PATH=/usr/share/java/irc-gpt-bot.jar
 PROGRAM=/usr/bin/java
-PROGRAM_ARGS="$JVM_ARGS -jar $JAR_PATH -h -l /var/log/irc-gpt-bot -f /etc/irc-gpt-bot/irc-gpt-bot.json"
+PROGRAM_ARGS="$JVM_ARGS -jar $JAR_PATH -h -l /var/log/irc-gpt-bot -f /etc/irc-gpt-bot"
 
 start() {
     echo -n "Starting irc-gpt-bot Server...."

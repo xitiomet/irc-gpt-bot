@@ -29,4 +29,4 @@ The build does the following:
 | `-Dwindows.vcRuntimeDir=<dir>` | `auto` | x64 Visual C++ CRT folder (containing `vcruntime140.dll`). `auto` detects it from `VCToolsRedistDir`. |
 | `-DskipNative=true` | `false` | Build only the jar. This skips the native executable and the installer. |
 
-The installer puts the program under `Program Files\IRCGPTBot`, adds a Start Menu shortcut (and optionally a desktop shortcut), and registers an uninstaller. Configuration is still read from `%USERPROFILE%\.irc-gpt-bot.json`.
+The installer puts the program under `Program Files\IRCGPTBot`, adds a Start Menu shortcut (and optionally a desktop shortcut), and registers an uninstaller. Configuration is read from `%USERPROFILE%\.irc-gpt-bot\`, with `irc-gpt-bot.json` for root settings, a JSON file per bot, and `pricing.json` for token prices. The legacy `%USERPROFILE%\.irc-gpt-bot.json` is automatically imported if the new master is absent; the original is retained.

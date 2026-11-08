@@ -19,6 +19,12 @@
     </properties>
     <dependencies>
         <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.11.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
             <version>20260814</version>
@@ -91,6 +97,7 @@
                     <include>*.html</include>
                     <include>*.js</include>
                     <include>*.svg</include>
+                    <include>*.json</include>
                 </includes>
                 <targetPath>irc-gpt-bot</targetPath>
             </resource>
@@ -103,6 +110,11 @@
             </resource>
         </resources>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.2</version>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>

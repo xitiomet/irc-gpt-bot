@@ -1,0 +1,13 @@
+{
+    "currency": "USD",
+    "source": "https://developers.openai.com/api/docs/pricing",
+    "verifiedAt": "2026-11-08",
+    "models": {
+        "gpt-5-mini": {"inputPerMillion": 0.25, "cachedInputPerMillion": 0.025, "outputPerMillion": 2.00},
+        "gpt-4.1": {"inputPerMillion": 2.00, "cachedInputPerMillion": 0.50, "outputPerMillion": 8.00},
+        "gpt-4.1-mini": {"inputPerMillion": 0.40, "cachedInputPerMillion": 0.10, "outputPerMillion": 1.60},
+        "gpt-4o": {"inputPerMillion": 2.50, "cachedInputPerMillion": 1.25, "outputPerMillion": 10.00},
+        "gpt-4o-mini": {"inputPerMillion": 0.15, "cachedInputPerMillion": 0.075, "outputPerMillion": 0.60}
+    },
+    "endpoints": {}
+}

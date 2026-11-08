@@ -1,0 +1,7 @@
+{
+    "resources": {
+        "includes": [
+            {"pattern": "\\Qirc-gpt-bot/default-pricing.json\\E"}
+        ]
+    }
+}

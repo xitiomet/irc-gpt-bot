@@ -38,7 +38,12 @@
                 "botOptions": botOptions,
                 "apiPassword": getParameterByName('apiPassword')
             };
-            postJSON("ircgptbot/api/bots/add/", launchCode, () => { window.close() }, () => { window.close() });
+            postJSON("ircgptbot/api/bots/add/", launchCode, response => {
+                if (response.error)
+                    alert("Unable to launch bot: " + response.error);
+                else
+                    window.close();
+            }, () => { alert("Unable to launch bot. Check the connection and try again."); });
         }
 
         function postJSON(url, data, onSuccess, onError) {

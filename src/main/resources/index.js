@@ -99,6 +99,28 @@ function removeBot(botId)
     {
         document.getElementById("botTable").removeChild(botTag);
     }
+
+}
+
+function renderBotStats(stats)
+{
+    var text = "<b>Messages Handled</b> " + stats.messagesHandled + "<br /><b>Messages Seen</b> " + stats.messagesSeen + "<br /><b>Errors</b> " + stats.errorCount;
+    if (stats.usage)
+    {
+        var usage = stats.usage;
+        text += "<br /><b>AI Tokens</b> " + usage.tokensSpent.toLocaleString()
+            + "<br /><b>Input / Output</b> " + usage.inputTokensSpent.toLocaleString() + " / " + usage.outputTokensSpent.toLocaleString()
+            + "<br /><b>Cached Input</b> " + usage.cachedTokensSpent.toLocaleString()
+            + "<br /><b>Est. Cost (USD)</b> $" + Number(usage.costEstimate).toFixed(6)
+            + "<br /><b>AI Requests</b> " + usage.requests.toLocaleString();
+        if (usage.unpricedTokensSpent > 0)
+            text += "<br /><b>Unpriced Tokens</b> " + usage.unpricedTokensSpent.toLocaleString();
+        if (usage.untrackedRequests > 0)
+            text += "<br /><b>Missing Usage</b> " + usage.untrackedRequests.toLocaleString() + " request(s)";
+        if (usage.trackingError)
+            text += "<br /><b>Usage save failed; check server logs</b>";
+    }
+    return text;
 }
 
 function addBot(json)
@@ -147,7 +169,7 @@ function addBot(json)
         statsTag = document.getElementById(statsTagId);
         actionsTag = document.getElementById(actionsTagId);
     }
-    statsTag.innerHTML = "<b>Messages Handled</b> " + json.stats.messagesHandled + "<br /><b>Messages Seen</b> " + json.stats.messagesSeen + "<br /><b>Errors</b> " + json.stats.errorCount;
+    statsTag.innerHTML = renderBotStats(json.stats);
     updateToggleButton(objectId, json.stats.enabled);
     var targetStatusIcon = json.stats.status + ".svg";
     if (avatarImgTag.src != targetStatusIcon)
@@ -179,7 +201,7 @@ function updateBot(json)
     }
     if (nicknameTag != null)
         nicknameTag.innerHTML = "<b style=\"font-size: 18px;\">" + json.stats.nickname + "</b><br />" + json.stats.model;
-    statsTag.innerHTML = "<b>Messages Handled</b> " + json.stats.messagesHandled + "<br /><b>Messages Seen</b> " + json.stats.messagesSeen + "<br /><b>Errors</b> " + json.stats.errorCount;
+    statsTag.innerHTML = renderBotStats(json.stats);
     updateToggleButton(objectId, json.stats.enabled);
     var targetStatusIcon = json.stats.status + ".svg";
     if (avatarImgTag.src != targetStatusIcon)
@@ -239,6 +261,8 @@ function setupWebsocket()
                     document.getElementById('launchBotButton').style.display = 'inline-block';
                 } else if (action == 'authFail') {
                     document.getElementById('errorMsg').innerHTML = jsonObject.error;
+                } else if (action == 'launch' && jsonObject.error) {
+                    alert("Unable to launch bot: " + jsonObject.error);
                 }
             }
         };

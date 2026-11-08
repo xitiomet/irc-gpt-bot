@@ -13,6 +13,7 @@ Features:
  * Can greet users with a brief summary of the conversation before they joined
  * Lanterna Interface - runs well in "screen" environment, no desktop required
  * Launch multiple bots on multiple servers.
+ * Persistent per-bot token usage and estimated USD costs, including cached input and tool-calling rounds.
 
 if you would like to play around with my instance of irc-gpt-bot goto <a href="https://irc.openstatic.org/">irc.openstatic.org</a> and join #lobby. @charlieGPT is running on irc-gpt-bot.
 
@@ -40,7 +41,22 @@ from a terminal. The build uses a GraalVM JDK (25+) and picks an operating syste
 
 Add `-DskipNative=true` to build only the Java jar and skip the native executable and its packages.
 
-copy "default-config.json" to "~/.irc-gpt-bot.json" and fill in the blanks with your information. You can also create a config file anywhere and use the -f option.
+Configuration now lives in `~/.irc-gpt-bot/` (on Windows, `%USERPROFILE%\.irc-gpt-bot\`).
+Use `-f /path/to/config-directory` to select another directory. Each bot has its own
+`<bot-id>.json` file, and `irc-gpt-bot.json` contains only root settings such as API keys,
+web server settings, endpoint defaults, and `logPath`. The bot identifier comes from
+the filename, not its IRC nickname.
+
+For an initial setup, copy `default-config.json` to
+`~/.irc-gpt-bot/irc-gpt-bot.json`, fill in your settings, and start the program.
+Its inline `bots` object is automatically split into separate files, with the
+original master saved as `irc-gpt-bot.json.bak`. Existing `~/.irc-gpt-bot.json`
+is automatically imported when the new master does not exist; the original is
+left untouched. `-f /path/to/old.json` remains supported and imports into
+`/path/to/old.d/`. Continue using that directory afterwards; the legacy file is
+no longer updated. Existing default log locations are retained on import.
+
+The following legacy-format example is also accepted for migration.
 DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid JSON.
 
 ```json
@@ -101,10 +117,95 @@ You may also start the bot using only command line arguments (for scripting purp
 usage: irc-gpt-bot
 IRC GPT Bot: An IRC Bot for chatGPT
  -?,--help               Shows help
- -f,--config <arg>       Specify a config file (.json) to use
+ -f,--config <arg>       Specify a config directory (or legacy .json file)
  -g,--gui                Turn on GUI mode
  -h,--headless           Turn on Headless mode
  -l,--log-output <arg>   Specify log output path
+```
+
+### Token usage and price estimates
+
+The layout is:
+
+```text
+~/.irc-gpt-bot/
+    irc-gpt-bot.json       Root settings (no inline bots after migration)
+    chatGPT.json           Settings for bot identifier chatGPT
+    anotherBot.json        Settings for another bot
+    pricing.json           Editable model prices in USD per million tokens
+<logPath>/
+    usage.json             Lifetime usage totals for all bots
+    chatGPT/              That bot's logs and notes
+```
+
+Bot IDs must be filename-safe: letters, numbers, `_`, `-`, `.`, and IRC nickname
+characters `[]{}^` plus backtick. Leading/trailing dots, path separators, `|`,
+Windows device names, and `irc-gpt-bot`, `pricing`, and `usage` are reserved.
+IDs must be unique ignoring case. Invalid configurations fail explicitly rather
+than being silently replaced.
+
+Usage is recorded after each successful Responses API response, including
+greetings, private replies, channel replies, and every tool round. It persists
+across restarts, disabling/enabling, model changes, and bot deletion. Reusing a
+bot ID resumes its historical totals. Removing a bot deletes its configuration,
+not its usage, logs, or notes. JSON writes use temporary files and atomic
+replacement where supported. Run only one process against a given config/log
+directory; these files are not a shared multi-process database.
+
+The dashboard and terminal show tokens and estimated costs. The authenticated
+bot API and WebSocket statistics include a `usage` object containing `requests`,
+`tokensSpent`, `inputTokensSpent`, `outputTokensSpent`, `cachedTokensSpent`,
+`costEstimate`, `currency`, `unpricedTokensSpent`, `untrackedRequests`, and a
+`models` breakdown. Cached tokens are a subset of input, not extra tokens;
+reasoning tokens are already included in output. Missing or invalid provider
+usage is logged and counted as an untracked request without inventing counts.
+Write failures are logged and shown in statistics; pending totals are retained
+in memory for retry on the next response.
+
+`pricing.json` is created with a small set of verified standard OpenAI prices
+and is reloaded on every response, so edits do not require a restart:
+
+```json
+{
+    "currency": "USD",
+    "models": {
+        "gpt-4o-mini": {
+            "inputPerMillion": 0.15,
+            "cachedInputPerMillion": 0.075,
+            "outputPerMillion": 0.60
+        }
+    },
+    "endpoints": {}
+}
+```
+
+The estimate is `(uncached input * input rate + cached input * cached rate +
+output * output rate) / 1,000,000`, summed at the prices in effect for each
+response; editing prices does not recalculate past costs. The response's actual
+model is used, with an exact match preferred over a dated model's base name.
+Unknown models (including legacy models absent from the bundled price list),
+invalid prices, and non-default service tiers remain explicitly unpriced.
+An estimate with unpriced tokens or untracked requests is incomplete, **not
+an assertion that those requests were free**.
+
+The `models` prices apply only to `https://api.openai.com/v1/responses`. For
+local or alternative providers, explicitly configure prices under
+`"endpoints": {"https://your-provider/v1/responses": {"model-name": {...rates...}}}`.
+Zero rates may be used for a genuinely free local model. Cached rates may be
+omitted only when no cached tokens are reported. Rows may also include a positive
+integer `longContextThreshold`, `longContextInputMultiplier`, and
+`longContextOutputMultiplier`; multipliers apply only when input exceeds the
+threshold. Prices must be nonnegative JSON numbers, not strings.
+
+These are token-cost estimates, not billing totals: taxes, discounts, provider
+tool charges, and other non-token fees are excluded. Check and update prices
+against [OpenAI's pricing documentation](https://developers.openai.com/api/docs/pricing).
+No automatic price scraping or network refresh is performed.
+
+To run the migration, pricing, and request-integration tests:
+
+```bash
+mvn -DskipNative=true test
 ```
 
 When directly messaging this bot it will respond to all messages. In a channel it responds when any of these apply (the flag is shown in the channel log):

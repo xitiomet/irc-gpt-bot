@@ -15,7 +15,7 @@ USER=ircgptbot
 GROUP=ircgptbot
 CWD=/var/log/irc-gpt-bot
 PROGRAM=/usr/bin/irc-gpt-bot
-PROGRAM_ARGS="-h -l /var/log/irc-gpt-bot -f /etc/irc-gpt-bot/irc-gpt-bot.json"
+PROGRAM_ARGS="-h -l /var/log/irc-gpt-bot -f /etc/irc-gpt-bot"
 
 start() {
     echo -n "Starting irc-gpt-bot Server...."
