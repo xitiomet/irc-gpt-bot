@@ -4616,6 +4616,15 @@
       "type": "sun.misc.VM"
     },
     {
+      "type": "sun.net.www.protocol.http.ntlm.NTLMAuthentication",
+      "methods": [
+        {
+          "name": "supportsTransparentAuth",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
       "type": "sun.nio.ch.SelectorImpl",
       "fields": [
         {
