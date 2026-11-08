@@ -162,6 +162,10 @@
                     <name>linux</name>
                 </os>
             </activation>
+            <properties>
+                <!-- Debian architecture of the native package (override with -Ddeb.arch=arm64 on ARM) -->
+                <deb.arch>amd64</deb.arch>
+            </properties>
             <build>
                 <plugins>
                     <plugin>

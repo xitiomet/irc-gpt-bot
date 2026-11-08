@@ -1,7 +1,7 @@
 Package: irc-gpt-bot
-Version: 1.5
+Version: [[version]]
 Section: misc
 Priority: low
-Architecture: all
+Architecture: [[deb.arch]]
 Description: An IRC Bot for chatGPT
 Maintainer: openstatic.org <support@openstatic.org>
