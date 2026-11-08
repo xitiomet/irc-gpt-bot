@@ -318,6 +318,9 @@
       "type": "com.googlecode.lanterna.terminal.NativeGNULinuxTerminal"
     },
     {
+      "type": "com.googlecode.lanterna.terminal.WindowsTerminal"
+    },
+    {
       "type": "com.googlecode.lanterna.terminal.swing.SwingTerminal"
     },
     {
@@ -1719,6 +1722,20 @@
         },
         {
           "name": "scancode"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.awt.Component",
+            "int",
+            "long",
+            "int",
+            "int",
+            "char",
+            "int"
+          ]
         }
       ]
     },
