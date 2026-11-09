@@ -146,6 +146,27 @@ class BotTransferApiTest
     }
 
     @Test
+    void importedBotsAreAlwaysDisabledAndDoNotConnectUntilEnabled() throws Exception
+    {
+        for (Object enabled : new Object[] {true, null})
+        {
+            JSONObject source = config();
+            if (enabled == null) source.remove("enabled");
+            else source.put("enabled", enabled);
+            String id = enabled == null ? "missing-enabled" : "enabled-source";
+            JSONObject imported = request("/bots/import/", "test-password",
+                new JSONObject().put("id", id).put("botOptions", source));
+            assertFalse(imported.has("error"), imported.toString());
+            assertFalse(imported.getJSONObject("bot").getBoolean("enabled"));
+            IRCGPTBot bot = main.getBotbyIdentifier(id);
+            assertFalse(bot.isEnabled());
+            assertNull(bot.getClient(), "Imported bots must not start IRC connections");
+            assertFalse(JsonFiles.read(temporary.resolve("config/" + id + ".json")).getBoolean("enabled"));
+            assertFalse(request("/bot/" + id + "/export/", "test-password", null).getBoolean("enabled"));
+        }
+    }
+
+    @Test
     void importsNumericStringsAsNumbersAndRejectsNonNumericStrings() throws Exception
     {
         JSONObject legacy = config().put("port", " 6697 ").put("contextDepth", "10").put("followUpSeconds", "0");

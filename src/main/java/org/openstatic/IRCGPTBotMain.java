@@ -165,7 +165,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
 
     public synchronized IRCGPTBot importBot(String botId, JSONObject config)
     {
-        JSONObject options = BotEditorOptions.importedConfig(config, botId);
+        JSONObject options = BotEditorOptions.importedConfig(config, botId).put("enabled", false);
         for (String existingId : settings.getJSONObject("bots").keySet())
             if (existingId.equalsIgnoreCase(botId))
                 throw new IllegalArgumentException("Bot already exists: " + botId);

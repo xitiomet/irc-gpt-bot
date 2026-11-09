@@ -83,7 +83,7 @@ async function importBotFile(file)
         id = id.trim();
         if (!id)
             throw new Error('Enter a bot identifier.');
-        if (!confirm('Import "' + id + '"? Enabled bots connect to IRC immediately. Only import configurations you trust.'))
+        if (!confirm('Import "' + id + '"? It will stay disabled until you enable it. Only import configurations you trust.'))
             return;
         transferStatus('Importing ' + id + '...');
         var json = await botConfigRequest('bots/import/', { id: id, botOptions: config });

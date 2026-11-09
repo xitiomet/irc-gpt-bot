@@ -407,8 +407,8 @@ IRC/operator passwords and channel keys. Keep exported files private; master API
 credentials and inherited master URL defaults are not included. **Import Bot**, next
 to **Launch Bot**, accepts one such JSON file and asks for a bot identifier (defaulting
 to the filename). Existing bots are never overwritten, including case-insensitive
-name collisions. Import preserves the enabled setting: enabled bots connect
-immediately, while disabled bots stay offline. Only import configurations you trust.
+name collisions. Imported bots are always saved disabled, regardless of the
+file's `enabled` setting; use **Enable** to connect them. Only import configurations you trust.
 Dashboard editors open in in-page modals instead of popup windows. Their URLs
 contain only the bot ID, never the API password. Editors obtain the credential
 from the authenticated dashboard in memory and send it in the `X-API-Password`
