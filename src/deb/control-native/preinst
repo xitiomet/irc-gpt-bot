@@ -1,16 +1,49 @@
 #!/bin/bash
 echo irc-gpt-bot Pre-Install Script Running!
+
+json_escape() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    printf '%s' "$s"
+}
+
 echo Creating ircgptbot user
-useradd -s /usr/sbin/nologin -r -M ircgptbot -d /etc/irc-gpt-bot
+id ircgptbot >/dev/null 2>&1 || useradd -s /usr/sbin/nologin -r -M ircgptbot -d /etc/irc-gpt-bot
 if [[ ! -e /etc/irc-gpt-bot ]]; then
     mkdir /etc/irc-gpt-bot
     chown -R ircgptbot:ircgptbot /etc/irc-gpt-bot
     echo Created /etc/irc-gpt-bot/
-    echo "(You can leave this blank if you dont have it)"
-    read -p 'OpenAI API Key: ' apikey
-    echo "{\"apiPassword\":\"changeme\",\"apiServer\": true,\"openAiKey\":\"$apikey\"}" > /etc/irc-gpt-bot/irc-gpt-bot.json
+    apikey=""
+    apipassword=""
+    autostart="yes"
+    if [[ -t 0 ]]; then
+        echo "(You can leave this blank if you dont have it)"
+        read -r -p 'OpenAI API Key: ' apikey
+        while true; do
+            read -r -s -p 'API Password (blank for "changeme"): ' apipassword
+            echo
+            [[ -z "$apipassword" ]] && break
+            read -r -s -p 'Confirm API Password: ' apipassword2
+            echo
+            [[ "$apipassword" == "$apipassword2" ]] && break
+            echo "Passwords do not match, try again."
+        done
+        while true; do
+            read -r -p 'Start the bot now and at boot? [Y/n]: ' answer
+            case "${answer,,}" in
+                ""|y|yes) autostart="yes"; break ;;
+                n|no) autostart="no"; break ;;
+                *) echo "Please answer yes or no." ;;
+            esac
+        done
+    fi
+    [[ -z "$apipassword" ]] && apipassword="changeme"
+    echo "{\"apiPassword\":\"$(json_escape "$apipassword")\",\"apiServer\": true,\"openAiKey\":\"$(json_escape "$apikey")\"}" > /etc/irc-gpt-bot/irc-gpt-bot.json
+    chmod 600 /etc/irc-gpt-bot/irc-gpt-bot.json
     chown ircgptbot:ircgptbot /etc/irc-gpt-bot/irc-gpt-bot.json
     echo Created config /etc/irc-gpt-bot/irc-gpt-bot.json
+    echo "$autostart" > /etc/irc-gpt-bot/autostart
 fi
 if [[ ! -e /var/log/irc-gpt-bot ]]; then
     mkdir /var/log/irc-gpt-bot
