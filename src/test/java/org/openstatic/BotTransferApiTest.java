@@ -146,6 +146,27 @@ class BotTransferApiTest
     }
 
     @Test
+    void importsNumericStringsAsNumbersAndRejectsNonNumericStrings() throws Exception
+    {
+        JSONObject legacy = config().put("port", " 6697 ").put("contextDepth", "10").put("followUpSeconds", "0");
+        JSONObject imported = request("/bots/import/", "test-password",
+            new JSONObject().put("id", "legacy").put("botOptions", legacy));
+        assertFalse(imported.has("error"), imported.toString());
+        JSONObject saved = JsonFiles.read(temporary.resolve("config/legacy.json"));
+        assertEquals(6697, saved.get("port"));
+        assertEquals(10, saved.get("contextDepth"));
+        assertEquals(0, saved.get("followUpSeconds"));
+        assertEquals(6697, request("/bot/legacy/export/", "test-password", null).get("port"));
+        for (String bad : new String[] {"", "abc", "1.5", "-1", "70000", "99999999999"})
+        {
+            JSONObject response = request("/bots/import/", "test-password",
+                new JSONObject().put("id", "bad").put("botOptions", config().put("port", bad)));
+            assertTrue(response.has("error"), bad);
+        }
+        assertFalse(java.nio.file.Files.exists(temporary.resolve("config/bad.json")));
+    }
+
+    @Test
     void rejectsUnauthorizedMalformedDuplicateAndReservedImportsWithoutOverwriting() throws Exception
     {
         JSONObject body = new JSONObject().put("id", "transfer").put("botOptions", config());

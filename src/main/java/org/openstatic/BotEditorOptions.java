@@ -44,6 +44,17 @@ final class BotEditorOptions
         JSONObject input = defaults(id, false).put("model", "gpt-3.5-turbo").put("preamble", "");
         for (String field : config.keySet())
             input.put(field, config.get(field));
+        // Older and hand-edited configs may store numbers as strings; the runtime already accepts them.
+        for (String field : NUMBER_FIELDS)
+        {
+            if (input.get(field) instanceof String)
+            {
+                String text = input.getString(field).trim();
+                if (!text.matches("[0-9]{1,10}"))
+                    throw new IllegalArgumentException(field + " must be a whole number.");
+                input.put(field, Long.parseLong(text));
+            }
+        }
         if (config.has("systemPreamble"))
             input.put("preamble", config.get("systemPreamble"));
         JSONObject validated = IRCGPTBot.validateEditorUpdate(input);
