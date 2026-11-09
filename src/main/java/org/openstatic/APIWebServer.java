@@ -404,6 +404,11 @@ public class APIWebServer implements IRCGPTBotListener
                                         IRCGPTBotMain.instance.updateOpenAiKey(requestPost.getString("openAiKey"));
                                         response.put("hasOpenAiKey", true);
                                     }
+                                    else if ("saveApiUrls".equals(action))
+                                    {
+                                        IRCGPTBotMain.instance.updateApiUrls(requestPost.getJSONObject("apiUrls"));
+                                        response.put("apiUrls", BotEditorOptions.apiUrls(IRCGPTBotMain.settings));
+                                    }
                                     else if ("previewPricing".equals(action))
                                         response.put("preview", IRCGPTBotMain.usageTracker.previewPrices(OpenAIPriceUpdater.fetch()));
                                     else if ("applyPricing".equals(action))
@@ -411,6 +416,19 @@ public class APIWebServer implements IRCGPTBotListener
                                     else
                                         throw new IllegalArgumentException("Invalid master configuration action.");
                                 } catch (IOException | IllegalArgumentException | JSONException e) {
+                                    IRCGPTBotMain.log(e);
+                                    response.put("error", e.getMessage());
+                                }
+                            } else if ("/bots/import/".equals(target)) {
+                                httpServletResponse.setContentType("application/json");
+                                httpServletResponse.setCharacterEncoding("UTF-8");
+                                httpServletResponse.setHeader("Cache-Control", "no-store");
+                                try
+                                {
+                                    String id = requestPost.getString("id");
+                                    IRCGPTBot bot = IRCGPTBotMain.instance.importBot(id, requestPost.getJSONObject("botOptions"));
+                                    response.put("id", id).put("bot", bot.toJSONObject());
+                                } catch (IllegalArgumentException | JSONException | java.io.UncheckedIOException e) {
                                     IRCGPTBotMain.log(e);
                                     response.put("error", e.getMessage());
                                 }
@@ -577,7 +595,20 @@ public class APIWebServer implements IRCGPTBotListener
             if (isAuthenticated(request, null))
             {
                 try {
-                    if ("/models/".equals(target)) {
+                    if (target.startsWith("/bot/") && target.endsWith("/export/")) {
+                        httpServletResponse.setContentType("application/json");
+                        httpServletResponse.setCharacterEncoding("UTF-8");
+                        httpServletResponse.setHeader("Cache-Control", "no-store");
+                        String id = target.substring(5, target.length() - "/export/".length());
+                        IRCGPTBot bot = IRCGPTBotMain.instance.getBotbyIdentifier(id);
+                        if (bot == null)
+                        {
+                            httpServletResponse.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                            response.put("error", "Bot not found: " + id);
+                        } else {
+                            response = new JSONObject(bot.getBotOptions().toString());
+                        }
+                    } else if ("/models/".equals(target)) {
                         response.put("models", IRCGPTBotMain.chatGPT.listModels(new JSONObject()))
                             .put("options", BotEditorOptions.defaults("", true)).put("builtInTools", new JSONArray(GPTTools.ALL_TOOLS));
                     } else if ("/master/".equals(target)) {
@@ -587,6 +618,7 @@ public class APIWebServer implements IRCGPTBotListener
                         try
                         {
                             response.put("hasOpenAiKey", !IRCGPTBotMain.settings.optString("openAiKey", "").isBlank())
+                                .put("apiUrls", BotEditorOptions.apiUrls(IRCGPTBotMain.settings))
                                 .put("pricing", IRCGPTBotMain.usageTracker.pricingStatus());
                         } catch (IOException | IllegalArgumentException | JSONException e) {
                             IRCGPTBotMain.log(e);

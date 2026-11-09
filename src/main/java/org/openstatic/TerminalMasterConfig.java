@@ -28,6 +28,7 @@ final class TerminalMasterConfig
             panel.addComponent(status);
             panel.addComponent(new Button("Replace OpenAI Key", main::editOpenAiKey));
             panel.addComponent(new Button("Web Interface Settings", () -> offInputThread(() -> editApiSettings(main))));
+            panel.addComponent(new Button("API URL Overrides", () -> offInputThread(() -> editApiUrls(main))));
             panel.addComponent(new Button("Pricing Status", () -> offInputThread(() -> {
                 try
                 {
@@ -76,6 +77,40 @@ final class TerminalMasterConfig
             window.setComponent(panel);
             main.gui.addWindowAndWait(window);
         }, "Terminal master configuration").start();
+    }
+
+    static void editApiUrls(IRCGPTBotMain main)
+    {
+        BasicWindow window = new BasicWindow("Shared API URL Overrides");
+        window.setHints(Arrays.asList(Window.Hint.CENTERED));
+        Panel panel = new Panel();
+        panel.addComponent(new Label("Defaults for bots without their own overrides. Blank restores defaults."));
+        panel.addComponent(new Label("Changes also apply to existing bots inheriting these URLs."));
+        panel.addComponent(new Label("Use trusted URLs only: API requests include your OpenAI key."));
+        java.util.Map<String, TextBox> fields = new java.util.LinkedHashMap<>();
+        JSONObject urls = BotEditorOptions.apiUrls(IRCGPTBotMain.settings);
+        for (String field : BotEditorOptions.API_URL_FIELDS)
+        {
+            panel.addComponent(new Label(field + ("completionsApiUrl".equals(field) ? " (legacy fallback)" : "")));
+            TextBox input = new TextBox(new TerminalSize(60, 1), urls.getString(field));
+            fields.put(field, input);
+            panel.addComponent(input);
+        }
+        panel.addComponent(new Button("Save", () -> offInputThread(() -> {
+            try
+            {
+                JSONObject update = new JSONObject();
+                fields.forEach((field, input) -> update.put(field, input.getText()));
+                main.updateApiUrls(update);
+                window.close();
+            } catch (IOException | RuntimeException e) {
+                main.log(e);
+                MessageDialog.showMessageDialog(main.gui, "API URL Overrides", e.getMessage(), MessageDialogButton.OK);
+            }
+        })));
+        panel.addComponent(new Button("Cancel", window::close));
+        window.setComponent(panel);
+        main.gui.addWindowAndWait(window);
     }
 
     private static void editApiSettings(IRCGPTBotMain main)

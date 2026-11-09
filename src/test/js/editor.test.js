@@ -265,6 +265,41 @@ test('master editor keeps replacement keys private and pricing apply gated behin
     assert(elements.status.textContent.includes('Historical cost estimates were preserved'));
 });
 
+test('master URL overrides load, track unsaved edits, save and clear without exposing keys', () => {
+    const elements = {};
+    for (const id of ['modelsApiUrl', 'responsesApiUrl', 'completionsApiUrl', 'openAiKey', 'status'])
+        elements[id] = { value: '' };
+    const context = {
+        window: {}, confirm: () => false,
+        document: { getElementById: id => elements[id] }
+    };
+    vm.createContext(context);
+    vm.runInContext(source('master.html').match(/<script>([\s\S]*?)<\/script>/)[1], context);
+    context.showApiUrls({ modelsApiUrl: 'https://example/models', responsesApiUrl: '', completionsApiUrl: '' });
+    assert.equal(context.editorCanClose(), true);
+    elements.responsesApiUrl.value = 'https://example/responses';
+    assert.equal(context.editorCanClose(), false);
+    let body;
+    context.request = (input, done) => {
+        body = input;
+        done({ apiUrls: input.apiUrls });
+    };
+    context.saveApiUrls();
+    assert.equal(body.action, 'saveApiUrls');
+    assert.equal(body.apiUrls.responsesApiUrl, 'https://example/responses');
+    assert.equal(body.openAiKey, undefined);
+    assert.equal(context.editorCanClose(), true);
+    elements.modelsApiUrl.value = '';
+    context.saveApiUrls();
+    assert.equal(body.apiUrls.modelsApiUrl, '');
+    assert.equal(context.editorCanClose(), true);
+    elements.responsesApiUrl.value = 'https://unsaved/responses';
+    context.request = () => context.setStatus('Invalid URL', true);
+    context.saveApiUrls();
+    assert.equal(context.editorCanClose(), false);
+    assert.equal(elements.status.className, 'error-message');
+});
+
 test('cards retain identity, actions, live statistics, details, and empty state', () => {
     const nodes = {};
     function element(tag)

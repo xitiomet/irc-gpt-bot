@@ -99,7 +99,7 @@ label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; }
 .usage-warning { margin: 8px 0; padding: 9px 12px; border-radius: 8px; background: #fff6df; color: #795100; font-size: 12px; }
 .bot-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: auto; padding-top: 10px; }
 .bot-actions button { font-size: 12px; }
-.bot-lifecycle { display: flex; justify-content: space-between; border-top: 1px solid var(--border); margin-top: 18px; padding-top: 16px; gap: 12px; }
+.bot-lifecycle { display: flex; flex-wrap: wrap; justify-content: space-between; border-top: 1px solid var(--border); margin-top: 18px; padding-top: 16px; gap: 12px; }
 .empty-state { padding: 60px 24px; text-align: center; border: 1px dashed #b8c8d8; border-radius: var(--radius); background: #ffffff70; }
 .login-section { display: grid; place-items: center; padding: 64px 20px; }
 .login-card { width: min(100%, 420px); padding: 32px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: 0 12px 40px #20344b0a; }

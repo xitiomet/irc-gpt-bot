@@ -9,6 +9,93 @@ var port = location.port;
 var wsProtocol = 'ws';
 var httpUrl = '';
 var authenticated = false;
+var importingBot = false;
+
+function transferStatus(message, error)
+{
+    var status = document.getElementById('transferStatus');
+    status.textContent = message;
+    status.className = error ? 'error-message' : 'help';
+}
+
+async function botConfigRequest(path, body)
+{
+    if (!authenticated)
+        throw new Error('Sign in before importing or exporting bots.');
+    var response = await fetch(httpUrl + '/ircgptbot/api/' + path, {
+        method: body == null ? 'GET' : 'POST',
+        headers: { 'X-API-Password': document.getElementById('password').value, 'Content-Type': 'application/json' },
+        body: body == null ? undefined : JSON.stringify(body),
+        cache: 'no-store'
+    });
+    var json = await response.json();
+    if (json.error)
+        throw new Error(json.error);
+    if (!response.ok)
+        throw new Error('Bot configuration request failed (HTTP ' + response.status + ').');
+    return json;
+}
+
+async function exportBot(botId)
+{
+    if (!authenticated || !confirm('Export this bot? The JSON file includes saved IRC passwords and channel keys. Keep it private.'))
+        return;
+    try
+    {
+        var config = await botConfigRequest('bot/' + encodeURIComponent(botId) + '/export/');
+        var url = URL.createObjectURL(new Blob([JSON.stringify(config, null, 2) + '\n'], { type: 'application/json' }));
+        var link = document.createElement('a');
+        link.href = url;
+        link.download = botId + '.json';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+        transferStatus('Exported ' + botId + '.json. Keep this file private.');
+    } catch (error) {
+        transferStatus('Unable to export bot: ' + error.message, true);
+    }
+}
+
+function importBotWindow()
+{
+    if (!authenticated || importingBot)
+        return;
+    var input = document.getElementById('importBotFile');
+    input.value = '';
+    input.click();
+}
+
+async function importBotFile(file)
+{
+    if (!file || !authenticated || importingBot)
+        return;
+    importingBot = true;
+    document.getElementById('importBotButton').disabled = true;
+    try
+    {
+        var config = JSON.parse((await file.text()).replace(/^\uFEFF/, ''));
+        if (config == null || typeof config !== 'object' || Array.isArray(config))
+            throw new Error('Select a JSON object containing one bot configuration.');
+        var id = prompt('Bot identifier for the import (existing bots will not be overwritten):', file.name.replace(/\.json$/i, ''));
+        if (id == null)
+            return;
+        id = id.trim();
+        if (!id)
+            throw new Error('Enter a bot identifier.');
+        if (!confirm('Import "' + id + '"? Enabled bots connect to IRC immediately. Only import configurations you trust.'))
+            return;
+        transferStatus('Importing ' + id + '...');
+        var json = await botConfigRequest('bots/import/', { id: id, botOptions: config });
+        addBot({ id: json.id, stats: json.bot });
+        transferStatus('Imported ' + json.id + '.');
+    } catch (error) {
+        transferStatus('Unable to import bot: ' + error.message, true);
+    } finally {
+        importingBot = false;
+        document.getElementById('importBotButton').disabled = false;
+    }
+}
 
 function openEditor(page, title, botId)
 {
@@ -258,7 +345,7 @@ function addBot(json)
         lifecycle.className = 'bot-lifecycle';
         var toggle = botButton('Disable', toggleBot, objectId);
         toggle.id = 'toggle_' + objectId;
-        lifecycle.append(toggle, botButton('Delete', deleteBot, objectId, 'danger'));
+        lifecycle.append(toggle, botButton('Export Bot', exportBot, objectId), botButton('Delete', deleteBot, objectId, 'danger'));
         botTag.appendChild(lifecycle);
         document.getElementById('botTable').appendChild(botTag);
     }
@@ -317,7 +404,7 @@ function setupWebsocket()
             hostname = '127.0.0.1';
             protocol = 'http';
             port = 6553;
-            httpUrl = "http://127.0.0.1:6553/ircgptbot/";
+            httpUrl = "http://127.0.0.1:6553";
         }
         if (protocol.startsWith('https'))
         {
@@ -378,6 +465,7 @@ function setupWebsocket()
                     document.getElementById('console').style.display = 'block';
                     document.getElementById('launchBotButton').style.display = 'inline-block';
                     document.getElementById('masterConfigButton').style.display = 'inline-block';
+                    document.getElementById('importBotButton').style.display = 'inline-block';
                 } else if (action == 'authFail') {
                     authenticated = false;
                     clearInterval(heartbeatInterval);
@@ -388,6 +476,7 @@ function setupWebsocket()
                     document.getElementById('console').style.display = 'none';
                     document.getElementById('launchBotButton').style.display = 'none';
                     document.getElementById('masterConfigButton').style.display = 'none';
+                    document.getElementById('importBotButton').style.display = 'none';
                     document.getElementById('errorMsg').textContent = jsonObject.error;
                     setConnectionState('Sign in required', 'connected');
                 } else if (action == 'launch' && jsonObject.error) {
@@ -420,5 +509,6 @@ window.onload = function() {
         closeEditor();
     });
     document.getElementById('closeEditorButton').onclick = function() { closeEditor(); };
+    document.getElementById('importBotFile').onchange = function(event) { importBotFile(event.target.files[0]); };
     setupWebsocket();
 };

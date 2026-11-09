@@ -45,6 +45,33 @@ class TerminalMainWindowTest
             main.gui.addWindow(main);
             Panel panel = (Panel) main.getComponent();
             assertEquals(1, panel.getChildCount());
+            Thread urlsEditor = new Thread(() -> TerminalMasterConfig.editApiUrls(main));
+            urlsEditor.start();
+            long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+            while (main.gui.getWindows().size() < 2 && System.nanoTime() < deadline)
+                Thread.sleep(10);
+            assertEquals(2, main.gui.getWindows().size());
+            Panel urlsPanel = (Panel) main.gui.getActiveWindow().getComponent();
+            java.util.List<com.googlecode.lanterna.gui2.TextBox> inputs = new java.util.ArrayList<>();
+            Button save = null;
+            for (Component child : urlsPanel.getChildren())
+            {
+                if (child instanceof com.googlecode.lanterna.gui2.TextBox)
+                    inputs.add((com.googlecode.lanterna.gui2.TextBox) child);
+                if (child instanceof Button && "Save".equals(((Button) child).getLabel()))
+                    save = (Button) child;
+            }
+            assertEquals(3, inputs.size());
+            inputs.get(0).setText("https://terminal.example/models");
+            inputs.get(1).setText("https://terminal.example/responses");
+            assertNotNull(save);
+            main.gui.getActiveWindow().setFocusedInteractable(save);
+            main.gui.handleInput(new com.googlecode.lanterna.input.KeyStroke(com.googlecode.lanterna.input.KeyType.Enter));
+            urlsEditor.join(5000);
+            assertFalse(urlsEditor.isAlive());
+            assertEquals("https://terminal.example/responses", ChatGPT.resolveResponsesApiUrl(new JSONObject()));
+            assertEquals("https://terminal.example/models", JsonFiles.read(temporary.resolve("config/irc-gpt-bot.json"))
+                .getString("modelsApiUrl"));
             assertInstanceOf(Border.class, panel.getChildren().iterator().next());
             assertFalse(main.isApiServerRunning());
             int port;

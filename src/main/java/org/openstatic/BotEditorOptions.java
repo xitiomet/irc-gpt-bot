@@ -10,6 +10,78 @@ final class BotEditorOptions
     static final String[] TEXT_FIELDS = {"server", "nickname", "user", "realName", "operatorName", "definitionServer", "modelsApiUrl", "responsesApiUrl"};
     static final String[] NUMBER_FIELDS = {"port", "contextDepth", "followUpSeconds", "replyCooldownSeconds", "openQuestionSeconds", "maxToolRounds"};
     static final String[] SECRET_FIELDS = {"password", "operatorPassword"};
+    static final String[] API_URL_FIELDS = {"modelsApiUrl", "responsesApiUrl", "completionsApiUrl"};
+
+    static void validateUrl(String field, String value)
+    {
+        if (value.chars().anyMatch(Character::isISOControl))
+            throw new IllegalArgumentException(field + " cannot contain control characters.");
+        if (value.isEmpty())
+            return;
+        java.net.URI uri;
+        try { uri = java.net.URI.create(value); }
+        catch (IllegalArgumentException e) { throw new IllegalArgumentException("Invalid URL for " + field + "."); }
+        if (!Set.of("http", "https").contains(uri.getScheme()) || uri.getHost() == null)
+            throw new IllegalArgumentException(field + " must be an HTTP or HTTPS URL.");
+    }
+
+    static JSONObject apiUrls(JSONObject settings)
+    {
+        JSONObject urls = new JSONObject();
+        for (String field : API_URL_FIELDS)
+            urls.put(field, settings.optString(field, ""));
+        return urls;
+    }
+
+    static JSONObject importedConfig(JSONObject config, String id)
+    {
+        ConfigDirectory.validateBotId(id);
+        for (String field : new String[] {"bots", "openAiKey", "apiPassword", "apiServer", "apiPort", "logPath"})
+            if (config.has(field))
+                throw new IllegalArgumentException("Import a single bot configuration, not master settings (" + field + ").");
+        if (config.isEmpty())
+            throw new IllegalArgumentException("The bot configuration is empty.");
+        JSONObject input = defaults(id, false).put("model", "gpt-3.5-turbo").put("preamble", "");
+        for (String field : config.keySet())
+            input.put(field, config.get(field));
+        if (config.has("systemPreamble"))
+            input.put("preamble", config.get("systemPreamble"));
+        JSONObject validated = IRCGPTBot.validateEditorUpdate(input);
+        JSONObject result = new JSONObject(config.toString());
+        for (String field : validated.keySet())
+        {
+            if (!config.has(field))
+                continue;
+            if (validated.isNull(field))
+                result.remove(field);
+            else
+                result.put(field, validated.get(field));
+        }
+        if (config.has("completionsApiUrl"))
+            validateUrl("completionsApiUrl", config.getString("completionsApiUrl").trim());
+        if (config.has("channels"))
+        {
+            JSONObject channels = config.getJSONObject("channels");
+            for (String name : channels.keySet())
+            {
+                if (!name.matches("[#&+!][^\\s,\\x00\\x07:]+"))
+                    throw new IllegalArgumentException("Invalid channel name: " + name);
+                JSONObject channel = channels.getJSONObject(name);
+                if (channel.has("join") && !(channel.get("join") instanceof Boolean))
+                    throw new IllegalArgumentException("Channel join must be true or false.");
+                if (channel.has("key") && (!(channel.get("key") instanceof String)
+                    || channel.getString("key").chars().anyMatch(Character::isISOControl)))
+                    throw new IllegalArgumentException("Channel key must be text without control characters.");
+            }
+        }
+        if (config.has("toolUrls"))
+        {
+            JSONArray tools = config.getJSONArray("toolUrls");
+            if (GPTTools.normalizeToolUrls(tools).length() != tools.length())
+                throw new IllegalArgumentException("Invalid URL tool configuration.");
+        }
+        return result;
+    }
 
     static JSONObject defaults(String id, boolean launching)
     {
@@ -62,16 +134,7 @@ final class BotEditorOptions
             if (("server".equals(field) || "nickname".equals(field)) && value.isEmpty())
                 throw new IllegalArgumentException("Enter " + field + ".");
             if (field.endsWith("ApiUrl") || "definitionServer".equals(field))
-            {
-                if (!value.isEmpty())
-                {
-                    java.net.URI uri;
-                    try { uri = java.net.URI.create(value); }
-                    catch (IllegalArgumentException e) { throw new IllegalArgumentException("Invalid URL for " + field + "."); }
-                    if (!Set.of("http", "https").contains(uri.getScheme()) || uri.getHost() == null)
-                        throw new IllegalArgumentException(field + " must be an HTTP or HTTPS URL.");
-                }
-            }
+                validateUrl(field, value);
             update.put(field, value.isEmpty() ? JSONObject.NULL : value);
         }
         for (String field : NUMBER_FIELDS)

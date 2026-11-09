@@ -163,6 +163,17 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         this.addIRCGPTBotListener(this.apiServer);
     }
 
+    public synchronized IRCGPTBot importBot(String botId, JSONObject config)
+    {
+        JSONObject options = BotEditorOptions.importedConfig(config, botId);
+        for (String existingId : settings.getJSONObject("bots").keySet())
+            if (existingId.equalsIgnoreCase(botId))
+                throw new IllegalArgumentException("Bot already exists: " + botId);
+        if (Files.exists(configDirectory.directory.resolve(botId + ".json")))
+            throw new IllegalArgumentException("Bot configuration file already exists: " + botId);
+        return launchBot(botId, options);
+    }
+
     public synchronized IRCGPTBot launchBot(String botId, JSONObject botOptions)
     {
         ConfigDirectory.validateBotId(botId);
@@ -504,6 +515,30 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         JSONObject next = new JSONObject(settings.toString()).put("openAiKey", key.trim());
         configDirectory.saveMaster(next);
         settings.put("openAiKey", key.trim());
+    }
+
+    public synchronized void updateApiUrls(JSONObject urls) throws IOException
+    {
+        JSONObject next = new JSONObject(settings.toString());
+        for (String field : BotEditorOptions.API_URL_FIELDS)
+        {
+            if (!urls.has(field))
+                continue;
+            if (!(urls.get(field) instanceof String))
+                throw new IllegalArgumentException(field + " must be text.");
+            String value = urls.getString(field).trim();
+            BotEditorOptions.validateUrl(field, value);
+            if (value.isEmpty())
+                next.remove(field);
+            else
+                next.put(field, value);
+        }
+        configDirectory.saveMaster(next);
+        for (String field : BotEditorOptions.API_URL_FIELDS)
+            if (next.has(field))
+                settings.put(field, next.getString(field));
+            else
+                settings.remove(field);
     }
 
     public synchronized void updateApiSettings(boolean enabled, int port, String password) throws IOException

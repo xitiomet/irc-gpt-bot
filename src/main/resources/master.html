@@ -10,6 +10,36 @@
     <script>
         var busy = false;
         var previewToken = null;
+        var apiUrlFields = ['modelsApiUrl', 'responsesApiUrl', 'completionsApiUrl'];
+        var savedApiUrls = null;
+
+        function apiUrlState()
+        {
+            var urls = {};
+            apiUrlFields.forEach(function(field) { urls[field] = document.getElementById(field).value; });
+            return urls;
+        }
+
+        function urlsDirty()
+        {
+            return savedApiUrls != null && JSON.stringify(apiUrlState()) !== savedApiUrls;
+        }
+
+        function showApiUrls(urls)
+        {
+            apiUrlFields.forEach(function(field) { document.getElementById(field).value = urls[field] || ''; });
+            savedApiUrls = JSON.stringify(apiUrlState());
+        }
+
+        function saveApiUrls()
+        {
+            if (busy || savedApiUrls == null)
+                return;
+            request({ action: 'saveApiUrls', apiUrls: apiUrlState() }, function(json) {
+                showApiUrls(json.apiUrls);
+                setStatus('API URL overrides saved. Bots without their own overrides will use these settings; no restart needed.');
+            });
+        }
 
         function setStatus(message, error)
         {
@@ -135,21 +165,23 @@
                 setStatus('Please wait for the current request to finish.');
                 return false;
             }
-            return document.getElementById('openAiKey').value === '' || confirm('Discard the unsaved OpenAI key?');
+            return (document.getElementById('openAiKey').value === '' && !urlsDirty()) || confirm('Discard unsaved master configuration changes?');
         }
 
         function loaded()
         {
             document.getElementById('saveKey').onclick = saveKey;
+            document.getElementById('saveApiUrls').onclick = saveApiUrls;
             document.getElementById('fetchPricing').onclick = previewPrices;
             document.getElementById('applyPricing').onclick = applyPrices;
             window.onbeforeunload = function() {
-                if (busy || document.getElementById('openAiKey').value !== '')
-                    return 'You have an unfinished request or unsaved key.';
+                if (busy || document.getElementById('openAiKey').value !== '' || urlsDirty())
+                    return 'You have an unfinished request or unsaved changes.';
             };
             request(null, function(json) {
                 showKeyStatus(json.hasOpenAiKey);
                 showPricing(json.pricing);
+                showApiUrls(json.apiUrls);
             });
         }
     </script>
@@ -163,6 +195,18 @@
         <label for="openAiKey">Replacement OpenAI key</label>
         <input type="password" id="openAiKey" autocomplete="new-password" placeholder="Enter a new key to replace the current one">
         <div class="actions"><button type="button" id="saveKey" class="primary">Save key</button></div>
+    </section>
+    <section class="form-panel">
+        <h3>Shared API URL overrides</h3>
+        <p class="help">Defaults for new and existing bots without their own URL overrides. Blank restores the built-in default.
+            Responses URL takes priority over the legacy completions URL. Your OpenAI key is sent to these API endpoints; use trusted URLs only.</p>
+        <label for="modelsApiUrl">Models API URL</label>
+        <input type="url" id="modelsApiUrl" placeholder="https://api.openai.com/v1/models">
+        <label for="responsesApiUrl">Responses API URL</label>
+        <input type="url" id="responsesApiUrl" placeholder="https://api.openai.com/v1/responses">
+        <label for="completionsApiUrl">Legacy chat completions URL (Responses fallback)</label>
+        <input type="url" id="completionsApiUrl" placeholder="Optional legacy /chat/completions URL">
+        <div class="actions"><button type="button" id="saveApiUrls">Save URL overrides</button></div>
     </section>
     <section class="form-panel">
         <h3>Model pricing</h3>

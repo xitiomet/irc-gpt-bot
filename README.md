@@ -371,9 +371,9 @@ the saved password; explicit clear checkboxes remove it. **Reconnect after savin
 applies connection changes immediately; otherwise they wait for the next reconnect.
 Shared validation and configuration persistence are used by both interfaces.
 
-**F10: Master Config** offers masked OpenAI key replacement, web interface
-settings (enable, `apiPort`, and masked `apiPassword`; saving restarts the API
-server immediately), current pricing
+**F10: Master Config** offers masked OpenAI key replacement, shared API URL
+overrides, web interface settings (enable, `apiPort`, and masked `apiPassword`;
+saving restarts the API server immediately), current pricing
 status, a fetch/preview/apply pricing update, and historical usage totals.
 **Open Web Interface** appears below **Loaded Bots** on the main screen only
 while the API server is running. It launches the system browser via `rundll32`,
@@ -391,9 +391,24 @@ available.
 
 ### API Server / Web interface
 
+Both Master Config interfaces can edit shared `modelsApiUrl`, `responsesApiUrl`,
+and legacy `completionsApiUrl` overrides. Bots without their own overrides inherit
+these settings, including newly launched bots. Changes apply without restarting;
+bot-specific URLs take precedence. Blank removes a shared override and restores
+the built-in default (or legacy completions fallback for Responses). Only use
+trusted HTTP/HTTPS endpoints: API requests include your configured OpenAI key.
+
 irc-gpt-bot also provides a web interface and api server for ease of use. By default this is configured for port 6553 with password "changeme"
 The dashboard sends a heartbeat every 20 seconds while authenticated to keep quiet WebSocket connections active. If the connection drops, it reconnects automatically and preserves each bot's expanded **Activity & usage details** section while refreshing the bot list.
 Each bot's **Disable** / **Enable** button disconnects it from IRC or reconnects it. The choice is saved as `"enabled"` in the bot's settings, so a disabled bot stays offline after a restart.
+Each tile's **Export Bot** button downloads `<botId>.json` in the same format as a
+per-bot configuration file, including channels, tools, endpoint overrides and saved
+IRC/operator passwords and channel keys. Keep exported files private; master API
+credentials and inherited master URL defaults are not included. **Import Bot**, next
+to **Launch Bot**, accepts one such JSON file and asks for a bot identifier (defaulting
+to the filename). Existing bots are never overwritten, including case-insensitive
+name collisions. Import preserves the enabled setting: enabled bots connect
+immediately, while disabled bots stay offline. Only import configurations you trust.
 Dashboard editors open in in-page modals instead of popup windows. Their URLs
 contain only the bot ID, never the API password. Editors obtain the credential
 from the authenticated dashboard in memory and send it in the `X-API-Password`

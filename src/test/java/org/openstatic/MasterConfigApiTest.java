@@ -90,6 +90,59 @@ class MasterConfigApiTest
     }
 
     @Test
+    void savesValidatesClearsAndInheritsSharedApiUrlsWithoutChangingBotOverrides() throws Exception
+    {
+        IRCGPTBotMain previousMain = IRCGPTBotMain.instance;
+        APIWebServer previousApi = APIWebServer.instance;
+        ConfigDirectory previousConfig = IRCGPTBotMain.configDirectory;
+        File previousFile = IRCGPTBotMain.settingsFile;
+        try
+        {
+            IRCGPTBotMain.settings.put("headless", true).put("apiServer", false)
+                .put("bots", new JSONObject().put("custom", new JSONObject().put("responsesApiUrl", "https://bot.example/responses")));
+            IRCGPTBotMain.configDirectory = new ConfigDirectory(temporary.resolve("config"));
+            IRCGPTBotMain.settingsFile = temporary.resolve("config/irc-gpt-bot.json").toFile();
+            new IRCGPTBotMain();
+            JSONObject urls = new JSONObject().put("modelsApiUrl", " https://shared.example/models ")
+                .put("responsesApiUrl", "https://shared.example/responses").put("completionsApiUrl", "");
+            assertTrue(request("wrong", new JSONObject().put("action", "saveApiUrls").put("apiUrls", urls)).has("error"));
+            assertFalse(IRCGPTBotMain.settings.has("modelsApiUrl"));
+            JSONObject saved = request("test-password", new JSONObject().put("action", "saveApiUrls").put("apiUrls", urls));
+            assertFalse(saved.has("error"), saved.toString());
+            assertEquals("https://shared.example/models", saved.getJSONObject("apiUrls").getString("modelsApiUrl"));
+            assertEquals("https://shared.example/responses", ChatGPT.resolveResponsesApiUrl(new JSONObject()));
+            assertEquals("https://bot.example/responses", ChatGPT.resolveResponsesApiUrl(
+                IRCGPTBotMain.settings.getJSONObject("bots").getJSONObject("custom")));
+            assertEquals("https://shared.example/responses", JsonFiles.read(temporary.resolve("config/irc-gpt-bot.json"))
+                .getString("responsesApiUrl"));
+            assertEquals("https://shared.example/models", request("test-password", null).getJSONObject("apiUrls").getString("modelsApiUrl"));
+            for (Object invalid : new Object[] {"file:///tmp/api", "https://bad.example/\npath", 123, JSONObject.NULL})
+            {
+                JSONObject bad = new JSONObject().put("modelsApiUrl", "https://should-not-save.example/models")
+                    .put("responsesApiUrl", invalid);
+                assertTrue(request("test-password", new JSONObject().put("action", "saveApiUrls").put("apiUrls", bad)).has("error"));
+                assertEquals("https://shared.example/models", IRCGPTBotMain.settings.getString("modelsApiUrl"));
+                assertEquals("https://shared.example/responses", JsonFiles.read(temporary.resolve("config/irc-gpt-bot.json"))
+                    .getString("responsesApiUrl"));
+            }
+            urls.put("modelsApiUrl", "").put("responsesApiUrl", "").put("completionsApiUrl", "https://legacy.example/chat/completions");
+            assertFalse(request("test-password", new JSONObject().put("action", "saveApiUrls").put("apiUrls", urls)).has("error"));
+            assertFalse(IRCGPTBotMain.settings.has("modelsApiUrl"));
+            assertEquals("https://legacy.example/responses", ChatGPT.resolveResponsesApiUrl(new JSONObject()));
+            urls.put("completionsApiUrl", "");
+            assertFalse(request("test-password", new JSONObject().put("action", "saveApiUrls").put("apiUrls", urls)).has("error"));
+            assertEquals("https://api.openai.com/v1/responses", ChatGPT.resolveResponsesApiUrl(new JSONObject()));
+        } finally {
+            if (APIWebServer.instance != null && APIWebServer.instance != previousApi)
+                APIWebServer.instance.setState(false);
+            IRCGPTBotMain.instance = previousMain;
+            APIWebServer.instance = previousApi;
+            IRCGPTBotMain.configDirectory = previousConfig;
+            IRCGPTBotMain.settingsFile = previousFile;
+        }
+    }
+
+    @Test
     void rejectsUnauthenticatedReadsAndWrites() throws Exception
     {
         assertTrue(request("wrong", null).has("error"));
