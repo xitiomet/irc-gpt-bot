@@ -905,7 +905,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
             history = channelHistory.snapshot(this, channel.getName());
         }
         return history.put("name", channel.getName()).put("topic", channel.getTopic().getValue().orElse(""))
-            .put("roster", roster).put("rosterComplete", channel.hasCompleteUserData());
+            .put("roster", roster).put("rosterComplete", channel.hasCompleteUserData()).put("botIsOp", botIsOp(channel));
     }
 
     // Fired after IRC registration completes, on initial connect and every reconnect
@@ -1050,10 +1050,13 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
 
     private boolean botIsOp(Channel channel)
     {
-        SortedSet<ChannelUserMode> ss = channel.getUserModes(botNickname).get();
+        Client active = this.client;
+        String nick = active != null && active.getNick() != null ? active.getNick() : botNickname;
+        SortedSet<ChannelUserMode> ss = channel.getUserModes(nick).orElse(java.util.Collections.emptySortedSet());
         for(ChannelUserMode um : ss)
         {
-            if (um.getChar() == 'o')
+            // Owners (~q) and admins (&a) can also grant operator status on servers that support them
+            if (um.getChar() == 'o' || um.getChar() == 'a' || um.getChar() == 'q')
             {
                 return true;
             }

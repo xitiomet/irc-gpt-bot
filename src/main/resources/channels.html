@@ -31,6 +31,7 @@
             document.getElementById('messages').textContent = '';
             document.getElementById('roster').textContent = '';
             document.getElementById('viewStatus').textContent = 'Loading channel...';
+            document.getElementById('setOperator').hidden = true;
             refreshChannelView();
         }
 
@@ -46,6 +47,7 @@
         function renderChannelView(channel)
         {
             document.getElementById('topic').textContent = channel.topic || '(No topic)';
+            document.getElementById('setOperator').hidden = !channel.botIsOp;
             var messageList = document.getElementById('messages');
             var version = JSON.stringify(channel.messages);
             if (version !== messagesVersion)
@@ -111,6 +113,7 @@
                     document.getElementById('viewStatus').textContent = json.error || 'Channel unavailable.';
                     document.getElementById('topic').textContent = '(Channel unavailable)';
                     document.getElementById('roster').textContent = '';
+                    document.getElementById('setOperator').hidden = true;
                     rosterVersion = '';
                     return;
                 }
@@ -196,7 +199,7 @@
             });
         }
 
-        function channelAction(action, channel)
+        function channelAction(action, channel, nickname)
         {
             if (busy || !connected)
             {
@@ -217,7 +220,8 @@
                 type: 'POST',
                 data: JSON.stringify({
                     action: action,
-                    channel: channel
+                    channel: channel,
+                    nickname: nickname
                 }),
                 contentType: 'application/json; charset=utf-8',
                 dataType: 'json',
@@ -226,6 +230,13 @@
                 if (json.error || !json.bot)
                 {
                     setStatus(json.error || 'Bot unavailable.');
+                    if (action == 'op')
+                        document.getElementById('viewStatus').textContent = json.error || 'Bot unavailable.';
+                    return;
+                }
+                if (action == 'op')
+                {
+                    document.getElementById('viewStatus').textContent = 'Operator status requested for ' + nickname + ' in ' + channel + '.';
                     return;
                 }
                 setStatus((action == 'join' ? 'Join' : 'Leave') + ' requested for ' + channel + '. The list updates when the IRC server responds.');
@@ -242,6 +253,11 @@
         function loaded()
         {
             document.getElementById('backToChannels').onclick = backToChannels;
+            document.getElementById('setOperator').onclick = function() {
+                var nickname = prompt('Give operator status in ' + selectedChannel + ' to which nickname?');
+                if (nickname && nickname.trim())
+                    channelAction('op', selectedChannel, nickname.trim());
+            };
             document.getElementById('joinForm').onsubmit = function(event) {
                 event.preventDefault();
                 channelAction('join', document.getElementById('channelName').value);
@@ -266,7 +282,7 @@
     </form>
     </div>
     <section id="channelView" hidden>
-        <div class="toolbar"><button type="button" id="backToChannels">Back to channels</button><h3 id="viewTitle"></h3></div>
+        <div class="toolbar"><button type="button" id="backToChannels">Back to channels</button><h3 id="viewTitle"></h3><button type="button" id="setOperator" hidden>Set Operator</button></div>
         <div class="form-panel channel-topic"><strong>Topic</strong><p id="topic"></p></div>
         <div class="channel-layout">
             <section class="channel-transcript" aria-label="Channel messages">

@@ -547,7 +547,8 @@ public class APIWebServer implements IRCGPTBotListener
                                             {
                                                 String action = requestPost.optString("action");
                                                 String channel = requestPost.optString("channel").trim();
-                                                if (!("join".equals(action) || "part".equals(action)))
+                                                String nickname = requestPost.optString("nickname").trim();
+                                                if (!("join".equals(action) || "part".equals(action) || "op".equals(action)))
                                                 {
                                                     response.put("error", "Invalid channel action.");
                                                 }
@@ -562,6 +563,17 @@ public class APIWebServer implements IRCGPTBotListener
                                                 else if ("join".equals(action))
                                                 {
                                                     bot.joinChannel(channel);
+                                                }
+                                                else if ("op".equals(action))
+                                                {
+                                                    if (!nickname.matches("[^\\s,\\x00-\\x1f:!@#&+]+"))
+                                                        response.put("error", "Enter a valid nickname.");
+                                                    else if (!bot.botIsOp(channel))
+                                                        response.put("error", bot.getNickname() + " is not an operator in " + channel + ".");
+                                                    else if (!bot.giveOp(channel, nickname))
+                                                        response.put("error", nickname + " is not in " + channel + ".");
+                                                    else
+                                                        bot.logAppend("tools.log", "(DASHBOARD SET OPERATOR) " + nickname + " in " + channel);
                                                 }
                                                 else
                                                 {

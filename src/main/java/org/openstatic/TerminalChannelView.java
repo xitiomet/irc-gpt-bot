@@ -122,15 +122,18 @@ final class TerminalChannelView
         Panel footer = new Panel();
         footer.addComponent(view.status, LinearLayout.createLayoutData(LinearLayout.Alignment.Fill));
         Panel actions = new Panel(new LinearLayout(Direction.HORIZONTAL));
-        if (bot.botIsOp(name))
-        {
-            actions.addComponent(new Button("Set Operator", () -> {
-                String nickname = new TextInputDialogBuilder().setTitle("Enter Nickname").setInitialContent("")
-                    .setTextBoxSize(new TerminalSize(30, 1)).build().showDialog(IRCGPTBotMain.instance.gui);
-                if (nickname != null && !nickname.isEmpty() && !bot.giveOp(name, nickname))
-                    MessageDialog.showMessageDialog(IRCGPTBotMain.instance.gui, "Set Operator", nickname + " is not in " + name);
-            }));
-        }
+        actions.addComponent(new Button("Set Operator", () -> {
+            if (!bot.botIsOp(name))
+            {
+                MessageDialog.showMessageDialog(IRCGPTBotMain.instance.gui, "Set Operator",
+                    bot.getNickname() + " is not an operator in " + name + ", so it can't give operator status.");
+                return;
+            }
+            String nickname = new TextInputDialogBuilder().setTitle("Enter Nickname").setInitialContent("")
+                .setTextBoxSize(new TerminalSize(30, 1)).build().showDialog(IRCGPTBotMain.instance.gui);
+            if (nickname != null && !nickname.isEmpty() && !bot.giveOp(name, nickname))
+                MessageDialog.showMessageDialog(IRCGPTBotMain.instance.gui, "Set Operator", nickname + " is not in " + name);
+        }));
         actions.addComponent(new Button("Leave Channel", () -> {
             if (MessageDialog.showMessageDialog(IRCGPTBotMain.instance.gui, "Leave Channel",
                 "Leave " + name + "?", MessageDialogButton.Yes, MessageDialogButton.No) == MessageDialogButton.Yes)

@@ -30,6 +30,7 @@ class ChannelViewTest
     private final AtomicReference<String> topic = new AtomicReference<>("Initial topic");
     private final AtomicReference<List<String>> names = new AtomicReference<>(List.of("zoe", "Alice"));
     private boolean joined = true;
+    private final AtomicReference<String> botNick = new AtomicReference<>("view-bot");
 
     @BeforeEach
     void setup() throws Exception
@@ -42,6 +43,7 @@ class ChannelViewTest
         ChannelUserMode mode = (ChannelUserMode) Proxy.newProxyInstance(ChannelUserMode.class.getClassLoader(),
             new Class<?>[] { ChannelUserMode.class }, (proxy, method, args) -> {
                 if ("getNickPrefix".equals(method.getName())) return '@';
+                if ("getChar".equals(method.getName())) return 'o';
                 throw new UnsupportedOperationException(method.getName());
             });
         Channel channel = (Channel) Proxy.newProxyInstance(Channel.class.getClassLoader(), new Class<?>[] { Channel.class },
@@ -61,6 +63,8 @@ class ChannelViewTest
             });
         Client client = (Client) Proxy.newProxyInstance(Client.class.getClassLoader(), new Class<?>[] { Client.class },
             (proxy, method, args) -> {
+                if ("getNick".equals(method.getName()))
+                    return botNick.get();
                 if ("getChannel".equals(method.getName()))
                     return joined && "#lobby".equalsIgnoreCase((String) args[0]) ? Optional.of(channel) : Optional.empty();
                 if ("sendMultiLineMessage".equals(method.getName()) || "sendMultiLineNotice".equals(method.getName()))
@@ -91,6 +95,10 @@ class ChannelViewTest
         bot.recordChannelMessage("#other", "other", "OTHER CHANNEL");
         bot.recordChannelMessage("private-user", "private", "PRIVATE CONTENT");
         JSONObject snapshot = bot.getChannelView("#LOBBY");
+        assertFalse(snapshot.getBoolean("botIsOp"));
+        botNick.set("Alice");
+        assertTrue(bot.getChannelView("#lobby").getBoolean("botIsOp"));
+        botNick.set("view-bot");
         assertEquals("Initial topic", snapshot.getString("topic"));
         assertEquals("Alice", snapshot.getJSONArray("roster").getJSONObject(0).getString("nickname"));
         assertEquals("@", snapshot.getJSONArray("roster").getJSONObject(0).getString("prefix"));
