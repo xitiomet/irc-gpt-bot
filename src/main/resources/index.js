@@ -1,6 +1,8 @@
 var connection;
 var debugMode = false;
 var reconnectTimeout;
+var heartbeatInterval;
+var activityDetailsState = new Map();
 var hostname = location.hostname;
 var protocol = location.protocol;
 var port = location.port;
@@ -132,6 +134,7 @@ function doAuth()
 
 function removeBot(botId)
 {
+    activityDetailsState.delete(botId);
     var tag = "bot_" + botId;
     var botTag = document.getElementById(tag);
     if (botTag != null)
@@ -277,7 +280,7 @@ function updateBot(json)
     status.dataset.state = connected ? 'connected' : json.stats.status === 'ERROR' && json.stats.enabled !== false ? 'error' : 'disconnected';
     var statsTag = document.getElementById('stats_' + objectId);
     var details = statsTag.querySelector('details');
-    var detailsOpen = details && details.open;
+    var detailsOpen = details ? details.open : activityDetailsState.get(objectId) === true;
     statsTag.innerHTML = renderBotStats(json.stats);
     statsTag.querySelector('details').open = detailsOpen;
     updateToggleButton(objectId, json.stats.enabled);
@@ -303,6 +306,9 @@ function updateTotalCost(usage)
 
 function setupWebsocket()
 {
+    if (connection && (connection.readyState === WebSocket.CONNECTING || connection.readyState === WebSocket.OPEN))
+        return;
+    clearTimeout(reconnectTimeout);
     try
     {
         if (hostname == '')
@@ -353,8 +359,17 @@ function setupWebsocket()
                     updateBot(jsonObject);
                 } else if (action == 'authOk') {
                     authenticated = true;
+                    clearInterval(heartbeatInterval);
+                    heartbeatInterval = setInterval(function() {
+                        if (connection.readyState === WebSocket.OPEN)
+                            sendEvent({ command: 'ping' });
+                    }, 20000);
                     document.getElementById('totalCostEstimate').textContent = 'Total Cost Estimate: loading...';
                     document.getElementById('totalCostEstimate').hidden = false;
+                    Array.from(document.getElementById('botTable').children).forEach(function(card) {
+                        var details = card.querySelector('details');
+                        activityDetailsState.set(card.id.substring('bot_'.length), details && details.open);
+                    });
                     document.getElementById('botTable').textContent = '';
                     updateBotCount();
                     setConnectionState('Live updates', 'connected');
@@ -365,6 +380,8 @@ function setupWebsocket()
                     document.getElementById('masterConfigButton').style.display = 'inline-block';
                 } else if (action == 'authFail') {
                     authenticated = false;
+                    clearInterval(heartbeatInterval);
+                    activityDetailsState.clear();
                     document.getElementById('totalCostEstimate').hidden = true;
                     closeEditor(null, true);
                     document.getElementById('login').style.display = 'block';
@@ -379,13 +396,17 @@ function setupWebsocket()
             }
         };
         
-        connection.onclose = function () {
+        connection.onclose = function (event) {
+          clearInterval(heartbeatInterval);
           setConnectionState('Reconnecting...', 'disconnected');
-          console.log('WebSocket connection closed');
+          console.log('WebSocket connection closed', event.code, event.reason);
           reconnectTimeout = setTimeout(setupWebsocket, 10000);
         };
     } catch (err) {
         console.log(err);
+        clearInterval(heartbeatInterval);
+        setConnectionState('Reconnecting...', 'disconnected');
+        reconnectTimeout = setTimeout(setupWebsocket, 10000);
     }
 }
 

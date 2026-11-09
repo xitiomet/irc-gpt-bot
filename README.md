@@ -223,7 +223,7 @@ To run the migration, pricing, and request-integration tests:
 
 ```bash
 mvn -DskipNative=true test
-node --test src/test/js/editor.test.js
+node --test src/test/js/*.test.js
 ```
 
 To additionally verify the importer against current public documentation:
@@ -390,6 +390,7 @@ available.
 ### API Server / Web interface
 
 irc-gpt-bot also provides a web interface and api server for ease of use. By default this is configured for port 6553 with password "changeme"
+The dashboard sends a heartbeat every 20 seconds while authenticated to keep quiet WebSocket connections active. If the connection drops, it reconnects automatically and preserves each bot's expanded **Activity & usage details** section while refreshing the bot list.
 Each bot's **Disable** / **Enable** button disconnects it from IRC or reconnects it. The choice is saved as `"enabled"` in the bot's settings, so a disabled bot stays offline after a restart.
 Dashboard editors open in in-page modals instead of popup windows. Their URLs
 contain only the bot ID, never the API password. Editors obtain the credential

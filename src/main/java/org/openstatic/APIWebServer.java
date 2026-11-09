@@ -80,6 +80,10 @@ public class APIWebServer implements IRCGPTBotListener
             String command = j.optString("command", "NOOP");
             if (sessionProperties.optBoolean("auth", false))
             {
+                if (command.equals("ping"))
+                {
+                    session.sendText(new JSONObject().put("action", "pong").toString(), Callback.NOOP);
+                }
                 if (command.equals("shutdown"))
                 {
                     String objectId = j.optString("id", null);
@@ -305,7 +309,6 @@ public class APIWebServer implements IRCGPTBotListener
     public static class EventsWebSocketServlet extends JettyWebSocketServlet {
         @Override
         public void configure(JettyWebSocketServletFactory factory) {
-            // factory.getPolicy().setIdleTimeout(10000);
             factory.register(EventsWebSocket.class);
         }
     }
