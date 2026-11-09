@@ -79,7 +79,7 @@ DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid J
             "realName": null,        // IRC Real Name field (for bot)
             "password": null,        // IRC Password (for bot)
             "operatorName": null,    // IRC operator name used with OPER (defaults to nickname)
-            "operatorPassword": null, // If set, bot sends OPER on connect/reconnect to gain IRC operator privileges
+            "operatorPassword": null, // If set, bot sends OPER on connect/reconnect to gain IRC operator privileges, then gives itself channel op (+o) in channels it joins
             "server": "127.0.0.1",   // Server to connect to
             "contextDepth": 5,       // How much history to provide chatGPT for context
             "systemPreamble": "Only respond in l33t speak",  // Some rules for chatGPT to follow
@@ -110,6 +110,8 @@ DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid J
 }
 ```
 NOTE: Make sure you either remove the default "botOps" or edit it to reflect your own nickname!
+
+When the bot is an IRC operator it tries `MODE #channel +o <nick>` and falls back to `SAMODE` if that is refused. On ngIRCd (which has no `SAMODE`) set `OperCanUseMode = yes` in `ngircd.conf`; failures are written to the bot's `exceptions.log`.
 
 You may also start the bot using only command line arguments (for scripting purposes)
 ```bash

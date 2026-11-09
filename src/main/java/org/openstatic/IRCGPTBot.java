@@ -13,7 +13,9 @@ import org.kitteh.irc.client.library.element.mode.ModeStatus.Action;
 import org.kitteh.irc.client.library.event.channel.ChannelInviteEvent;
 import org.kitteh.irc.client.library.event.channel.ChannelJoinEvent;
 import org.kitteh.irc.client.library.event.channel.ChannelMessageEvent;
+import org.kitteh.irc.client.library.event.channel.ChannelNamesUpdatedEvent;
 import org.kitteh.irc.client.library.event.client.ClientNegotiationCompleteEvent;
+import org.kitteh.irc.client.library.event.client.ClientReceiveNumericEvent;
 import org.kitteh.irc.client.library.event.connection.ClientConnectionClosedEvent;
 import org.kitteh.irc.client.library.event.connection.ClientConnectionEndedEvent;
 import org.kitteh.irc.client.library.event.connection.ClientConnectionEstablishedEvent;
@@ -36,6 +38,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -82,6 +85,9 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     private Thread mainThread;
     private boolean keepRunning;
     private String botNickname;
+    private volatile boolean ircOperator;
+    // Lower-cased channel name -> raw command ("MODE" or "SAMODE") last sent to claim channel operator status
+    private final Map<String, String> pendingSelfOp = new ConcurrentHashMap<>();
     private String botId;
     private HashMap<String, ChatLog> logs;
     private final ChannelHistory channelHistory = new ChannelHistory();
@@ -912,6 +918,8 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     @Handler
     public void onNegotiationCompleteEvent(ClientNegotiationCompleteEvent negotiationCompleteEvent)
     {
+        this.ircOperator = false;
+        this.pendingSelfOp.clear();
         String operatorPassword = botOptions.optString("operatorPassword", "").trim();
         if (!operatorPassword.isEmpty())
         {
@@ -920,6 +928,80 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                 operatorName = this.botNickname;
             this.client.sendRawLine("OPER " + operatorName + " " + operatorPassword);
         }
+    }
+
+    /** True when the bot is logged in as an IRC (server) operator. */
+    public boolean isIrcOperator()
+    {
+        if (this.ircOperator)
+            return true;
+        Client active = this.client;
+        return active != null && active.getUserModes().map(modes -> modes.containsMode('o')).orElse(false);
+    }
+
+    /** If the bot is an IRC operator but not a channel operator in this channel, ask the server to op it. */
+    void claimChannelOperator(Channel channel)
+    {
+        if (!isIrcOperator() || botIsOp(channel))
+            return;
+        String key = channel.getName().toLowerCase(Locale.ROOT);
+        if (this.pendingSelfOp.putIfAbsent(key, "MODE") == null)
+            this.client.sendRawLine("MODE " + channel.getName() + " +o " + this.client.getNick());
+    }
+
+    @Handler
+    public void onNumeric(ClientReceiveNumericEvent event)
+    {
+        List<String> params = event.getParameters();
+        switch (event.getNumeric())
+        {
+            case 381: // RPL_YOUREOPER
+                this.ircOperator = true;
+                for (Channel channel : this.client.getChannels())
+                {
+                    if (channel.hasCompleteUserData())
+                        claimChannelOperator(channel);
+                }
+                break;
+            case 482: // ERR_CHANOPRIVSNEEDED
+                if (params.size() > 1)
+                {
+                    String channelName = params.get(1);
+                    String key = channelName.toLowerCase(Locale.ROOT);
+                    if (this.pendingSelfOp.replace(key, "MODE", "SAMODE"))
+                        this.client.sendRawLine("SAMODE " + channelName + " +o " + this.client.getNick());
+                    else if (this.pendingSelfOp.remove(key, "SAMODE"))
+                        selfOpFailed(channelName, "the server refused SAMODE");
+                }
+                break;
+            case 421: // ERR_UNKNOWNCOMMAND
+                if (params.size() > 1 && "SAMODE".equalsIgnoreCase(params.get(1)))
+                {
+                    for (Map.Entry<String, String> pending : this.pendingSelfOp.entrySet())
+                    {
+                        if ("SAMODE".equals(pending.getValue()) && this.pendingSelfOp.remove(pending.getKey(), "SAMODE"))
+                            selfOpFailed(pending.getKey(), "the server has no SAMODE command (on ngIRCd set OperCanUseMode = yes)");
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void selfOpFailed(String channelName, String reason)
+    {
+        logAppend("exceptions.log", "Unable to become channel operator in " + channelName + " as an IRC operator: " + reason);
+    }
+
+    @Handler
+    public void onChannelNamesUpdated(ChannelNamesUpdatedEvent event)
+    {
+        Channel channel = event.getChannel();
+        if (botIsOp(channel))
+            this.pendingSelfOp.remove(channel.getName().toLowerCase(Locale.ROOT));
+        else
+            claimChannelOperator(channel);
     }
 
     @Handler 
@@ -950,6 +1032,8 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     @Handler 
     public void onClientConnectionEndedEvent(ClientConnectionEndedEvent connectionEndedEvent)
     {
+        this.ircOperator = false;
+        this.pendingSelfOp.clear();
         this.statusLine = "DISCONNECTED";
         this.connectionLabel.setText(" DISCONNECTED ");
         this.connectionLabel.setBackgroundColor(ANSI.BLACK);
@@ -1078,6 +1162,8 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         {
             Channel channel = event.getChannel();
             User joiner = event.getActor();
+            if (joiner.getNick().equalsIgnoreCase(this.client.getNick()))
+                this.pendingSelfOp.remove(channel.getName().toLowerCase(Locale.ROOT));
             if (!joiner.getNick().equals(botNickname))
             {
                 ChatLog cl = this.getChatLog(channel.getName());
