@@ -17,7 +17,7 @@ Features:
 
 if you would like to play around with my instance of irc-gpt-bot goto <a href="https://irc.openstatic.org/">irc.openstatic.org</a> and join #lobby. @charlieGPT is running on irc-gpt-bot.
 
-![](https://openstatic.org/projects/ircgptbot/ircgptweb.png)
+![](https://openstatic.org/projects/ircgptbot/ircgptweb_v17.png)
 
 ### Setting up irc-gpt-bot
 At the bottom of this page you will find a few different options for installing this project. If you are using a debian based x86-64 linux environment i highly suggest using the native package. 
