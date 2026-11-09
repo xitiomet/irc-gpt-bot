@@ -2896,7 +2896,13 @@
       "type": "org.eclipse.jetty.websocket.core.internal.IdentityExtension"
     },
     {
-      "type": "org.eclipse.jetty.websocket.core.internal.PerMessageDeflateExtension"
+      "type": "org.eclipse.jetty.websocket.core.internal.PerMessageDeflateExtension",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
     },
     {
       "type": "org.eclipse.jetty.websocket.core.internal.ValidationExtension"
