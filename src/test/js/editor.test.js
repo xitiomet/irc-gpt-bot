@@ -7,6 +7,19 @@ const vm = require('node:vm');
 const resources = path.join(__dirname, '../../main/resources');
 const source = name => fs.readFileSync(path.join(resources, name), 'utf8');
 
+test('login footer and header link to the project page safely', () => {
+    const html = source('index.html');
+    const links = html.match(/<a[^>]+href="https:\/\/openstatic\.org\/projects\/ircgptbot\/"[^>]*>/g);
+    assert.equal(links.length, 2);
+    for (const link of links)
+    {
+        assert(link.includes('target="_blank"'));
+        assert(link.includes('rel="noopener noreferrer"'));
+    }
+    assert(html.includes('<footer class="login-footer">'));
+    assert(html.indexOf('class="project-link"') > html.indexOf('id="serverTitle"'));
+});
+
 function dashboard()
 {
     const editor = {};

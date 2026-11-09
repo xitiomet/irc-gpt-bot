@@ -10,10 +10,13 @@
 </head>
 <body class="dashboard">
     <header class="app-header">
-        <a href="./" id="serverTitle" class="brand">
-            <img src="icon-32.png" alt="" width="32" height="32">
-            <span>IRC GPT <span class="brand-secondary">Bot Manager</span></span>
-        </a>
+        <div class="brand-group">
+            <a href="./" id="serverTitle" class="brand">
+                <img src="icon-32.png" alt="" width="32" height="32">
+                <span>IRC GPT <span class="brand-secondary">Bot Manager</span></span>
+            </a>
+            <a class="project-link" href="https://openstatic.org/projects/ircgptbot/" target="_blank" rel="noopener noreferrer">About IRC GPT Bot</a>
+        </div>
         <div class="header-status">
             <span id="connectionState" class="connection-state" role="status">Connecting...</span>
             <span id="totalCostEstimate" class="total-cost" role="status" hidden>Total Cost Estimate: loading...</span>
@@ -31,6 +34,9 @@
                 <input type="password" name="password" id="password" autocomplete="current-password" required>
                 <p id="errorMsg" class="error-message" role="alert"></p>
                 <button id="login_btn" type="submit" class="primary">Sign in</button>
+                <footer class="login-footer">
+                    <a href="https://openstatic.org/projects/ircgptbot/" target="_blank" rel="noopener noreferrer">IRC GPT Bot project page</a>
+                </footer>
             </form>
         </section>
         <section id="console" class="workspace" style="display: none;">
