@@ -30,3 +30,7 @@ The build does the following:
 | `-DskipNative=true` | `false` | Build only the jar. This skips the native executable and the installer. |
 
 The installer puts the program under `Program Files\IRCGPTBot`, adds a Start Menu shortcut (and optionally a desktop shortcut), and registers an uninstaller. Configuration is read from `%USERPROFILE%\.irc-gpt-bot\`, with `irc-gpt-bot.json` for root settings, a JSON file per bot, and `pricing.json` for token prices. The legacy `%USERPROFILE%\.irc-gpt-bot.json` is automatically imported if the new master is absent; the original is retained.
+
+For a fresh setup, the installer displays a masked OpenAI API key field that supports pasting with Ctrl+V. A supplied key is saved as `openAiKey` in `%USERPROFILE%\.irc-gpt-bot\irc-gpt-bot.json` before the first launch. Leave the field blank to configure the key later. If the configuration directory or legacy configuration file already exists, the installer skips this page and leaves configuration untouched. Silent installs do not prompt for or create configuration. Configuration belongs to the Windows account running the installer; if you elevate using a different account, it is that account's profile.
+
+The final page includes a checked **Launch IRC GPT Bot** checkbox. Clear it to finish without launching. Silent installs do not launch the application. Uninstalling leaves user configuration in place.
