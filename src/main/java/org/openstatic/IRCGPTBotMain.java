@@ -537,19 +537,14 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
 
     private void refreshWebInterfaceButton()
     {
-        Runnable refresh = () -> {
-            if (isApiServerRunning())
-            {
-                if (this.openWebInterfaceButton.getParent() == null)
-                    this.mainWindowPanel.addComponent(this.openWebInterfaceButton);
-            } else {
-                this.mainWindowPanel.removeComponent(this.openWebInterfaceButton);
-            }
-        };
-        if (this.gui == null)
-            refresh.run();
-        else
-            this.gui.getGUIThread().invokeLater(refresh);
+        // The custom input loop does not drain Lanterna's invokeLater queue.
+        if (isApiServerRunning())
+        {
+            if (this.openWebInterfaceButton.getParent() == null)
+                this.mainWindowPanel.addComponent(this.openWebInterfaceButton);
+        } else {
+            this.mainWindowPanel.removeComponent(this.openWebInterfaceButton);
+        }
     }
 
     public URI webInterfaceAddress()

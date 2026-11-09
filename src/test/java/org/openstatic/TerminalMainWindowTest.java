@@ -10,6 +10,10 @@ import com.googlecode.lanterna.gui2.Border;
 import com.googlecode.lanterna.gui2.Button;
 import com.googlecode.lanterna.gui2.Component;
 import com.googlecode.lanterna.gui2.Panel;
+import com.googlecode.lanterna.TerminalSize;
+import com.googlecode.lanterna.gui2.MultiWindowTextGUI;
+import com.googlecode.lanterna.screen.TerminalScreen;
+import com.googlecode.lanterna.terminal.virtual.DefaultVirtualTerminal;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -28,13 +32,17 @@ class TerminalMainWindowTest
         UsageTracker previousUsage = IRCGPTBotMain.usageTracker;
         IRCGPTBotMain previousMain = IRCGPTBotMain.instance;
         APIWebServer previousApi = APIWebServer.instance;
-        try
+        try (DefaultVirtualTerminal terminal = new DefaultVirtualTerminal(new TerminalSize(80, 24));
+             TerminalScreen screen = new TerminalScreen(terminal))
         {
             IRCGPTBotMain.settings = new JSONObject().put("headless", true).put("apiServer", false)
                 .put("apiPassword", "test-password").put("bots", new JSONObject());
             IRCGPTBotMain.configDirectory = new ConfigDirectory(temporary.resolve("config"));
             IRCGPTBotMain.settingsFile = temporary.resolve("config/irc-gpt-bot.json").toFile();
             IRCGPTBotMain main = new IRCGPTBotMain();
+            screen.startScreen();
+            main.gui = new MultiWindowTextGUI(screen);
+            main.gui.addWindow(main);
             Panel panel = (Panel) main.getComponent();
             assertEquals(1, panel.getChildCount());
             assertInstanceOf(Border.class, panel.getChildren().iterator().next());
@@ -45,11 +53,13 @@ class TerminalMainWindowTest
                 port = socket.getLocalPort();
             }
             main.updateApiSettings(true, port, "");
+            main.gui.updateScreen();
             assertTrue(main.isApiServerRunning());
             assertEquals(2, panel.getChildCount());
             Component[] children = panel.getChildren().toArray(Component[]::new);
             assertInstanceOf(Border.class, children[0]);
             assertEquals("Open Web Interface", ((Button) children[1]).getLabel());
+            assertTrue(children[1].getSize().getColumns() > 0);
             main.updateApiSettings(true, port, "");
             assertEquals(2, panel.getChildCount(), "Restarting must not duplicate the button");
             main.updateApiSettings(false, port, "");
