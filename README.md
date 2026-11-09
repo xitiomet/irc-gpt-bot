@@ -63,7 +63,7 @@ DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid J
     "bots": {
         "chatGPT": { // Bot Identifier
             "nickname": "chatGPT",   // Nickname bot should use
-            "botOps": ["xitiomet"],  // IF the bot is the channel operator, what other operators should get op status? (also named in the system prompt)
+            "botOps": ["xitiomet"],  // Trusted bot operators: named in the system prompt and protected from AI kicks/mode removal
             "channels": {
                 "#lobby": {
                     "join": true, // Channel bot should join
@@ -430,8 +430,8 @@ spaces are preserved, so `rat catcher` matches that phrase, not `rat` or `catche
 alone. Ignore and bot operator lists also accept whitespace separators.
 An empty field clears the list. Behavior toggles reflect the bot's
 existing settings. All edits save together. Unsaved edits
-require confirmation before closing. Changing `botOps` affects future operator
-grants and kick protection; it does not revoke IRC operator modes already granted.
+require confirmation before closing. Changing `botOps` affects who the bot is told
+to trust and who is protected from AI kicks; it never grants or revokes IRC operator modes.
 
 **Launch Bot** and **Edit Model/Prompt** share the same form: model dropdown,
 prompt, built-in tools, nickname lists, and all supported IRC connection/behavior
