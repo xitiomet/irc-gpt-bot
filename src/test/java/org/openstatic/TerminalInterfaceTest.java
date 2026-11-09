@@ -159,7 +159,8 @@ class TerminalInterfaceTest
             for (String section : new String[] {"IRC Connection", "Timing / Context", "Built-in GPT Tools", "IRC Connection", "Built-in GPT Tools", "Model / Prompt", "Edit aliases"})
             {
                 click(gui, terminal, section);
-                waitFor(() -> gui.getWindows().size() == 2);
+                // Window size is only assigned once the GUI thread lays out and draws the new window
+                waitFor(() -> gui.getWindows().size() == 2 && gui.getActiveWindow().getSize() != null);
                 if ("Timing / Context".equals(section))
                 {
                     String fieldLabels = labels(gui.getActiveWindow().getComponent());
