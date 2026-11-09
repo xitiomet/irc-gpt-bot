@@ -52,9 +52,8 @@ For an initial setup, copy `default-config.json` to
 Its inline `bots` object is automatically split into separate files, with the
 original master saved as `irc-gpt-bot.json.bak`. Existing `~/.irc-gpt-bot.json`
 is automatically imported when the new master does not exist; the original is
-left untouched. `-f /path/to/old.json` remains supported and imports into
-`/path/to/old.d/`. Continue using that directory afterwards; the legacy file is
-no longer updated. Existing default log locations are retained on import.
+deleted once the new configuration has been saved. `-f /path/to/old.json` remains supported and imports into
+`/path/to/old.d/` (deleting `old.json` afterwards). Continue using that directory. Existing default log locations are retained on import.
 
 The following legacy-format example is also accepted for migration.
 DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid JSON.
@@ -64,7 +63,7 @@ DO NOT COPY AND PASTE FROM BELOW, the comments i added for clarity are invalid J
     "bots": {
         "chatGPT": { // Bot Identifier
             "nickname": "chatGPT",   // Nickname bot should use
-            "botOps": ["xitiomet"],  // IF the bot is the channel operator, what other operators should get op status?
+            "botOps": ["xitiomet"],  // IF the bot is the channel operator, what other operators should get op status? (also named in the system prompt)
             "channels": {
                 "#lobby": {
                     "join": true, // Channel bot should join

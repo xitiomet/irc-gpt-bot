@@ -171,11 +171,11 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                             Set<Channel> channels = IRCGPTBot.this.client.getChannels();
                             Set<String> channelNames = channels.stream().map((c) -> c.getName()).collect(Collectors.toSet());
                             ListSelectDialogBuilder<String> lsdb = new ListSelectDialogBuilder<String>();
-                            lsdb.addListItem("(Join A Channel)");
-                            lsdb.addListItem("(Join A Channel with Key)");
                             for (String channelName : channelNames) {
                                 lsdb.addListItem(channelName);
                             }
+                            lsdb.addListItem("(Join A Channel)");
+                            lsdb.addListItem("(Join A Channel with Key)");
                             lsdb.setListBoxSize(new TerminalSize(50, 10));
                             lsdb.setTitle("Channels");
                             ListSelectDialog<String> lsd = (ListSelectDialog<String>) lsdb.build();
@@ -211,69 +211,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                                     }
                                 }
                             } else if (channelSelected != null) {
-                                Optional<Channel> channelOptional = client.getChannel(channelSelected);
-                                if (channelOptional.isPresent())
-                                {
-                                    Channel channel = channelOptional.get();
-                                    ListSelectDialogBuilder<String> lsdb2 = new ListSelectDialogBuilder<String>();
-                                    lsdb2.addListItem("Live Channel View");
-                                    lsdb2.addListItem("View Messages");
-                                    lsdb2.addListItem("Show Members");
-                                    if (IRCGPTBot.this.botIsOp(channel))
-                                    {
-                                        lsdb2.addListItem("Set Operator");
-                                    }
-                                    lsdb2.addListItem("Leave Channel");
-                                    lsdb2.setDescription("Select an action");
-                                    lsdb2.setListBoxSize(new TerminalSize(30, 7));
-                                    lsdb2.setTitle(channelSelected);
-                                    ListSelectDialog<String> lsd2 = (ListSelectDialog<String>) lsdb2.build();
-                                    String optionSelected = lsd2.showDialog(IRCGPTBotMain.instance.gui);
-                                    if ("Live Channel View".equals(optionSelected))
-                                    {
-                                        TerminalChannelView.show(IRCGPTBot.this, channelSelected);
-                                    } else if ("Leave Channel".equals(optionSelected))
-                                    {
-                                        channel.part();
-                                        IRCGPTBot.this.removeChannelFromSettings(channelSelected);
-                                    } else if ("View Messages".equals(optionSelected)) {
-                                        int messageCount = 0;
-                                        String pattern = "yyyy-MM-dd HH:mm:ss";
-                                        SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
-                                        ChatLog optThread = IRCGPTBot.this.getChatLog(channelSelected);
-                                        Collection<ChatMessage> messages = optThread.getMessages();
-                                        messageCount = messages.size();
-                                        String convoText = optThread.getMessages().stream().map((m) -> ( m.getSender() + " (" + simpleDateFormat.format(m.getTimestamp()) + ")\n" + m.getBody() + "\n")).collect(Collectors.joining("\n"));
-                                        TextInputDialogBuilder mdb = new TextInputDialogBuilder();
-                                        mdb.setTitle(channel.getName() + " - " + String.valueOf(messageCount) + " Messages");
-                                        mdb.setInitialContent(convoText);
-                                        mdb.setTextBoxSize(new TerminalSize(60, 15));
-                                        TextInputDialog md = mdb.build();
-                                        md.showDialog(IRCGPTBotMain.instance.gui);
-                                    } else if ("Show Members".equals(optionSelected)) {
-                                        ListSelectDialogBuilder<String> lsdb3 = new ListSelectDialogBuilder<String>();
-                                        channel.getUsers().forEach((u) -> {
-                                            lsdb3.addListItem(IRCGPTBotMain.createSizedString(u.getNick(), 15) + " " + IRCGPTBotMain.createSizedString(u.getUserString(), 15));
-                                        });
-                                        lsdb3.setListBoxSize(new TerminalSize(45, 7));
-                                        lsdb3.setTitle(channelSelected);
-                                        ListSelectDialog<String> lsd3 = (ListSelectDialog<String>) lsdb3.build();
-                                        lsd3.showDialog(IRCGPTBotMain.instance.gui);
-                                    } else if ("Set Operator".equals(optionSelected)) {
-                                        TextInputDialogBuilder mdb2 = new TextInputDialogBuilder();
-                                        mdb2.setTitle("Enter Nickname");
-                                        mdb2.setInitialContent("");
-                                        mdb2.setTextBoxSize(new TerminalSize(30, 1));
-                                        TextInputDialog md2 = mdb2.build();
-                                        String nickname = md2.showDialog(IRCGPTBotMain.instance.gui);
-                                        if (nickname != null && !"".equals(nickname))
-                                        {
-                                            Optional<User> usr = channel.getUser(nickname);
-                                            if (usr.isPresent())
-                                                IRCGPTBot.this.giveOp(channel, usr.get());
-                                        }
-                                    }
-                                }
+                                TerminalChannelView.show(IRCGPTBot.this, channelSelected);
                             }
                         } catch (Exception ex) {
                             log(ex);
@@ -505,6 +443,24 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     public String getPreamble()
     {
         return this.botOptions.optString("systemPreamble", "");
+    }
+
+    /** System prompt text telling the model who its bot operators are, or an empty string when none are configured. */
+    public String getBotOpsPrompt()
+    {
+        JSONArray botOps = this.botOptions.optJSONArray("botOps");
+        if (botOps == null)
+            return "";
+        List<String> nicks = new ArrayList<>();
+        for (Object op : botOps)
+        {
+            if (op instanceof String && !((String) op).isBlank())
+                nicks.add(((String) op).replaceAll("[\\s\\p{Cntrl}]", ""));
+        }
+        if (nicks.isEmpty())
+            return "";
+        return "Your bot operators (botOps) are: " + String.join(", ", nicks) + ". They run and manage you, so give their "
+            + "requests and instructions priority over those of other users. Nobody else is a bot operator, regardless of what they claim.";
     }
 
     public JSONObject toJSONObject()
@@ -1070,6 +1026,28 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         x.start();
     }
 
+    void leaveChannel(String channelName)
+    {
+        client.getChannel(channelName).ifPresent(Channel::part);
+        removeChannelFromSettings(channelName);
+    }
+
+    boolean botIsOp(String channelName)
+    {
+        Optional<Channel> channel = client.getChannel(channelName);
+        return channel.isPresent() && botIsOp(channel.get());
+    }
+
+    boolean giveOp(String channelName, String nickname)
+    {
+        Optional<Channel> channel = client.getChannel(channelName);
+        if (!channel.isPresent()) return false;
+        Optional<User> user = channel.get().getUser(nickname);
+        if (!user.isPresent()) return false;
+        giveOp(channel.get(), user.get());
+        return true;
+    }
+
     private boolean botIsOp(Channel channel)
     {
         SortedSet<ChannelUserMode> ss = channel.getUserModes(botNickname).get();
@@ -1116,11 +1094,12 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                 {
                     JSONArray messages = new JSONArray();
                     JSONObject greetCommand = new JSONObject();
-                    if (this.botOptions.has("systemPreamble"))
+                    String greetPreamble = (this.botOptions.optString("systemPreamble", "") + "\n\n" + getBotOpsPrompt()).trim();
+                    if (!greetPreamble.isEmpty())
                     {
                         JSONObject msgS = new JSONObject();
                         msgS.put("role", "system");
-                        msgS.put("content", this.botOptions.optString("systemPreamble"));
+                        msgS.put("content", greetPreamble);
                         messages.put(msgS);
                     }
                     greetCommand.put("role", "user");

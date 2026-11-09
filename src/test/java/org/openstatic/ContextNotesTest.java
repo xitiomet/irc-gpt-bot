@@ -188,4 +188,17 @@ class ContextNotesTest
         assertTrue(tools.getInstructions().contains("do not disclose private details"));
         assertTrue(tools.getToolDefinitions().toString().contains("nickname.charlie.txt"));
     }
+
+    @Test
+    void systemPromptNamesBotOperatorsOnlyWhenConfigured()
+    {
+        ChatLog log = new ChatLog(bot);
+        ChatMessage trigger = message("Charlie", "#lobby", "hello");
+        log.add(trigger);
+        assertFalse(log.getGPTMessages(trigger).getJSONObject(0).getString("content").contains("botOps"));
+        bot.getBotOptions().put("botOps", new JSONArray().put("xitiomet").put("Ops\nInjected").put(""));
+        String system = log.getGPTMessages(trigger).getJSONObject(0).getString("content");
+        assertTrue(system.startsWith("Original instructions"));
+        assertTrue(system.contains("Your bot operators (botOps) are: xitiomet, OpsInjected."));
+    }
 }

@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.googlecode.lanterna.TerminalSize;
-import com.googlecode.lanterna.TerminalPosition;
 import com.googlecode.lanterna.gui2.AsynchronousTextGUIThread;
 import com.googlecode.lanterna.gui2.Button;
 import com.googlecode.lanterna.gui2.Component;
@@ -117,12 +116,12 @@ class TerminalInterfaceTest
         view.update(snapshot);
         assertEquals("Original topic", view.topic.getText());
         assertTrue(view.roster.getText().contains("@Charlie"));
-        assertTrue(view.messages.getText().contains("Charlie: Hello"));
+        assertTrue(view.messages.getText().contains("<Charlie> Hello"));
         for (int i = 0; i < 25; i++)
             snapshot.getJSONArray("messages").put(new JSONObject().put("sender", "Charlie").put("body", "Line " + i).put("timestamp", i));
         view.update(snapshot);
-        assertTrue(view.messages.getRenderer().getViewTopLeft().getRow() > 0);
-        view.messages.getRenderer().setViewTopLeft(new TerminalPosition(0, 0));
+        assertTrue(view.messages.firstVisibleRow() > 0);
+        view.messages.scrollToTop();
         snapshot.put("topic", "New topic").put("rosterComplete", false);
         snapshot.getJSONArray("messages").put(new JSONObject().put("sender", "Bob").put("body", "New message").put("timestamp", 1));
         snapshot.put("roster", new JSONArray().put(new JSONObject().put("nickname", "Bob").put("prefix", "+")));
@@ -130,8 +129,8 @@ class TerminalInterfaceTest
         assertEquals("New topic", view.topic.getText());
         assertTrue(view.roster.getText().contains("+Bob"));
         assertFalse(view.roster.getText().contains("Charlie"));
-        assertTrue(view.messages.getText().contains("Bob: New message"));
-        assertEquals(0, view.messages.getRenderer().getViewTopLeft().getRow());
+        assertTrue(view.messages.getText().contains("<Bob> New message"));
+        assertEquals(0, view.messages.firstVisibleRow());
         assertTrue(view.status.getText().contains("loading"));
     }
 

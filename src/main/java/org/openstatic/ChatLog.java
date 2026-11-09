@@ -114,6 +114,9 @@ public class ChatLog
             if (!snapshot.isEmpty())
                 trigger = snapshot.get(snapshot.size() - 1);
         }
+        String botOpsPrompt = this.bot.getBotOpsPrompt();
+        if (!botOpsPrompt.isEmpty())
+            systemPreamble += "\n\n" + botOpsPrompt;
         systemPreamble += "\n\n" + ContextNotes.forMessage(this.bot, trigger);
         if (botOptions.has("definitionServer"))
         {

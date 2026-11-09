@@ -16,7 +16,7 @@ class ConfigDirectoryTest
     @TempDir Path temporary;
 
     @Test
-    void migratesLegacyFileAndPreservesOriginalAndLogLocation() throws Exception
+    void migratesLegacyFileAndDeletesOriginalAndKeepsLogLocation() throws Exception
     {
         Path legacy = temporary.resolve("old.json");
         JSONObject original = new JSONObject().put("openAiKey", "test-key").put("headless", true)
@@ -26,7 +26,7 @@ class ConfigDirectoryTest
         ConfigDirectory config = ConfigDirectory.open(legacy);
         JSONObject settings = config.load(legacy);
         assertEquals(temporary.resolve("old.d"), config.directory);
-        assertTrue(JsonFiles.read(legacy).similar(original));
+        assertFalse(Files.exists(legacy));
         JSONObject root = JsonFiles.read(config.directory.resolve("irc-gpt-bot.json"));
         assertFalse(root.has("bots"));
         assertFalse(root.has("headless"));

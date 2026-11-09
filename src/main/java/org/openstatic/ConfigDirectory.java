@@ -42,11 +42,13 @@ final class ConfigDirectory
     {
         Path root = directory.resolve("irc-gpt-bot.json");
         JSONObject settings;
+        Path migrated = null;
         if (Files.exists(root))
             settings = IRCGPTBotMain.migrateConfigIfNeeded(JsonFiles.read(root));
         else if (legacy != null && Files.exists(legacy))
         {
             settings = IRCGPTBotMain.migrateConfigIfNeeded(JsonFiles.read(legacy));
+            migrated = legacy;
             if (!settings.has("logPath"))
                 settings.put("logPath", legacy.toAbsolutePath().getParent().resolve("irc-gpt-bot-logs").toString());
         }
@@ -93,6 +95,8 @@ final class ConfigDirectory
                 Files.copy(root, root.resolveSibling("irc-gpt-bot.json.bak"));
         }
         save(settings);
+        if (migrated != null)
+            Files.deleteIfExists(migrated);
         return settings;
     }
 
