@@ -28,7 +28,6 @@ final class TerminalMasterConfig
             panel.addComponent(status);
             panel.addComponent(new Button("Replace OpenAI Key", main::editOpenAiKey));
             panel.addComponent(new Button("Web Interface Settings", () -> offInputThread(() -> editApiSettings(main))));
-            panel.addComponent(new Button("Open Web Interface", () -> offInputThread(() -> openWebInterface(main))));
             panel.addComponent(new Button("Pricing Status", () -> offInputThread(() -> {
                 try
                 {
@@ -111,12 +110,17 @@ final class TerminalMasterConfig
         main.gui.addWindowAndWait(window);
     }
 
-    private static void openWebInterface(IRCGPTBotMain main)
+    static void openWebInterface(IRCGPTBotMain main)
+    {
+        offInputThread(() -> launchWebInterface(main));
+    }
+
+    private static void launchWebInterface(IRCGPTBotMain main)
     {
         if (!main.isApiServerRunning())
         {
             MessageDialog.showMessageDialog(main.gui, "Open Web Interface",
-                "The API server is not running. Enable it in Web Interface Settings.", MessageDialogButton.OK);
+                "The API server is not running. Enable it in F10: Master Config > Web Interface Settings.", MessageDialogButton.OK);
             return;
         }
         try

@@ -35,6 +35,8 @@ Unicode true
 
   Var OpenAIKey
   Var OpenAIKeyField
+  Var ApiPassword
+  Var ApiPasswordField
 
 ;--------------------------------
 ;Interface Settings
@@ -49,6 +51,7 @@ Unicode true
   !insertmacro MUI_PAGE_COMPONENTS
   !insertmacro MUI_PAGE_DIRECTORY
   Page custom OpenAIKeyPage OpenAIKeyPageLeave
+  Page custom ApiPasswordPage ApiPasswordPageLeave
   !insertmacro MUI_PAGE_INSTFILES
   !define MUI_FINISHPAGE_RUN
   !define MUI_FINISHPAGE_RUN_TEXT "Launch IRC GPT Bot"
@@ -109,8 +112,67 @@ Function OpenAIKeyPageLeave
   ${NSD_GetText} $OpenAIKeyField $OpenAIKey
 FunctionEnd
 
+Function ApiPasswordPage
+  IfFileExists "$PROFILE\.irc-gpt-bot\*.*" existing_config
+  IfFileExists "$PROFILE\.irc-gpt-bot.json" existing_config
+
+  !insertmacro MUI_HEADER_TEXT "Web interface password" "Secure the API server before its first launch."
+  nsDialogs::Create 1018
+  Pop $0
+  ${If} $0 == error
+    MessageBox MB_ICONSTOP "Unable to display the web interface password page."
+    Abort
+  ${EndIf}
+  ${NSD_CreateLabel} 0 0 100% 36u "Choose a password for signing in to the web interface and API. The server will be enabled on port 6553. This is separate from your OpenAI API key. Pasting with Ctrl+V is supported."
+  Pop $0
+  ${NSD_CreateLabel} 0 44u 100% 12u "API password (required):"
+  Pop $0
+  ${NSD_CreatePassword} 0 60u 100% 14u "$ApiPassword"
+  Pop $ApiPasswordField
+  IntOp $0 ${NSIS_MAX_STRLEN} - 1
+  SendMessage $ApiPasswordField ${EM_LIMITTEXT} $0 0
+  nsDialogs::Show
+  Return
+
+existing_config:
+  StrCpy $ApiPassword ""
+  Abort
+FunctionEnd
+
+Function ApiPasswordPageLeave
+  ${NSD_GetText} $ApiPasswordField $ApiPassword
+  ${If} $ApiPassword == ""
+    MessageBox MB_ICONEXCLAMATION "Enter a password to secure the web interface and API."
+    Abort
+  ${EndIf}
+FunctionEnd
+
+;Write $5 as JSON string content to the open file in $0.
+Function WriteJsonStringContent
+  StrCpy $1 0
+  ${Do}
+    StrCpy $2 $5 1 $1
+    StrCmp $2 "" done
+    ;Escape UTF-16 code units as ASCII JSON, including quotes and control characters.
+    System::Call '*(&w1 r2) p.r3'
+    System::Call '*$3(&i2 .r4)'
+    System::Free $3
+    IntFmt $2 '\u%04x' $4
+    FileWrite $0 $2
+    IfErrors failed
+    IntOp $1 $1 + 1
+  ${Loop}
+done:
+  StrCpy $5 ""
+  ClearErrors
+  Return
+failed:
+  StrCpy $5 ""
+  SetErrors
+FunctionEnd
+
 Function SaveInitialConfiguration
-  StrCmp $OpenAIKey "" done
+  StrCmp $ApiPassword "" done
   ;Recheck after the page, so an existing configuration is never replaced.
   IfFileExists "$PROFILE\.irc-gpt-bot\*.*" done
   IfFileExists "$PROFILE\.irc-gpt-bot.json" done
@@ -119,28 +181,25 @@ Function SaveInitialConfiguration
   IfErrors failed
   FileOpen $0 "$PROFILE\.irc-gpt-bot\irc-gpt-bot.json" w
   IfErrors failed
-  FileWrite $0 '{$\r$\n  "openAiKey": "'
+  FileWrite $0 '{$\r$\n  "apiServer": true,$\r$\n  "apiPort": 6553,$\r$\n  "apiPassword": "'
   IfErrors write_failed
-  StrCpy $1 0
-  ${Do}
-    StrCpy $2 $OpenAIKey 1 $1
-    StrCmp $2 "" end_key
-    ;Escape UTF-16 code units as ASCII JSON, including quotes and control characters.
-    System::Call '*(&w1 r2) p.r3'
-    System::Call '*$3(&i2 .r4)'
-    System::Free $3
-    IntFmt $2 '\u%04x' $4
-    FileWrite $0 $2
-    IfErrors write_failed
-    IntOp $1 $1 + 1
-  ${Loop}
-end_key:
+  StrCpy $5 $ApiPassword
+  Call WriteJsonStringContent
+  IfErrors write_failed
+  StrCmp $OpenAIKey "" end_config
+  FileWrite $0 '",$\r$\n  "openAiKey": "'
+  IfErrors write_failed
+  StrCpy $5 $OpenAIKey
+  Call WriteJsonStringContent
+  IfErrors write_failed
+end_config:
   FileWrite $0 '"$\r$\n}$\r$\n'
   IfErrors write_failed
   FileClose $0
   IfErrors close_failed
 done:
   StrCpy $OpenAIKey ""
+  StrCpy $ApiPassword ""
   Return
 
 write_failed:
@@ -150,7 +209,8 @@ close_failed:
 failed:
   RMDir "$PROFILE\.irc-gpt-bot"
   StrCpy $OpenAIKey ""
-  MessageBox MB_ICONSTOP "Unable to save the OpenAI API key in $PROFILE\.irc-gpt-bot. Check folder permissions and available disk space, then retry."
+  StrCpy $ApiPassword ""
+  MessageBox MB_ICONSTOP "Unable to save configuration in $PROFILE\.irc-gpt-bot. Check folder permissions and available disk space, then retry."
   Abort
 FunctionEnd
 

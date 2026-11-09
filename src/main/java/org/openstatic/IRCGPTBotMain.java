@@ -39,6 +39,7 @@ import com.googlecode.lanterna.gui2.ActionListBox;
 import com.googlecode.lanterna.gui2.BasicWindow;
 import com.googlecode.lanterna.gui2.BorderLayout;
 import com.googlecode.lanterna.gui2.Borders;
+import com.googlecode.lanterna.gui2.Button;
 import com.googlecode.lanterna.gui2.DefaultWindowManager;
 import com.googlecode.lanterna.gui2.EmptySpace;
 import com.googlecode.lanterna.gui2.Label;
@@ -81,6 +82,8 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
     private Thread mainThread;
     private boolean keepRunning;
     private ActionListBox mainPanel;
+    private Panel mainWindowPanel;
+    private Button openWebInterfaceButton;
     private Label topLabel;
     private Label bottomLabel;
 
@@ -91,6 +94,10 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         this.bots = new HashMap<String, IRCGPTBot>();
         this.keepRunning = true;
         this.mainPanel = new ActionListBox();
+        this.mainWindowPanel = new Panel();
+        this.mainWindowPanel.addComponent(this.mainPanel.withBorder(Borders.singleLine("Loaded Bots")));
+        this.openWebInterfaceButton = new Button("Open Web Interface", () -> TerminalMasterConfig.openWebInterface(this));
+        this.setComponent(this.mainWindowPanel);
         this.listeners = new CopyOnWriteArraySet<IRCGPTBotListener>();
         mainPanel.setListItemRenderer(this.lir);
         IRCGPTBotMain.instance = this;
@@ -143,7 +150,6 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
 
                 this.gui.getBackgroundPane().setComponent(backgroundPanel);
 
-                this.setComponent(this.mainPanel.withBorder(Borders.singleLine("Loaded Bots")));
                 IRCGPTBotMain.this.gui.addWindow(IRCGPTBotMain.this);
 
                 IRCGPTBotMain.this.screen.startScreen();
@@ -153,6 +159,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         }
         this.apiServer = new APIWebServer();
         this.apiServer.setState(IRCGPTBotMain.settings.optBoolean("apiServer", false));
+        this.refreshWebInterfaceButton();
         this.addIRCGPTBotListener(this.apiServer);
     }
 
@@ -518,6 +525,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         this.apiServer = new APIWebServer();
         this.addIRCGPTBotListener(this.apiServer);
         this.apiServer.setState(enabled);
+        this.refreshWebInterfaceButton();
         if (enabled && !this.apiServer.isRunning())
             throw new IOException("Settings saved, but the API server could not listen on port " + port + ".");
     }
@@ -525,6 +533,23 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
     public boolean isApiServerRunning()
     {
         return this.apiServer != null && this.apiServer.isRunning();
+    }
+
+    private void refreshWebInterfaceButton()
+    {
+        Runnable refresh = () -> {
+            if (isApiServerRunning())
+            {
+                if (this.openWebInterfaceButton.getParent() == null)
+                    this.mainWindowPanel.addComponent(this.openWebInterfaceButton);
+            } else {
+                this.mainWindowPanel.removeComponent(this.openWebInterfaceButton);
+            }
+        };
+        if (this.gui == null)
+            refresh.run();
+        else
+            this.gui.getGUIThread().invokeLater(refresh);
     }
 
     public URI webInterfaceAddress()

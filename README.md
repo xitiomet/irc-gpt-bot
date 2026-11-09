@@ -373,9 +373,11 @@ Shared validation and configuration persistence are used by both interfaces.
 
 **F10: Master Config** offers masked OpenAI key replacement, web interface
 settings (enable, `apiPort`, and masked `apiPassword`; saving restarts the API
-server immediately), **Open Web Interface** (launches the system browser via
-`rundll32`, `open`, or `xdg-open` without loading AWT), current pricing
+server immediately), current pricing
 status, a fetch/preview/apply pricing update, and historical usage totals.
+**Open Web Interface** appears below **Loaded Bots** on the main screen only
+while the API server is running. It launches the system browser via `rundll32`,
+`open`, or `xdg-open` without loading AWT.
 Pricing previews use the same stale-file checks and expiration as the web editor;
 canceling a preview does not change pricing. The terminal header shows the total
 historical USD cost estimate (including removed bots), with an incomplete warning
