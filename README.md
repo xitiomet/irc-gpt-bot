@@ -496,7 +496,7 @@ NOTE: the first entry can be set to whatever path you like, but the websocket mu
 The web interface will provide you with the ability to launch and control bots.
 Each bot's **Channels** button opens a live list of its joined channels. Enter a channel name to join it, or click **Leave** beside a channel and confirm to leave it.
 Use **Edit Model/Prompt** to select a model from the dropdown above the system preamble, then **Save** to apply both settings together.
-![](https://openstatic.org/projects/ircgptbot/channels_view.png)
+![](https://openstatic.org/projects/ircgptbot/channels_view_v2.png)
 
 Native builds embed web assets using the allowlist in [resource-config.json](src/main/resources/META-INF/native-image/resource-config.json).
 When adding a web page, include its `irc-gpt-bot/` resource path in that file, then rebuild with `mvn package` and restart using the rebuilt executable. Otherwise the native executable will return 404 for the missing page.
