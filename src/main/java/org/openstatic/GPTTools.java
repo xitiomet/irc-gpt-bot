@@ -217,7 +217,7 @@ public class GPTTools
             append.put("type", "boolean");
             append.put("description", "true to add the content to the end of the note; false (default) to create or replace the whole note");
             props.put("append", append);
-            tools.put(functionTool(WRITE_NOTE, "Create, overwrite or append to a file in your notes directory. Use notes to remember things between conversations.", props, "name", "content"));
+            tools.put(functionTool(WRITE_NOTE, "Create, overwrite or append to a file in your notes directory. Notes are your long-term memory: you forget messages beyond your short context window, so save anything worth remembering about people, topics or your own tasks as soon as you learn it, without being asked.", props, "name", "content"));
         }
         if (isToolEnabled(DELETE_NOTE))
         {

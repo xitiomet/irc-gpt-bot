@@ -296,7 +296,10 @@ filename creates a separate note and leaves the original; delete the old note if
 you want to remove its trigger.
 
 The AI is taught these conventions and can create prefixed memories with
-`write_note` when enabled. Keep memories concise: automatic context allows up to
+`write_note` when enabled. When `write_note` is enabled, the system prompt also
+tells the AI that it only sees the last `contextDepth` messages and should save
+facts about people, recurring topics and its own tasks on its own, without being
+asked and without announcing it. Keep memories concise: automatic context allows up to
 64 matching files and 65,536 content characters per request. Files over the
 64 KB write limit, unreadable files and symbolic links are not loaded; errors
 are recorded in the bot's `exceptions.log` and unavailable notes are identified

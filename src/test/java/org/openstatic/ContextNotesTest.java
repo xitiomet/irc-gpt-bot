@@ -201,4 +201,20 @@ class ContextNotesTest
         assertTrue(system.startsWith("Original instructions"));
         assertTrue(system.contains("Your bot operators (botOps) are: xitiomet, OpsInjected."));
     }
+
+    @Test
+    void memoryGuidanceNamesContextDepthOnlyWhenWriteNoteIsEnabled()
+    {
+        ChatLog log = new ChatLog(bot);
+        ChatMessage trigger = message("Charlie", "#lobby", "hello");
+        log.add(trigger);
+        assertFalse(log.getGPTMessages(trigger).getJSONObject(0).getString("content").contains("long-term memory"));
+        bot.getBotOptions().put("gptTools", new JSONArray().put(GPTTools.WRITE_NOTE)).put("contextDepth", 7);
+        String system = log.getGPTMessages(trigger).getJSONObject(0).getString("content");
+        assertTrue(system.startsWith("Original instructions"));
+        assertTrue(system.contains("you only see the last 7 messages"), system);
+        assertTrue(system.contains("use write_note proactively, without being asked"), system);
+        bot.getBotOptions().remove("gptTools");
+        assertTrue(log.getGPTMessages(trigger).getJSONObject(0).getString("content").contains("long-term memory"));
+    }
 }
