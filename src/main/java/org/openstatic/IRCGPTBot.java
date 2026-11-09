@@ -84,8 +84,7 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
     private String botNickname;
     private String botId;
     private HashMap<String, ChatLog> logs;
-    private final Map<String, JSONArray> channelMessages = new HashMap<>();
-    private long channelMessageSequence;
+    private final ChannelHistory channelHistory = new ChannelHistory();
     private ArrayList<String> privateChats;
     // Channel (lowercase) -> nickname the bot most recently replied to, for conversation continuation
     private final ConcurrentHashMap<String, String> lastReplyTo = new ConcurrentHashMap<String, String>();
@@ -924,14 +923,9 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
 
     synchronized void recordChannelMessage(String channel, String sender, String body)
     {
-        if (channel == null || channel.isEmpty() || "#&+!".indexOf(channel.charAt(0)) < 0)
+        if (channel == null || !channel.matches("[#&+!][^\\s,\\x00\\x07:]+"))
             return;
-        String key = channel.toLowerCase(java.util.Locale.ROOT);
-        JSONArray messages = channelMessages.computeIfAbsent(key, ignored -> new JSONArray());
-        messages.put(new JSONObject().put("id", ++channelMessageSequence).put("sender", sender)
-            .put("body", body).put("timestamp", System.currentTimeMillis()));
-        if (messages.length() > 255)
-            messages.remove(0);
+        channelHistory.record(this, channel, sender, body);
     }
 
     public JSONObject getChannelView(String name)
@@ -949,14 +943,13 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
                 .map(modes -> String.valueOf(modes.first().getNickPrefix())).orElse("");
             roster.put(new JSONObject().put("nickname", nick).put("prefix", prefix));
         }
-        JSONArray messages;
+        JSONObject history;
         synchronized (this)
         {
-            JSONArray history = channelMessages.get(channel.getName().toLowerCase(java.util.Locale.ROOT));
-            messages = history == null ? new JSONArray() : new JSONArray(history.toString());
+            history = channelHistory.snapshot(this, channel.getName());
         }
-        return new JSONObject().put("name", channel.getName()).put("topic", channel.getTopic().getValue().orElse(""))
-            .put("roster", roster).put("rosterComplete", channel.hasCompleteUserData()).put("messages", messages);
+        return history.put("name", channel.getName()).put("topic", channel.getTopic().getValue().orElse(""))
+            .put("roster", roster).put("rosterComplete", channel.hasCompleteUserData());
     }
 
     // Fired after IRC registration completes, on initial connect and every reconnect

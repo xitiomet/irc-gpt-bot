@@ -110,19 +110,35 @@ class ChannelViewTest
     }
 
     @Test
-    void keepsAtMost255MessagesAndIncludesLocallySentMessages()
+    void keepsTodaysMessagesBeyondAiContextAndIncludesLocallySentMessages()
     {
         for (int i = 0; i < 260; i++)
             bot.recordChannelMessage("#lobby", "sender", "message " + i);
         JSONArray messages = bot.getChannelView("#lobby").getJSONArray("messages");
-        assertEquals(255, messages.length());
-        assertEquals("message 5", messages.getJSONObject(0).getString("body"));
-        assertTrue(messages.getJSONObject(0).getLong("id") < messages.getJSONObject(254).getLong("id"));
+        assertEquals(260, messages.length());
+        assertEquals("message 0", messages.getJSONObject(0).getString("body"));
+        assertTrue(messages.getJSONObject(0).getLong("id") < messages.getJSONObject(259).getLong("id"));
         bot.sendPrivateMessage("#lobby", "Local reply");
         bot.sendNotice("#lobby", "Local notice");
         messages = bot.getChannelView("#lobby").getJSONArray("messages");
-        assertEquals("Local reply", messages.getJSONObject(253).getString("body"));
-        assertEquals("(notice) Local notice", messages.getJSONObject(254).getString("body"));
+        assertEquals("Local reply", messages.getJSONObject(260).getString("body"));
+        assertEquals("(notice) Local notice", messages.getJSONObject(261).getString("body"));
+    }
+
+    @Test
+    void channelViewRestoresHistoryAfterBotRestart() throws Exception
+    {
+        bot.recordChannelMessage("#lobby", "Charlie", "Before restart\nmultiline");
+        Client originalClient = bot.getClient();
+        bot = new IRCGPTBot("view-bot", new JSONObject().put("enabled", false).put("nickname", "view-bot"));
+        field("client", originalClient);
+        field("statusLine", "CONNECTED");
+        bot.recordChannelMessage("#lobby", "Bob", "After restart");
+        JSONObject snapshot = bot.getChannelView("#lobby");
+        assertEquals(2, snapshot.getJSONArray("messages").length());
+        assertEquals("Before restart\nmultiline", snapshot.getJSONArray("messages").getJSONObject(0).getString("body"));
+        assertEquals("After restart", snapshot.getJSONArray("messages").getJSONObject(1).getString("body"));
+        assertEquals(snapshot.toString(), bot.getChannelView("#lobby").toString());
     }
 
     @Test

@@ -58,6 +58,8 @@ final class TerminalChannelView
         }
         roster.setText(names.toString());
         status.setText(snapshot.getBoolean("rosterComplete") ? "Live updates (every 2 seconds)" : "Live updates; roster still loading");
+        if (snapshot.optBoolean("historyTruncated")) status.setText(status.getText() + "; earlier history omitted");
+        if (snapshot.has("historyError")) status.setText(snapshot.getString("historyError"));
         loaded = true;
     }
 

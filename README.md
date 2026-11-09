@@ -436,9 +436,17 @@ bots. Unpriced/untracked usage or persistence errors mark the estimate incomplet
 In **Channels**, click a joined channel to open its topic, running message
 transcript, and roster (including operator/voice prefixes). The view refreshes
 every two seconds while open, reflecting messages, topic changes, joins, parts,
-and nickname/mode changes. It shows up to 255 messages observed since bot startup,
-including ignored users and locally sent bot replies, without mixing private
-conversations into channel history. Reading older messages does not force-scroll
+and nickname/mode changes. Opening a channel restores today's transcript from
+its log, including after a bot restart. "Today" uses the server's local timezone;
+older days are excluded. Both web and Lanterna views include ignored users and
+locally sent bot replies without mixing private conversations into channel
+history. This display history is separate from the AI's short context window.
+Up to 10,000 messages are retained per channel per day; restoration reads at most
+the latest 16 MiB of the channel log. Truncation and read failures are shown in
+the view, and read failures are logged. Existing text logs are supported; new
+`(CHANNEL HISTORY)` JSON records preserve multiline messages and distinguish
+display history from diagnostic/echo log entries, preventing duplicate replay.
+Reading older messages does not force-scroll
 to the bottom; **Back to channels** returns to join/leave controls. Disconnected
 or departed channels show an explicit unavailable status.
 

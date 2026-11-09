@@ -86,6 +86,10 @@
             }
             document.getElementById('rosterTitle').textContent = 'Roster (' + channel.roster.length + ')';
             document.getElementById('viewStatus').textContent = channel.rosterComplete ? 'Live updates every 2 seconds.' : 'Loading roster from IRC...';
+            if (channel.historyTruncated)
+                document.getElementById('viewStatus').textContent += ' Earlier history omitted (showing up to 10,000 messages from the latest 16 MiB of today\'s log).';
+            if (channel.historyError)
+                document.getElementById('viewStatus').textContent += ' ' + channel.historyError;
         }
 
         function refreshChannelView()
