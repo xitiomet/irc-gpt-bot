@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,6 +21,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
@@ -70,7 +72,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
     public static File logsFolder;
 
     private APIWebServer apiServer;
-    public HashSet<IRCGPTBotListener> listeners;
+    public Set<IRCGPTBotListener> listeners;
     private HashMap<String, IRCGPTBot> bots;
 	private Screen screen;
     private Terminal terminal;
@@ -89,7 +91,7 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         this.bots = new HashMap<String, IRCGPTBot>();
         this.keepRunning = true;
         this.mainPanel = new ActionListBox();
-        this.listeners = new HashSet<IRCGPTBotListener>();
+        this.listeners = new CopyOnWriteArraySet<IRCGPTBotListener>();
         mainPanel.setListItemRenderer(this.lir);
         IRCGPTBotMain.instance = this;
         String defaultLogPath = new File(settingsFile.getParentFile(), "irc-gpt-bot-logs").toString();
@@ -495,6 +497,39 @@ public class IRCGPTBotMain extends BasicWindow implements Runnable
         JSONObject next = new JSONObject(settings.toString()).put("openAiKey", key.trim());
         configDirectory.saveMaster(next);
         settings.put("openAiKey", key.trim());
+    }
+
+    public synchronized void updateApiSettings(boolean enabled, int port, String password) throws IOException
+    {
+        if (port < 1 || port > 65535)
+            throw new IllegalArgumentException("API port must be between 1 and 65535.");
+        if (password != null && (password.contains("\n") || password.contains("\r")))
+            throw new IllegalArgumentException("API password cannot contain line breaks.");
+        String nextPassword = password == null || password.isEmpty() ? settings.optString("apiPassword", "") : password;
+        if (enabled && nextPassword.isEmpty())
+            throw new IllegalArgumentException("Set an API password before enabling the web interface.");
+        JSONObject next = new JSONObject(settings.toString()).put("apiServer", enabled).put("apiPort", port)
+            .put("apiPassword", nextPassword);
+        configDirectory.saveMaster(next);
+        settings.put("apiServer", enabled).put("apiPort", port).put("apiPassword", nextPassword);
+        // The listening port is fixed when the Jetty server is constructed, so replace the server.
+        this.apiServer.setState(false);
+        this.removeIRCGPTBotListener(this.apiServer);
+        this.apiServer = new APIWebServer();
+        this.addIRCGPTBotListener(this.apiServer);
+        this.apiServer.setState(enabled);
+        if (enabled && !this.apiServer.isRunning())
+            throw new IOException("Settings saved, but the API server could not listen on port " + port + ".");
+    }
+
+    public boolean isApiServerRunning()
+    {
+        return this.apiServer != null && this.apiServer.isRunning();
+    }
+
+    public URI webInterfaceAddress()
+    {
+        return URI.create("http://127.0.0.1:" + settings.optInt("apiPort", 6553) + "/");
     }
 
     public synchronized void updateBotOptions(IRCGPTBot bot, JSONObject update) throws IOException

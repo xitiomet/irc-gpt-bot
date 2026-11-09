@@ -245,6 +245,11 @@ public class APIWebServer implements IRCGPTBotListener
         this.sessionProps.put(session, sessionProperties);
     }
 
+    public boolean isRunning()
+    {
+        return httpServer.isStarted();
+    }
+
     public void setState(boolean b) {
         if (b) {
             try {

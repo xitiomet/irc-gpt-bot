@@ -371,7 +371,10 @@ the saved password; explicit clear checkboxes remove it. **Reconnect after savin
 applies connection changes immediately; otherwise they wait for the next reconnect.
 Shared validation and configuration persistence are used by both interfaces.
 
-**F10: Master Config** offers masked OpenAI key replacement, current pricing
+**F10: Master Config** offers masked OpenAI key replacement, web interface
+settings (enable, `apiPort`, and masked `apiPassword`; saving restarts the API
+server immediately), **Open Web Interface** (launches the system browser via
+`rundll32`, `open`, or `xdg-open` without loading AWT), current pricing
 status, a fetch/preview/apply pricing update, and historical usage totals.
 Pricing previews use the same stale-file checks and expiration as the web editor;
 canceling a preview does not change pricing. The terminal header shows the total
