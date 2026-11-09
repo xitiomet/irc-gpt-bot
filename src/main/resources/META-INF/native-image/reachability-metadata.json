@@ -3233,6 +3233,12 @@
           ]
         },
         {
+          "name": "onChannelNamesUpdated",
+          "parameterTypes": [
+            "org.kitteh.irc.client.library.event.channel.ChannelNamesUpdatedEvent"
+          ]
+        },
+        {
           "name": "onChannelMessage",
           "parameterTypes": [
             "org.kitteh.irc.client.library.event.channel.ChannelMessageEvent"
@@ -3266,6 +3272,12 @@
           "name": "onNegotiationCompleteEvent",
           "parameterTypes": [
             "org.kitteh.irc.client.library.event.client.ClientNegotiationCompleteEvent"
+          ]
+        },
+        {
+          "name": "onNumeric",
+          "parameterTypes": [
+            "org.kitteh.irc.client.library.event.client.ClientReceiveNumericEvent"
           ]
         },
         {
