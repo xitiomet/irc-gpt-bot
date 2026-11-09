@@ -38,6 +38,7 @@ class IrcOperatorSelfOpTest
     private Channel channel;
     private final List<String> sent = new ArrayList<>();
     private final AtomicBoolean channelOp = new AtomicBoolean();
+    private final AtomicBoolean completeUserData = new AtomicBoolean(true);
 
     @BeforeEach
     void setup() throws Exception
@@ -55,7 +56,7 @@ class IrcOperatorSelfOpTest
                 switch (method.getName())
                 {
                     case "getName": return "#lobby";
-                    case "hasCompleteUserData": return true;
+                    case "hasCompleteUserData": return completeUserData.get();
                     case "getUserModes":
                         SortedSet<ChannelUserMode> modes = new TreeSet<>((a, b) -> 0);
                         if (channelOp.get()) modes.add(op);
@@ -146,5 +147,16 @@ class IrcOperatorSelfOpTest
         bot.onNumeric(numeric(381, "oper-bot_", "You are now an IRC Operator"));
         namesUpdated();
         assertEquals(Collections.emptyList(), sent);
+    }
+
+    @Test
+    void operConfirmedAfterJoiningStillClaimsOpBeforeUserDataIsComplete()
+    {
+        // Order seen on ngIRCd: JOIN + NAMES complete, then 381 arrives while WHO data is still loading
+        completeUserData.set(false);
+        namesUpdated();
+        assertEquals(Collections.emptyList(), sent);
+        bot.onNumeric(numeric(381, "oper-bot_", "You are now an IRC Operator"));
+        assertEquals(List.of("MODE #lobby +o oper-bot_"), sent);
     }
 }

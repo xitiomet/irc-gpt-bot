@@ -957,11 +957,9 @@ public class IRCGPTBot extends BasicWindow implements Runnable, Consumer<Excepti
         {
             case 381: // RPL_YOUREOPER
                 this.ircOperator = true;
+                // Channels joined before OPER succeeded have already had their NAMES update, so claim them now
                 for (Channel channel : this.client.getChannels())
-                {
-                    if (channel.hasCompleteUserData())
-                        claimChannelOperator(channel);
-                }
+                    claimChannelOperator(channel);
                 break;
             case 482: // ERR_CHANOPRIVSNEEDED
                 if (params.size() > 1)
